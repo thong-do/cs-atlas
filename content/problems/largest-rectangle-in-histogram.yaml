@@ -1,0 +1,9 @@
+slug: largest-rectangle-in-histogram
+title: "Largest Rectangle in Histogram"
+leetcodeId: 84
+url: https://leetcode.com/problems/largest-rectangle-in-histogram/
+difficulty: hard
+patterns: [stack]
+ladderOrder: 7
+recognitionPrompt: "Find the area of the largest rectangle that fits under a bar chart."
+hint: "Increasing stack; when a bar is popped you know how far it extends on both sides."

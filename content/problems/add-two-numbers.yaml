@@ -1,0 +1,9 @@
+slug: add-two-numbers
+title: "Add Two Numbers"
+leetcodeId: 2
+url: https://leetcode.com/problems/add-two-numbers/
+difficulty: medium
+patterns: [linked-list]
+ladderOrder: 7
+recognitionPrompt: "Two numbers are stored as reversed digit lists; return their sum as a list."
+hint: "Add digit by digit with a carry, like on paper."

@@ -1,0 +1,9 @@
+slug: minimum-window-substring
+title: "Minimum Window Substring"
+leetcodeId: 76
+url: https://leetcode.com/problems/minimum-window-substring/
+difficulty: hard
+patterns: [sliding-window]
+ladderOrder: 5
+recognitionPrompt: "Find the smallest contiguous block of s that contains every character of t, with multiplicity."
+hint: "Expand until valid, then shrink from the left while still valid; track have vs need."

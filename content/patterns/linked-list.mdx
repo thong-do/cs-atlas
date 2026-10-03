@@ -1,0 +1,79 @@
+---
+slug: linked-list
+title: Linked List
+prerequisites: [two-pointers]
+confusedWith: [two-pointers, arrays-hashing]
+triggers: ["input is a ListNode", "reverse or reorder in place", "detect a cycle", "k-th node from the end"]
+complexity: "O(n) time, usually O(1) extra space"
+summary: "Rewire next pointers carefully; dummy heads and fast/slow pointers solve most problems."
+---
+
+## Intuition
+
+You can't index into a linked list — you walk it and rewire `next` pointers. Almost every problem combines a few moves: a **dummy head**, **reverse**, **fast/slow pointers** (middle, cycle, k-th from end) and **merge**.
+
+Picture train cars: to reorder them you uncouple and recouple, always holding on to the rest of the train so it doesn't roll away.
+
+## Visual
+
+```text
+Reverse 1 → 2 → 3
+prev=None  curr=1   1 → None
+prev=1     curr=2   2 → 1 → None
+prev=2     curr=3   3 → 2 → 1 → None
+prev=3     curr=None            → return prev
+```
+
+## Template
+
+```python
+class ListNode:
+    def __init__(self, val: int = 0, next: "ListNode | None" = None):
+        self.val, self.next = val, next
+
+
+def reverse(head: ListNode | None) -> ListNode | None:
+    prev, curr = None, head
+    while curr:
+        curr.next, prev, curr = prev, curr, curr.next
+    return prev
+
+
+def middle(head: ListNode | None) -> ListNode | None:
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    return slow
+
+
+def merge(a: ListNode | None, b: ListNode | None) -> ListNode | None:
+    dummy = tail = ListNode()
+    while a and b:
+        if a.val <= b.val:
+            tail.next, a = a, a.next
+        else:
+            tail.next, b = b, b.next
+        tail = tail.next
+    tail.next = a or b
+    return dummy.next
+```
+
+## Complexity
+
+- Time: **O(n)** for one or two passes.
+- Space: **O(1)** extra for iterative solutions; recursion costs **O(n)** stack.
+
+## Pitfalls
+
+- Losing the rest of the list — save `curr.next` before rewiring.
+- Null checks: loop on `fast and fast.next`, not just `fast.next`.
+- Reorder List: cut the first half (`mid.next = None`) or you create a cycle.
+- Returning `dummy` instead of `dummy.next`.
+
+## Tips & tricks
+
+- Draw three nodes on paper and trace your pointer updates before coding.
+- Use a dummy node whenever the head itself might change.
+- n-th from end: move `fast` n steps first, then move both until `fast` reaches the end.
+- Floyd's cycle start: after slow and fast meet, reset one to head and step both by 1.
+- LRU Cache = hash map (key → node) + doubly linked list (recency order).

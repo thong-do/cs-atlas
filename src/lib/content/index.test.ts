@@ -22,3 +22,33 @@ describe('content accessors', () => {
     expect(getProblem('missing')).toBeUndefined()
   })
 })
+
+describe('content inventory', () => {
+  const { patterns, problems } = getCatalog()
+  const FULL = ['arrays-hashing', 'two-pointers', 'sliding-window', 'stack', 'binary-search', 'linked-list']
+  const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
+
+  it('has 18 patterns, exactly the 6 MVP ones with full theory', () => {
+    expect(patterns).toHaveLength(18)
+    expect(patterns.filter((p) => !p.stub).map((p) => p.slug).sort()).toEqual([...FULL].sort())
+  })
+
+  it('has 50 problems and every ladder is numbered 1..n', () => {
+    expect(problems).toHaveLength(50)
+    for (const p of patterns) {
+      const orders = problems.filter((x) => x.patterns[0] === p.slug).map((x) => x.ladderOrder).sort((a, b) => a - b)
+      expect(orders, p.slug).toEqual(orders.map((_, i) => i + 1))
+    }
+  })
+
+  it('gives every full pattern at least 5 ladder problems and the standard sections in order', () => {
+    for (const slug of FULL) {
+      expect(problems.filter((x) => x.patterns[0] === slug).length, slug).toBeGreaterThanOrEqual(5)
+      expect(getPatternDoc(slug)!.toc.map((t) => t.title), slug).toEqual(SECTIONS)
+    }
+  })
+
+  it('uses https leetcode problem URLs', () => {
+    for (const p of problems) expect(p.url, p.slug).toMatch(/^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/)
+  })
+})

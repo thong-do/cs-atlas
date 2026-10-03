@@ -1,0 +1,9 @@
+slug: container-with-most-water
+title: "Container With Most Water"
+leetcodeId: 11
+url: https://leetcode.com/problems/container-with-most-water/
+difficulty: medium
+patterns: [two-pointers]
+ladderOrder: 7
+recognitionPrompt: "Choose two vertical lines that, together with the x-axis, hold the most water."
+hint: "The area is limited by the shorter line — which end can possibly improve?"

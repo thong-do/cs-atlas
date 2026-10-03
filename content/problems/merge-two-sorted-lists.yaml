@@ -1,0 +1,9 @@
+slug: merge-two-sorted-lists
+title: "Merge Two Sorted Lists"
+leetcodeId: 21
+url: https://leetcode.com/problems/merge-two-sorted-lists/
+difficulty: easy
+patterns: [linked-list]
+ladderOrder: 2
+recognitionPrompt: "Merge two sorted linked lists into one sorted list."
+hint: "A dummy head node removes the empty-list special cases."

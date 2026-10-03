@@ -2,15 +2,23 @@
 slug: two-pointers
 title: Two Pointers
 prerequisites: [arrays-hashing]
-confusedWith: [arrays-hashing]
-triggers: ["sorted array + find pair/triplet", "palindrome check"]
+confusedWith: [sliding-window, binary-search]
+triggers: ["sorted array + find a pair or triplet", "palindrome check", "in-place partition or compaction", "compare from both ends"]
 complexity: "Usually O(n) time, O(1) space"
-summary: "Move two indices toward/along each other to avoid nested loops."
+summary: "Move two indices toward or along each other to avoid nested loops."
 ---
 
 ## Intuition
 
-Seed body; replaced in Task 19.
+A brute-force pair search checks every (i, j) — O(n²). Two pointers cut that to O(n) by using **structure** in the input (usually sortedness) to rule out many pairs with a single comparison.
+
+Picture two people walking toward each other along a shelf of items sorted by price, looking for two that cost exactly your budget. If the pair is too expensive, the person at the expensive end steps left — nothing to their right can work with anything the other person could still pick. Too cheap? The cheap end steps right. Every step throws away a whole row of candidate pairs.
+
+Three common shapes:
+
+- **Opposite ends** (`left = 0`, `right = n - 1`, move inward): pair sums, palindromes, container with most water.
+- **Same direction, slow/fast** (`slow` marks where to write, `fast` scans): remove duplicates, move zeroes.
+- **Fix one, two-pointer the rest**: 3Sum — sort, loop `i`, then opposite ends on `i + 1 .. n - 1`.
 
 ## Visual
 
@@ -19,15 +27,46 @@ Seed body; replaced in Task 19.
 ## Template
 
 ```python
-def two_sum_sorted(nums: list[int], target: int) -> tuple[int, int] | None:
+def pair_with_sum(nums: list[int], target: int) -> tuple[int, int] | None:
+    """nums must be sorted ascending."""
     left, right = 0, len(nums) - 1
     while left < right:
         total = nums[left] + nums[right]
         if total == target:
             return left, right
         if total < target:
-            left += 1
+            left += 1      # need a bigger sum
         else:
-            right -= 1
+            right -= 1     # need a smaller sum
     return None
+
+
+def compact(nums: list[int]) -> int:
+    """Same direction: keep one copy of each value of a sorted list, in place."""
+    slow = 0
+    for fast in range(len(nums)):
+        if fast == 0 or nums[fast] != nums[fast - 1]:
+            nums[slow] = nums[fast]
+            slow += 1
+    return slow
 ```
+
+## Complexity
+
+- Time: **O(n)** — each pointer moves at most n times. Add O(n log n) if you must sort first.
+- Space: **O(1)** extra.
+- Fix-one-plus-two-pointers (3Sum): **O(n²)** — still far better than O(n³).
+
+## Pitfalls
+
+- Using two pointers on **unsorted** input for a sum problem. The "move the smaller side" logic is only valid when sorted; unsorted + indices needed → hash map.
+- `while left <= right` when the two pointers must be different elements — use `<`.
+- Forgetting to **skip duplicates** in 3Sum after a match, producing repeated triplets.
+- In-place problems: overwriting a value you still need. Write at `slow`, read at `fast`.
+
+## Tips & tricks
+
+- Ask: "If I move this pointer, which candidates do I rule out — and why can none of them be the answer?" If you can't say, this may be the wrong tool.
+- Palindromes: skip non-alphanumerics with inner `while` loops, compare lowercase.
+- Container With Most Water: always move the **shorter** line — the area is capped by it, so keeping it can never help.
+- If both pointers only ever move right and the region between them must satisfy a condition, you're really in **Sliding Window**.

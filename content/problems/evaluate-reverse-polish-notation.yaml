@@ -1,0 +1,9 @@
+slug: evaluate-reverse-polish-notation
+title: "Evaluate Reverse Polish Notation"
+leetcodeId: 150
+url: https://leetcode.com/problems/evaluate-reverse-polish-notation/
+difficulty: medium
+patterns: [stack]
+ladderOrder: 3
+recognitionPrompt: "Evaluate an arithmetic expression written in postfix order."
+hint: "Push numbers; an operator pops two operands and pushes the result."

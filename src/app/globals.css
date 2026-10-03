@@ -129,3 +129,13 @@
     @apply font-sans;
   }
 }
+html.dark .shiki,
+html.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+.shiki {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}

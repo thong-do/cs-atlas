@@ -1,9 +1,0 @@
-slug: alien-dictionary
-title: "Alien Dictionary"
-leetcodeId: 269
-url: https://leetcode.com/problems/alien-dictionary/
-difficulty: hard
-patterns: [advanced-graphs, graphs]
-ladderOrder: 7
-recognitionPrompt: "Given words sorted in an unknown alphabet, deduce a possible ordering of its letters."
-hint: "Adjacent words reveal pairwise letter orderings; then order the letters consistently."

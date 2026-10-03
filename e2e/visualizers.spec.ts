@@ -29,7 +29,7 @@ for (const { slug, final } of PAGES) {
         await next.click()
         await measure()
       }
-      if (slug === 'heap') expect([...heights]).toHaveLength(1)
+      expect([...heights]).toHaveLength(1)
       await expect(page.locator('figure [aria-live="polite"]')).toHaveText(final)
       const m = (await page.getByText(/Step \d+ \/ \d+/).textContent())!.match(/Step (\d+) \/ (\d+)/)!
       expect(m[1]).toBe(m[2])

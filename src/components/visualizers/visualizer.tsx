@@ -56,7 +56,7 @@ function HouseRobberVisualizer() {
 
 function SubsetsVisualizer() {
   const steps = useMemo(() => subsetsTreeSteps([1, 2, 3]), [])
-  return <StepPlayer steps={steps} title="Subsets of [1, 2, 3] — the decision tree" render={(s) => <TreeView step={s} />} />
+  return <StepPlayer steps={steps} title="Subsets of [1, 2, 3] — the decision tree" render={(s) => <TreeView step={s} finalResults={steps.at(-1)!.results} />} />
 }
 
 export function Visualizer({ kind }: { kind: VisualizerKind }) {

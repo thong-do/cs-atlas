@@ -6,6 +6,8 @@ const LEVEL_H = 56
 const NODE_W = 54
 const NODE_H = 24
 
+const fmtResults = (r: number[][]) => r.map((x) => `[${x.join(',')}]`).join(' ')
+
 /** Leaf-slot layout: leaves take consecutive x slots, parents sit centred over their children. */
 function layout(nodes: TreeStep['nodes']) {
   const kids = new Map<number, number[]>()
@@ -21,7 +23,7 @@ function layout(nodes: TreeStep['nodes']) {
   return { xs, width: Math.max(slot, 1) * SLOT }
 }
 
-export function TreeView({ step }: { step: TreeStep }) {
+export function TreeView({ step, finalResults }: { step: TreeStep; finalResults: number[][] }) {
   const { nodes, visited, current, path, results, action } = step
   const { xs, width } = layout(nodes)
   const depth = Math.max(...nodes.map((n) => n.depth))
@@ -67,17 +69,24 @@ export function TreeView({ step }: { step: TreeStep }) {
           )
         })}
       </svg>
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex min-h-9 flex-wrap items-center gap-1">
         <span className="mr-1 text-xs text-muted-foreground">Path</span>
         {path.length === 0 && <span className="text-sm text-muted-foreground">(empty)</span>}
         {path.map((v, i) => (
           <div key={i} className="flex size-9 items-center justify-center rounded-md border border-primary bg-primary/15 font-mono">{v}</div>
         ))}
       </div>
-      <p className="text-sm">
-        <span className="text-xs text-muted-foreground">Results </span>
-        <span className="font-mono">{results.map((r) => `[${r.join(',')}]`).join(' ')}</span>
-      </p>
+      {/* Reserve the height of the final list: it is stacked invisibly under the live one. */}
+      <div className="grid text-sm">
+        <p aria-hidden className="invisible col-start-1 row-start-1">
+          <span className="text-xs">Results </span>
+          <span className="font-mono">{fmtResults(finalResults)}</span>
+        </p>
+        <p className="col-start-1 row-start-1">
+          <span className="text-xs text-muted-foreground">Results </span>
+          <span className="font-mono">{fmtResults(results)}</span>
+        </p>
+      </div>
     </div>
   )
 }

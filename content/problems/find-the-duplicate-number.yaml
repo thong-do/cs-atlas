@@ -1,0 +1,9 @@
+slug: find-the-duplicate-number
+title: "Find the Duplicate Number"
+leetcodeId: 287
+url: https://leetcode.com/problems/find-the-duplicate-number/
+difficulty: medium
+patterns: [linked-list, two-pointers]
+ladderOrder: 8
+recognitionPrompt: "n + 1 numbers in the range 1..n with one repeated; find it in O(1) space without changing the array."
+hint: "Treat each value as a next pointer — the duplicate is where a cycle begins."

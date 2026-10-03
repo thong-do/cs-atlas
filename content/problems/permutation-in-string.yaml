@@ -1,0 +1,9 @@
+slug: permutation-in-string
+title: "Permutation in String"
+leetcodeId: 567
+url: https://leetcode.com/problems/permutation-in-string/
+difficulty: medium
+patterns: [sliding-window]
+ladderOrder: 4
+recognitionPrompt: "Does one string contain some rearrangement of another as a contiguous block?"
+hint: "Use a fixed-size window and compare 26-letter counts as it slides."

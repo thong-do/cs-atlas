@@ -1,0 +1,9 @@
+slug: trapping-rain-water
+title: "Trapping Rain Water"
+leetcodeId: 42
+url: https://leetcode.com/problems/trapping-rain-water/
+difficulty: hard
+patterns: [two-pointers, stack]
+ladderOrder: 8
+recognitionPrompt: "Given bar heights, compute how much rain water is trapped between them."
+hint: "Water at i = min(max left, max right) − height[i]; move the side with the smaller max."

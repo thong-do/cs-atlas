@@ -1,0 +1,9 @@
+slug: remove-duplicates-from-sorted-array
+title: "Remove Duplicates from Sorted Array"
+leetcodeId: 26
+url: https://leetcode.com/problems/remove-duplicates-from-sorted-array/
+difficulty: easy
+patterns: [two-pointers]
+ladderOrder: 2
+recognitionPrompt: "In place, keep one copy of each value in a sorted array and return the new length."
+hint: "A slow index marks where the next unique value should be written."

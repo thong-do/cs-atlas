@@ -1,0 +1,9 @@
+slug: find-minimum-in-rotated-sorted-array
+title: "Find Minimum in Rotated Sorted Array"
+leetcodeId: 153
+url: https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/
+difficulty: medium
+patterns: [binary-search]
+ladderOrder: 5
+recognitionPrompt: "Find the smallest value in a sorted array that was rotated at an unknown pivot."
+hint: "Compare the middle with the right end to see which half is sorted."

@@ -1,0 +1,78 @@
+---
+slug: stack
+title: Stack
+prerequisites: [arrays-hashing]
+confusedWith: [two-pointers, heap]
+triggers: ["matching pairs / nesting (brackets)", "the most recent unresolved item matters", "next greater or smaller element", "evaluate an expression"]
+complexity: "O(n) time, O(n) space"
+summary: "Last in, first out: remember what you can't resolve yet."
+---
+
+## Intuition
+
+A stack holds things you've seen but can't resolve yet — and the **most recent** one is always resolved first. A closing bracket must match the latest unmatched opener. In a "next greater element" problem, each number waits on the stack until a bigger number arrives to answer it.
+
+Think of a browser's Back button: the page you visited last is the first one you return to.
+
+Two shapes:
+
+- **Plain stack**: brackets, undo, Reverse Polish Notation.
+- **Monotonic stack**: keep values increasing or decreasing; popping an element means you just found its answer.
+
+## Visual
+
+```text
+Daily Temperatures: temps = [73, 74, 75, 71, 69, 72, 76]
+i=0  73                          stack [73]
+i=1  74  pop 73 → wait 1         stack [74]
+i=2  75  pop 74 → wait 1         stack [75]
+i=3  71                          stack [75, 71]
+i=4  69                          stack [75, 71, 69]
+i=5  72  pop 69 → 1, pop 71 → 2  stack [75, 72]
+i=6  76  pop 72 → 1, pop 75 → 4  stack [76]
+```
+
+## Template
+
+```python
+def is_valid(s: str) -> bool:
+    pairs = {")": "(", "]": "[", "}": "{"}
+    stack: list[str] = []
+    for ch in s:
+        if ch in pairs:
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+        else:
+            stack.append(ch)
+    return not stack
+
+
+def days_until_warmer(temps: list[int]) -> list[int]:
+    answer = [0] * len(temps)
+    stack: list[int] = []                      # indices; temps decreasing
+    for i, t in enumerate(temps):
+        while stack and temps[stack[-1]] < t:
+            j = stack.pop()
+            answer[j] = i - j
+        stack.append(i)
+    return answer
+```
+
+## Complexity
+
+- Time: **O(n)** — every element is pushed once and popped at most once, even with the inner `while`.
+- Space: **O(n)** in the worst case.
+
+## Pitfalls
+
+- Popping from an empty stack — check `stack` first.
+- Storing values when you need **indices** (for distances or widths).
+- Forgetting elements still on the stack at the end — they have no answer (default value).
+- Generate Parentheses looks like a stack problem but is really backtracking with two counters.
+
+## Tips & tricks
+
+- Decreasing stack → **next greater**; increasing stack → **next smaller**.
+- Largest Rectangle in Histogram: append a height-0 sentinel to flush the stack at the end.
+- Min Stack: push `(value, min_so_far)` pairs.
+- Car Fleet: sort by position (closest to target first) and compare arrival times.

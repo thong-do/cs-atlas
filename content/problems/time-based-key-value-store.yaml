@@ -1,0 +1,9 @@
+slug: time-based-key-value-store
+title: "Time Based Key-Value Store"
+leetcodeId: 981
+url: https://leetcode.com/problems/time-based-key-value-store/
+difficulty: medium
+patterns: [binary-search, arrays-hashing]
+ladderOrder: 7
+recognitionPrompt: "Store values with timestamps and return the latest value at or before a given time."
+hint: "Timestamps per key arrive in increasing order — search for the last one ≤ t."

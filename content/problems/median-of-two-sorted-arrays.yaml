@@ -1,0 +1,9 @@
+slug: median-of-two-sorted-arrays
+title: "Median of Two Sorted Arrays"
+leetcodeId: 4
+url: https://leetcode.com/problems/median-of-two-sorted-arrays/
+difficulty: hard
+patterns: [binary-search]
+ladderOrder: 8
+recognitionPrompt: "Find the median of two sorted arrays in O(log(m + n))."
+hint: "Binary search a cut in the smaller array so both left halves are ≤ both right halves."

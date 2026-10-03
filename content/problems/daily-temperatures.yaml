@@ -1,0 +1,9 @@
+slug: daily-temperatures
+title: "Daily Temperatures"
+leetcodeId: 739
+url: https://leetcode.com/problems/daily-temperatures/
+difficulty: medium
+patterns: [stack]
+ladderOrder: 5
+recognitionPrompt: "For each day, how many days until a warmer temperature?"
+hint: "Keep a decreasing stack of indices still waiting for a warmer day."

@@ -1,0 +1,9 @@
+slug: binary-search
+title: "Binary Search"
+leetcodeId: 704
+url: https://leetcode.com/problems/binary-search/
+difficulty: easy
+patterns: [binary-search]
+ladderOrder: 1
+recognitionPrompt: "Find a target’s index in a sorted array in O(log n)."
+hint: "Compare with the middle element and discard half."

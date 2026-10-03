@@ -1,0 +1,9 @@
+slug: search-a-2d-matrix
+title: "Search a 2D Matrix"
+leetcodeId: 74
+url: https://leetcode.com/problems/search-a-2d-matrix/
+difficulty: medium
+patterns: [binary-search]
+ladderOrder: 3
+recognitionPrompt: "Search a matrix whose rows are sorted and each row starts after the previous row ends."
+hint: "Treat it as one sorted array: index i ↔ (i // cols, i % cols)."

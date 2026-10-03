@@ -1,0 +1,67 @@
+---
+slug: sliding-window
+title: Sliding Window
+prerequisites: [two-pointers]
+confusedWith: [two-pointers, arrays-hashing]
+triggers: ["contiguous subarray or substring", "longest / shortest window satisfying a condition", "fixed window size k", "non-negative numbers or character counts"]
+complexity: "O(n) time; O(1), O(alphabet) or O(k) space"
+summary: "Grow a window on the right, shrink it from the left, never move backwards."
+---
+
+## Intuition
+
+For "best contiguous block" questions, brute force restarts from every starting index. A sliding window keeps its work: when the right edge moves in, update the state with one element; when the left edge moves, remove one. Every index enters and leaves once, so the whole scan is O(n).
+
+Picture a caterpillar crawling along the array: the head stretches forward, and when the body breaks a rule, the tail catches up.
+
+Two kinds:
+
+- **Variable size**: grow until the window breaks the rule, then shrink until it's valid again.
+- **Fixed size k**: add the new element, drop the one that falls off.
+
+## Visual
+
+<Visualizer kind="sliding-window" />
+
+## Template
+
+```python
+def longest_window(s: str) -> int:
+    count: dict[str, int] = {}
+    left = best = 0
+    for right, ch in enumerate(s):
+        count[ch] = count.get(ch, 0) + 1       # 1. take s[right] in
+        while count[ch] > 1:                    # 2. shrink while invalid (rule is problem-specific)
+            count[s[left]] -= 1
+            left += 1
+        best = max(best, right - left + 1)      # 3. window is valid: record it
+    return best
+
+
+def max_sum_of_size_k(nums: list[int], k: int) -> int:
+    window = sum(nums[:k])
+    best = window
+    for right in range(k, len(nums)):
+        window += nums[right] - nums[right - k]  # add the new, drop the oldest
+        best = max(best, window)
+    return best
+```
+
+## Complexity
+
+- Time: **O(n)** — each index is added once and removed once.
+- Space: **O(1)** for sums, **O(alphabet)** for character counts, **O(k)** for a deque.
+
+## Pitfalls
+
+- Negative numbers break "shrink while the sum is too big" — use prefix sums + hash map instead.
+- Recording the answer before the window is valid again.
+- Recomputing the window's state from scratch on each step (that's O(n·k)).
+- Off-by-one: the window length is `right - left + 1`.
+
+## Tips & tricks
+
+- **Longest** window: shrink while invalid, record after the loop body.
+- **Shortest** window: shrink while still valid, record inside the shrink loop.
+- Character Replacement: a window is valid while `length - max_freq <= k`; `max_freq` never needs to decrease.
+- Sliding Window Maximum: keep a **monotonic deque** of indices with decreasing values.

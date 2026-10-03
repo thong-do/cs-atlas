@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -26,11 +26,14 @@ export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; o
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Initialise only when the dialog opens, so a stored-note update never overwrites what is being typed.
+  const wasOpen = useRef(false)
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpen.current) {
       setInsight(note?.insight ?? '')
       setError(null)
     }
+    wasOpen.current = open
   }, [open, note?.insight])
 
   async function submit(e: FormEvent) {

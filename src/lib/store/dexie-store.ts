@@ -47,7 +47,7 @@ export class DexieStore implements Store {
       const previous = (await db.cards.get(slug))?.card ?? newCard(now)
       const card = scheduleReview(previous, rating, now, settings.desiredRetention)
       await db.cards.put({ slug, card, due: card.due, updatedAt: at })
-      await db.reviewLogs.add({ id: crypto.randomUUID(), slug, rating, reviewedAt: at })
+      await db.reviewLogs.add({ id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'solve' })
       await this.bump(now, 'solves')
     })
   }
@@ -67,7 +67,7 @@ export class DexieStore implements Store {
       const at = now.toISOString()
       const card = scheduleReview(existing.card, rating, now, settings.desiredRetention)
       await db.cards.put({ slug, card, due: card.due, updatedAt: at })
-      await db.reviewLogs.add({ id: crypto.randomUUID(), slug, rating, reviewedAt: at })
+      await db.reviewLogs.add({ id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'review' })
       const progress = await db.progress.get(slug)
       if (progress) await db.progress.put({ ...progress, needsResolve: rating === 'again', updatedAt: at })
       await this.bump(now, 'reviews')

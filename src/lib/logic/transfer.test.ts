@@ -26,6 +26,7 @@ describe('parseExport', () => {
     const file = buildExport(sample(), new Date(t(2)))
     const parsed = parseExport(JSON.stringify(file))
     expect(parsed).toEqual({ ok: true, file })
+    expect(file.data.meta.lastBackupAt).toBe(t(2))
   })
 
   it('rejects invalid JSON', () => {
@@ -45,10 +46,62 @@ describe('parseExport', () => {
     })
   })
 
+  it('gives a newer-version message even when the shape changed', () => {
+    const r = parseExport(JSON.stringify({ app: 'leethub', schemaVersion: 99, data: { totally: 'different' } }))
+    expect(r).toEqual({ ok: false, error: 'This backup was made by a newer version of LeetHub. Update the app first.' })
+  })
+
+  it('normalizes offset timestamps to canonical UTC strings', () => {
+    const file = buildExport(sample(), new Date(t(2)))
+    file.data.progress[0].updatedAt = '2026-10-03T09:00:00+07:00'
+    file.data.cards[0].due = '2026-10-03T09:00:00+07:00'
+    file.data.cards[0].card.due = '2026-10-03T09:00:00+07:00'
+    file.exportedAt = '2026-10-03T09:00:00+07:00'
+    const r = parseExport(JSON.stringify(file))
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.file.data.progress[0].updatedAt).toBe('2026-10-03T02:00:00.000Z')
+      expect(r.file.data.cards[0].due).toBe('2026-10-03T02:00:00.000Z')
+      expect(r.file.data.cards[0].card.due).toBe('2026-10-03T02:00:00.000Z')
+      expect(r.file.exportedAt).toBe('2026-10-03T02:00:00.000Z')
+    }
+  })
+
+  it('rejects unparseable dates', () => {
+    const file = buildExport(sample(), new Date(t(2)))
+    file.data.notes[0].updatedAt = 'not a date'
+    expect(parseExport(JSON.stringify(file)).ok).toBe(false)
+  })
+
+  it('rejects cards with non-finite numbers', () => {
+    for (const bad of ['x', null, undefined]) {
+      const file = buildExport(sample(), new Date(t(2)))
+      ;(file.data.cards[0].card as Record<string, unknown>).stability = bad
+      expect(parseExport(JSON.stringify(file)).ok).toBe(false)
+    }
+  })
+
+  it('accepts an optional review log kind', () => {
+    const file = buildExport(sample(), new Date(t(2)))
+    file.data.reviewLogs[0].kind = 'solve'
+    const r = parseExport(JSON.stringify(file))
+    expect(r.ok && r.file.data.reviewLogs[0].kind).toBe('solve')
+  })
+
   it('rejects out-of-range settings', () => {
     const file = buildExport(sample(), new Date(t(2)))
     file.data.meta.settings.desiredRetention = 1.5
     expect(parseExport(JSON.stringify(file)).ok).toBe(false)
+  })
+})
+
+describe('buildExport', () => {
+  it('stamps meta.lastBackupAt with the export time', () => {
+    const data = sample()
+    data.meta.lastBackupAt = t(1)
+    const file = buildExport(data, new Date(t(2)))
+    expect(file.data.meta.lastBackupAt).toBe(t(2))
+    expect(data.meta.lastBackupAt).toBe(t(1))
   })
 })
 

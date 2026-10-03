@@ -8,7 +8,11 @@ export interface ExportFile {
   data: UserData
 }
 
-const iso = z.string().refine((s) => !Number.isNaN(Date.parse(s)), 'invalid date')
+/** Any parseable date, normalized to the canonical UTC ISO string (dueCards compares due strings lexically). */
+const iso = z.string()
+  .refine((s) => !Number.isNaN(Date.parse(s)), 'invalid date')
+  .transform((s) => new Date(s).toISOString())
+const finite = z.number().refine(Number.isFinite, 'must be a finite number')
 const count = z.number().int().min(0)
 
 const exportFileSchema = z.object({
@@ -30,12 +34,16 @@ const exportFileSchema = z.object({
     })),
     cards: z.array(z.object({
       slug: z.string(),
-      card: z.object({ due: iso, last_review: iso.optional(), state: z.number().int() }).passthrough(),
+      card: z.object({
+        due: iso, last_review: iso.optional(), state: z.number().int(),
+        stability: finite, difficulty: finite, reps: finite, lapses: finite,
+      }).passthrough(),
       due: iso,
       updatedAt: iso,
     })),
     reviewLogs: z.array(z.object({
       id: z.string(), slug: z.string(), rating: z.enum(['again', 'hard', 'good', 'easy']), reviewedAt: iso,
+      kind: z.enum(['solve', 'review']).optional(),
     })),
     trainAttempts: z.array(z.object({
       id: z.string(), problemSlug: z.string(), correctPattern: z.string(), chosenPattern: z.string(),
@@ -55,8 +63,12 @@ const exportFileSchema = z.object({
   }),
 })
 
+const versionHeaderSchema = z.object({ app: z.literal('leethub'), schemaVersion: z.number().int().positive() })
+
 export function buildExport(data: UserData, now: Date): ExportFile {
-  return { app: 'leethub', schemaVersion: SCHEMA_VERSION, exportedAt: now.toISOString(), data }
+  const exportedAt = now.toISOString()
+  // A fresh backup counts as the latest backup, so restoring it doesn't trigger the reminder.
+  return { app: 'leethub', schemaVersion: SCHEMA_VERSION, exportedAt, data: { ...data, meta: { ...data.meta, lastBackupAt: exportedAt } } }
 }
 
 export function parseExport(text: string): { ok: true; file: ExportFile } | { ok: false; error: string } {
@@ -66,13 +78,14 @@ export function parseExport(text: string): { ok: true; file: ExportFile } | { ok
   } catch {
     return { ok: false, error: 'This file is not valid JSON.' }
   }
+  const header = versionHeaderSchema.safeParse(json)
+  if (header.success && header.data.schemaVersion > SCHEMA_VERSION) {
+    return { ok: false, error: 'This backup was made by a newer version of LeetHub. Update the app first.' }
+  }
   const result = exportFileSchema.safeParse(json)
   if (!result.success) {
     const issue = result.error.issues[0]
     return { ok: false, error: `Not a LeetHub backup: ${issue.path.join('.') || 'file'} — ${issue.message}` }
-  }
-  if (result.data.schemaVersion > SCHEMA_VERSION) {
-    return { ok: false, error: 'This backup was made by a newer version of LeetHub. Update the app first.' }
   }
   return { ok: true, file: result.data as ExportFile }
 }

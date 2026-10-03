@@ -2,9 +2,14 @@
 
 import { formatDateTime } from '@/lib/format'
 import { useLive } from '@/lib/store/context'
-import type { ReviewRating } from '@/lib/types'
+import type { ReviewLog, ReviewRating } from '@/lib/types'
 
 const LABEL: Record<ReviewRating, string> = { again: 'Again', hard: 'Hard', good: 'Good', easy: 'Easy' }
+
+const SOLVE_LABEL: Record<ReviewRating, string> = {
+  good: 'Solved (alone)', hard: 'Solved (with a hint)', again: 'Solved (after the solution)', easy: 'Solved (alone)',
+}
+const labelFor = (log: ReviewLog) => (log.kind === 'solve' ? SOLVE_LABEL[log.rating] : LABEL[log.rating])
 
 export function ReviewHistory({ slug }: { slug: string }) {
   const logs = useLive((s) => s.listReviewLogs(slug), [slug]) ?? []
@@ -17,7 +22,7 @@ export function ReviewHistory({ slug }: { slug: string }) {
       )}
       <ol className="space-y-1 text-sm text-muted-foreground">
         {[...logs].reverse().map((log) => (
-          <li key={log.id}>{formatDateTime(log.reviewedAt)} — {LABEL[log.rating]}</li>
+          <li key={log.id}>{formatDateTime(log.reviewedAt)} — {labelFor(log)}</li>
         ))}
       </ol>
     </section>

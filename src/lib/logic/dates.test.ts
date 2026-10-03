@@ -80,4 +80,9 @@ describe('needsBackupReminder', () => {
     expect(needsBackupReminder('2026-10-05T00:00:00Z', true, now)).toBe(true)
     expect(needsBackupReminder('2026-10-07T00:00:00Z', true, now)).toBe(false)
   })
+
+  it('treats an unparseable timestamp as never backed up', () => {
+    expect(needsBackupReminder('garbage', true, now)).toBe(true)
+    expect(needsBackupReminder('garbage', false, now)).toBe(false)
+  })
 })

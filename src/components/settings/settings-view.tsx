@@ -3,6 +3,7 @@
 import { useTheme } from 'next-themes'
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
+import { IMPORT_FINISHED_EVENT, IMPORT_STARTED_EVENT } from '@/components/mastery-celebration'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -63,7 +64,8 @@ export function SettingsView() {
 
   async function doImport(mode: 'merge' | 'replace') {
     if (!pending) return
-    if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone.')) return
+    if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.')) return
+    window.dispatchEvent(new Event(IMPORT_STARTED_EVENT))
     try {
       await store.importAll(pending, mode)
       if (mode === 'replace') setTheme(pending.data.meta.settings.theme)
@@ -71,6 +73,8 @@ export function SettingsView() {
       toast.success(mode === 'replace' ? 'Backup restored' : 'Backup merged')
     } catch (err) {
       toast.error(message(err))
+    } finally {
+      window.dispatchEvent(new Event(IMPORT_FINISHED_EVENT))
     }
   }
 
@@ -121,6 +125,7 @@ export function SettingsView() {
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => doImport('merge')}>Merge into my data</Button>
               <Button variant="destructive" onClick={() => doImport('replace')}>Replace all data</Button>
+              <Button variant="outline" onClick={exportBackup}>Export current data first</Button>
             </div>
           </div>
         )}

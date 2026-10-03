@@ -20,6 +20,7 @@ describe('DexieStore.markSolved', () => {
     const card = await store.getCard('two-sum')
     expect(Date.parse(card!.due)).toBeGreaterThan(day(3).getTime())
     expect(await store.listReviewLogs('two-sum')).toHaveLength(1)
+    expect((await store.listReviewLogs('two-sum'))[0].kind).toBe('solve')
     expect(await store.listActivity()).toEqual([{ date: localDate(day(3)), reviews: 0, solves: 1, trains: 0 }])
   })
 
@@ -39,7 +40,9 @@ describe('DexieStore.markSolved', () => {
     const progress = await store.getProgress('two-sum')
     expect(progress).toMatchObject({ solveRating: 'alone', needsResolve: false, firstSolvedAt: day(3).toISOString() })
     expect((await store.getCard('two-sum'))!.card.reps).toBe(repsBefore + 1)
-    expect(await store.listReviewLogs('two-sum')).toHaveLength(3)
+    const logs = await store.listReviewLogs('two-sum')
+    expect(logs).toHaveLength(3)
+    expect(logs.map((l) => l.kind)).toEqual(['solve', 'review', 'solve'])
   })
 })
 
@@ -50,6 +53,7 @@ describe('DexieStore reviews', () => {
     expect(await store.dueCards(day(10))).toHaveLength(1)
     await store.recordReview('a', 'good', day(10))
     expect(await store.dueCards(day(10))).toHaveLength(0)
+    expect((await store.listReviewLogs('a')).at(-1)?.kind).toBe('review')
     expect((await store.listActivity()).find((a) => a.date === localDate(day(10)))?.reviews).toBe(1)
   })
 
@@ -79,6 +83,13 @@ describe('DexieStore notes, training and meta', () => {
 })
 
 describe('DexieStore export/import', () => {
+  it('stamps the export time as lastBackupAt inside the file', async () => {
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    await store.markBackedUp(day(1))
+    const file = await store.exportAll(day(4))
+    expect(file.data.meta.lastBackupAt).toBe(day(4).toISOString())
+  })
+
   it('replace-imports into an empty store and reviews still work afterwards', async () => {
     await store.markSolved('a', 'alone', 'insight a', day(3))
     const file = JSON.parse(JSON.stringify(await store.exportAll(day(4))))

@@ -4,6 +4,9 @@ export interface VisStep {
   highlight?: [number, number]
   caption: string
   done?: boolean
+  cols?: number
+  visited?: number[]
+  frontier?: number[]
 }
 
 export function twoPointersSteps(nums: number[], target: number): VisStep[] {
@@ -80,5 +83,52 @@ export function binarySearchSteps(nums: number[], target: number): VisStep[] {
     else hi = mid - 1
   }
   steps.push({ cells: nums, markers: {}, caption: `The range is empty — ${target} is not in the array.`, done: true })
+  return steps
+}
+
+export function gridBfsSteps(grid: string[][], start: [number, number]): VisStep[] {
+  const rows = grid.length
+  const cols = rows ? grid[0].length : 0
+  const cells = grid.flat()
+  const [sr, sc] = start
+  if (grid[sr]?.[sc] !== '1') {
+    return [{ cells, cols, markers: {}, visited: [], frontier: [], caption: 'Island explored: 0 cells', done: true }]
+  }
+  const steps: VisStep[] = []
+  const seen = new Set<number>([sr * cols + sc])
+  const queue: number[] = [sr * cols + sc]
+  steps.push({
+    cells,
+    cols,
+    markers: {},
+    visited: [...seen],
+    frontier: [...queue],
+    caption: `Enqueue the start (${sr},${sc}). Cells are marked visited when enqueued, so none is added twice.`,
+  })
+  while (queue.length > 0) {
+    const idx = queue.shift()!
+    const r = Math.floor(idx / cols)
+    const c = idx % cols
+    const added: string[] = []
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nr = r + dr
+      const nc = c + dc
+      if (nr < 0 || nc < 0 || nr >= rows || nc >= cols || grid[nr][nc] !== '1') continue
+      const n = nr * cols + nc
+      if (seen.has(n)) continue
+      seen.add(n)
+      queue.push(n)
+      added.push(`(${nr},${nc})`)
+    }
+    steps.push({
+      cells,
+      cols,
+      markers: { cur: idx },
+      visited: [...seen],
+      frontier: [...queue],
+      caption: `Visit (${r},${c}): ${added.length ? `enqueue ${added.join(', ')}` : 'nothing new to enqueue'} — queue size ${queue.length}`,
+    })
+  }
+  steps.push({ cells, cols, markers: {}, visited: [...seen], frontier: [], caption: `Island explored: ${seen.size} cells`, done: true })
   return steps
 }

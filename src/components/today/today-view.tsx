@@ -6,6 +6,7 @@ import { DifficultyBadge } from '@/components/difficulty-badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useCatalog } from '@/lib/content/catalog-context'
+import { useNow } from '@/lib/hooks/use-now'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { currentStreak } from '@/lib/logic/dates'
 import { recommendedPattern } from '@/lib/logic/recommend'
@@ -26,15 +27,16 @@ export function TodayView() {
   const store = useStore()
   const { order, patterns, problems, patternBySlug, problemBySlug } = useCatalog()
   const masteries = useMasteries()
+  const now = useNow()
   const data = useLive(async (s) => {
-    const due = await s.dueCards(new Date())
+    const due = await s.dueCards(now)
     const notes = await Promise.all(due.map((c) => s.getNote(c.slug)))
     return {
       due: due.map((card, i) => ({ card, note: notes[i] })),
       progress: await s.listProgress(),
       activity: await s.listActivity(),
     }
-  })
+  }, [now])
 
   if (!data || !masteries) return <p className="text-muted-foreground">Loading…</p>
 

@@ -142,4 +142,8 @@ describe('NullStore', () => {
     expect(await n.hasData()).toBe(false)
     await expect(n.markSolved('a', 'alone', 'x', day(3))).rejects.toBeInstanceOf(StoreUnavailableError)
   })
+
+  it('refuses to export so an empty backup is never produced', async () => {
+    await expect(new NullStore().exportAll(day(3))).rejects.toBeInstanceOf(StoreUnavailableError)
+  })
 })

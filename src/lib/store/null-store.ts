@@ -1,4 +1,4 @@
-import { buildExport, type ExportFile } from '@/lib/logic/transfer'
+import type { ExportFile } from '@/lib/logic/transfer'
 import { DEFAULT_SETTINGS, SCHEMA_VERSION, type Meta, type UserData } from '@/lib/types'
 import type { Store } from './types'
 
@@ -28,7 +28,7 @@ export class NullStore implements Store {
   getUserData = async (): Promise<UserData> => ({
     progress: [], notes: [], cards: [], reviewLogs: [], trainAttempts: [], activity: [], meta: meta(),
   })
-  exportAll = async (now: Date): Promise<ExportFile> => buildExport(await this.getUserData(), now)
+  exportAll = async (_now: Date): Promise<ExportFile> => { throw new StoreUnavailableError() }
   markSolved = fail
   saveNote = fail
   recordReview = fail

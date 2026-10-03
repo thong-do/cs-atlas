@@ -10,13 +10,15 @@ import { downloadText } from '@/lib/download'
 import { formatDateTime } from '@/lib/format'
 import { localDate } from '@/lib/logic/dates'
 import { parseExport, type ExportFile } from '@/lib/logic/transfer'
-import { useLive, useStore } from '@/lib/store/context'
+import { useLive, useStore, useStoreStatus } from '@/lib/store/context'
 import type { Settings } from '@/lib/types'
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 export function SettingsView() {
   const store = useStore()
+  const status = useStoreStatus()
+  const canTransfer = status.ready && status.available
   const { setTheme } = useTheme()
   const meta = useLive((s) => s.getMeta())
   const [retention, setRetention] = useState('')
@@ -101,10 +103,13 @@ export function SettingsView() {
           Your progress lives only in this browser. Export a backup regularly
           {meta?.lastBackupAt ? ` — last backup ${formatDateTime(meta.lastBackupAt)}.` : ' — you haven’t backed up yet.'}
         </p>
-        <Button onClick={exportBackup}>Export backup</Button>
+        {!canTransfer && status.ready && (
+          <p role="status" className="text-sm text-destructive">Storage is unavailable in this browser, so backups can’t be exported or imported.</p>
+        )}
+        <Button onClick={exportBackup} disabled={!canTransfer}>Export backup</Button>
         <div className="space-y-1 pt-2">
           <Label htmlFor="import-file">Import backup</Label>
-          <Input id="import-file" type="file" accept="application/json,.json" onChange={onFile} />
+          <Input id="import-file" type="file" accept="application/json,.json" onChange={onFile} disabled={!canTransfer} />
           {importError && <p role="alert" className="text-sm text-destructive">{importError}</p>}
         </div>
         {pending && (

@@ -47,6 +47,7 @@ const roadmap = defineCollection({
 
 export default defineConfig({
   root: 'content',
+  strict: true, // schema violations (missing/unknown fields) fail the build
   output: {
     data: '.velite',
     assets: 'public/static',

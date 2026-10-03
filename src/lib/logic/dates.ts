@@ -77,5 +77,7 @@ export const BACKUP_INTERVAL_DAYS = 14
 export function needsBackupReminder(lastBackupAt: string | undefined, hasData: boolean, now: Date): boolean {
   if (!hasData) return false
   if (!lastBackupAt) return true
-  return now.getTime() - Date.parse(lastBackupAt) > BACKUP_INTERVAL_DAYS * 86_400_000
+  const last = Date.parse(lastBackupAt)
+  if (Number.isNaN(last)) return true
+  return now.getTime() - last > BACKUP_INTERVAL_DAYS * 86_400_000
 }

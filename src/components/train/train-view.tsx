@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
@@ -15,11 +16,23 @@ type Phase =
   | { kind: 'question'; questions: TrainQuestion[]; index: number; chosen: string | null; correctCount: number; missed: string[] }
   | { kind: 'done'; total: number; correctCount: number; missed: string[] }
 
+/** Reads `?quick=1` in its own Suspense boundary so the rest of the page still prerenders. */
+function QuickParam({ onQuick }: { onQuick: () => void }) {
+  const quick = useSearchParams().get('quick') === '1'
+  useEffect(() => {
+    if (quick) onQuick()
+  }, [quick, onQuick])
+  return null
+}
+
 export function TrainView() {
   const store = useStore()
   const { patterns, problems, patternBySlug } = useCatalog()
   const attempts = useLive((s) => s.listTrainAttempts())
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' })
+  const [quick, setQuick] = useState(false)
+  const autoStarted = useRef(false)
+  const markQuick = useCallback(() => setQuick(true), [])
   const title = (slug: string) => patternBySlug.get(slug)?.title ?? slug
 
   function start(count: number) {
@@ -30,6 +43,14 @@ export function TrainView() {
     }
     setPhase({ kind: 'question', questions, index: 0, chosen: null, correctCount: 0, missed: [] })
   }
+
+  // `/train/?quick=1` starts a 5-question round as soon as attempt history has loaded.
+  useEffect(() => {
+    if (!quick || autoStarted.current || attempts === undefined || phase.kind !== 'setup') return
+    autoStarted.current = true
+    start(5)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quick, attempts, phase.kind])
 
   function answer(option: string) {
     if (phase.kind !== 'question' || phase.chosen) return
@@ -58,6 +79,7 @@ export function TrainView() {
   if (phase.kind === 'setup') {
     return (
       <div className="space-y-4">
+        <Suspense><QuickParam onQuick={markQuick} /></Suspense>
         <h1 className="text-2xl font-bold">Pattern Recognition Trainer</h1>
         <p className="text-muted-foreground">
           Read a problem, pick the pattern. This is the skill interviews actually test — and it feeds your mastery score.
@@ -126,7 +148,7 @@ export function TrainView() {
       {phase.chosen && (
         <div className="space-y-3" aria-live="polite">
           <p className={phase.chosen === q.correct ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}>
-            {phase.chosen === q.correct ? 'Correct!' : `Not quite — it's ${title(q.correct)}.`}{' '}
+            {phase.chosen === q.correct ? 'Correct!' : `Not quite — it’s ${title(q.correct)}.`}{' '}
             <Link href={`/patterns/${q.correct}/`} className="underline">Review {title(q.correct)}</Link>
           </p>
           <Button onClick={next}>{isLast ? 'See results' : 'Next question'}</Button>

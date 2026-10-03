@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { localDate } from '@/lib/logic/dates'
 import { LeetHubDB } from './db'
 import { DexieStore } from './dexie-store'
+import type { UserData } from '@/lib/types'
+import { parseExport } from '@/lib/logic/transfer'
 import { NullStore, StoreUnavailableError } from './null-store'
 
 const day = (d: number, h = 9) => new Date(2026, 9, d, h)
@@ -20,6 +22,7 @@ describe('DexieStore.markSolved', () => {
     const card = await store.getCard('two-sum')
     expect(Date.parse(card!.due)).toBeGreaterThan(day(3).getTime())
     expect(await store.listReviewLogs('two-sum')).toHaveLength(1)
+    expect((await store.listReviewLogs('two-sum'))[0].kind).toBe('solve')
     expect(await store.listActivity()).toEqual([{ date: localDate(day(3)), reviews: 0, solves: 1, trains: 0 }])
   })
 
@@ -39,7 +42,9 @@ describe('DexieStore.markSolved', () => {
     const progress = await store.getProgress('two-sum')
     expect(progress).toMatchObject({ solveRating: 'alone', needsResolve: false, firstSolvedAt: day(3).toISOString() })
     expect((await store.getCard('two-sum'))!.card.reps).toBe(repsBefore + 1)
-    expect(await store.listReviewLogs('two-sum')).toHaveLength(3)
+    const logs = await store.listReviewLogs('two-sum')
+    expect(logs).toHaveLength(3)
+    expect(logs.map((l) => l.kind)).toEqual(['solve', 'review', 'solve'])
   })
 })
 
@@ -50,6 +55,7 @@ describe('DexieStore reviews', () => {
     expect(await store.dueCards(day(10))).toHaveLength(1)
     await store.recordReview('a', 'good', day(10))
     expect(await store.dueCards(day(10))).toHaveLength(0)
+    expect((await store.listReviewLogs('a')).at(-1)?.kind).toBe('review')
     expect((await store.listActivity()).find((a) => a.date === localDate(day(10)))?.reviews).toBe(1)
   })
 
@@ -78,7 +84,42 @@ describe('DexieStore notes, training and meta', () => {
   })
 })
 
+describe('DexieStore import generation', () => {
+  it('importAll changes importId in both modes and ignores one in the file', async () => {
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    expect((await store.getMasteryInputs()).importId).toBeUndefined()
+    const file = JSON.parse(JSON.stringify(await store.exportAll(day(4))))
+    file.data.meta.importId = 'smuggled'
+    const parsed = parseExport(JSON.stringify(file))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.file.data.meta).not.toHaveProperty('importId')
+
+    await store.importAll(parsed.file, 'replace')
+    const first = (await store.getMasteryInputs()).importId
+    expect(first).toBeTruthy()
+    expect(first).not.toBe('smuggled')
+    expect((await store.getMeta())).toHaveProperty('importId', first)
+    await store.importAll(parsed.file, 'merge')
+    const second = (await store.getMasteryInputs()).importId
+    expect(second).toBeTruthy()
+    expect(second).not.toBe(first)
+    expect((await store.getMasteryInputs()).progress).toHaveLength(1)
+  })
+
+  it('NullStore returns empty mastery inputs', async () => {
+    expect(await new NullStore().getMasteryInputs()).toEqual({ progress: [], cards: [], attempts: [] })
+  })
+})
+
 describe('DexieStore export/import', () => {
+  it('stamps the export time as lastBackupAt inside the file', async () => {
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    await store.markBackedUp(day(1))
+    const file = await store.exportAll(day(4))
+    expect(file.data.meta.lastBackupAt).toBe(day(4).toISOString())
+  })
+
   it('replace-imports into an empty store and reviews still work afterwards', async () => {
     await store.markSolved('a', 'alone', 'insight a', day(3))
     const file = JSON.parse(JSON.stringify(await store.exportAll(day(4))))
@@ -95,9 +136,10 @@ describe('DexieStore export/import', () => {
     const other = new DexieStore(new LeetHubDB(`test-${crypto.randomUUID()}`))
     await other.markSolved('b', 'hint', 'insight b', day(3))
     await other.importAll(file, 'merge')
-    const once = await other.getUserData()
+    const strip = (d: UserData): UserData => ({ ...d, meta: { ...d.meta, importId: undefined } })
+    const once = strip(await other.getUserData())
     await other.importAll(file, 'merge')
-    expect(await other.getUserData()).toEqual(once)
+    expect(strip(await other.getUserData())).toEqual(once)
     expect(once.progress.map((p) => p.slug).sort()).toEqual(['a', 'b'])
   })
 })

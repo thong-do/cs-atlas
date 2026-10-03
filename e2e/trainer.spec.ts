@@ -13,3 +13,9 @@ test('a quick training round records attempts and shows up in stats', async ({ p
   await expect(page.getByRole('heading', { name: 'Recognition accuracy' })).toBeVisible()
   await expect(page.getByTestId('recognition-row').first()).toBeVisible()
 })
+
+test('Today "Start a quick round" jumps straight into question 1 of 5', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Start a quick round' }).click()
+  await expect(page.getByText('Question 1 / 5')).toBeVisible()
+})

@@ -22,9 +22,17 @@ export function validateContent({ roadmap, patterns, problems }: ContentInput): 
   }
 
   const inRoadmap = new Set<string>()
+  const reported = new Set<string>()
   for (const slug of roadmap) {
-    if (!known(slug)) errors.push(`Roadmap: unknown pattern "${slug}"`)
-    if (inRoadmap.has(slug)) errors.push(`Roadmap: duplicate pattern "${slug}"`)
+    if (!reported.has(slug)) {
+      if (!known(slug)) {
+        errors.push(`Roadmap: unknown pattern "${slug}"`)
+        reported.add(slug)
+      } else if (inRoadmap.has(slug)) {
+        errors.push(`Roadmap: duplicate pattern "${slug}"`)
+        reported.add(slug)
+      }
+    }
     inRoadmap.add(slug)
   }
   for (const slug of patternSlugs) if (!inRoadmap.has(slug)) errors.push(`Roadmap: missing pattern "${slug}"`)

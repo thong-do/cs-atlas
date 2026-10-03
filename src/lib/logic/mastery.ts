@@ -47,6 +47,18 @@ export function computeMasteries(patterns: PatternMeta[], input: MasteryInput): 
   return new Map(patterns.map((p) => [p.slug, patternMastery(p.slug, input)]))
 }
 
+export interface MasteryBaseline {
+  store: unknown
+  importId?: string
+  masteries: Map<string, number>
+}
+
+/** Patterns to celebrate: only genuine crossings within the same store and import generation. */
+export function shouldCelebrate(prev: MasteryBaseline | null, next: MasteryBaseline): string[] {
+  if (!prev || prev.store !== next.store || prev.importId !== next.importId) return []
+  return newlyMastered(prev.masteries, next.masteries)
+}
+
 export function newlyMastered(prev: Map<string, number>, next: Map<string, number>): string[] {
   return [...next]
     .filter(([slug, value]) => value >= MASTERED && (prev.get(slug) ?? 0) < MASTERED)

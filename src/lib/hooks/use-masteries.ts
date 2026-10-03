@@ -2,23 +2,21 @@
 
 import { useMemo } from 'react'
 import { useCatalog } from '@/lib/content/catalog-context'
-import { computeMasteries } from '@/lib/logic/mastery'
+import { computeMasteries, type MasteryBaseline } from '@/lib/logic/mastery'
 import { useNow } from './use-now'
 import { useLive } from '@/lib/store/context'
 import type { Store } from '@/lib/store'
 
-export function useMasterySnapshot(): { store: Store; masteries: Map<string, number> } | undefined {
+export type MasterySnapshot = MasteryBaseline & { store: Store }
+
+export function useMasterySnapshot(): MasterySnapshot | undefined {
   const { patterns, problems } = useCatalog()
   const now = useNow()
-  const data = useLive(async (store) => ({
-    store,
-    progress: await store.listProgress(),
-    cards: await store.listCards(),
-    attempts: await store.listTrainAttempts(),
-  }))
+  const data = useLive(async (store) => ({ store, ...(await store.getMasteryInputs()) }))
   return useMemo(
     () => data && {
       store: data.store,
+      importId: data.importId,
       masteries: computeMasteries(patterns, { problems, progress: data.progress, cards: data.cards, attempts: data.attempts, now }),
     },
     [data, patterns, problems, now],

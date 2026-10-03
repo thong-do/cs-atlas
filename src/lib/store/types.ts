@@ -3,6 +3,13 @@ import type {
   Activity, Meta, Note, ProblemProgress, ReviewCard, ReviewLog, ReviewRating, Settings, SolveRating, TrainAttempt, UserData,
 } from '@/lib/types'
 
+export interface MasteryInputs {
+  progress: ProblemProgress[]
+  cards: ReviewCard[]
+  attempts: TrainAttempt[]
+  importId?: string
+}
+
 export interface Store {
   listProgress(): Promise<ProblemProgress[]>
   getProgress(slug: string): Promise<ProblemProgress | undefined>
@@ -21,6 +28,7 @@ export interface Store {
   saveSettings(settings: Settings): Promise<void>
   markBackedUp(now: Date): Promise<void>
   hasData(): Promise<boolean>
+  getMasteryInputs(): Promise<MasteryInputs>
   getUserData(): Promise<UserData>
   exportAll(now: Date): Promise<ExportFile>
   importAll(file: ExportFile, mode: 'replace' | 'merge'): Promise<void>

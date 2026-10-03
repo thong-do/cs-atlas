@@ -11,7 +11,7 @@ export interface TrainQuestion {
 
 export function pickDistractors(correct: string, patterns: PatternMeta[], rng: Rng): string[] {
   const pool = patterns.map((p) => p.slug).filter((slug) => slug !== correct)
-  const confused = (patterns.find((p) => p.slug === correct)?.confusedWith ?? []).filter((s) => pool.includes(s))
+  const confused = [...new Set(patterns.find((p) => p.slug === correct)?.confusedWith ?? [])].filter((s) => pool.includes(s))
   const rest = pool.filter((s) => !confused.includes(s))
   return [...shuffle(confused, rng), ...shuffle(rest, rng)].slice(0, 3)
 }

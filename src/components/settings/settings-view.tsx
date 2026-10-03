@@ -63,7 +63,7 @@ export function SettingsView() {
 
   async function doImport(mode: 'merge' | 'replace') {
     if (!pending) return
-    if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone.')) return
+    if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.')) return
     try {
       await store.importAll(pending, mode)
       if (mode === 'replace') setTheme(pending.data.meta.settings.theme)
@@ -121,6 +121,7 @@ export function SettingsView() {
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => doImport('merge')}>Merge into my data</Button>
               <Button variant="destructive" onClick={() => doImport('replace')}>Replace all data</Button>
+              <Button variant="outline" onClick={exportBackup}>Export current data first</Button>
             </div>
           </div>
         )}

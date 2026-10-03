@@ -45,6 +45,9 @@ test('solve → review when due → export → import into a fresh browser', asy
   await page.goto('/problems/two-sum/')
   await expect(page.getByText(INSIGHT)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Log a re-solve' })).toBeVisible()
+  await expect(page.getByText('Next review:')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Reviews' }).getByRole('listitem')).toHaveCount(2)
+  await expect(page.getByText('Solved (alone)')).toBeVisible()
 
   await context.close()
   await fresh.close()

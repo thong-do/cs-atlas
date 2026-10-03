@@ -18,6 +18,13 @@ export function ProblemsTable() {
   const [filter, setFilter] = useState<ProblemFilter>({
     q: params.get('q') ?? '', pattern: 'all', difficulty: 'all', status: 'all',
   })
+  // Follow `?q=` changes (404 search, back/forward) while mounted, without clobbering manual typing.
+  const urlQ = params.get('q') ?? ''
+  const [seenUrlQ, setSeenUrlQ] = useState(urlQ)
+  if (urlQ !== seenUrlQ) {
+    setSeenUrlQ(urlQ)
+    setFilter((f) => ({ ...f, q: urlQ }))
+  }
   const progressList = useLive((s) => s.listProgress())
   const progress = useMemo(() => new Map((progressList ?? []).map((p) => [p.slug, p])), [progressList])
   const rows = filterProblems(problems, progress, filter)

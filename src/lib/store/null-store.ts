@@ -25,6 +25,7 @@ export class NullStore implements Store {
   listActivity = async () => []
   getMeta = async () => meta()
   hasData = async () => false
+  getMasteryInputs = async () => ({ progress: [], cards: [], attempts: [] })
   getUserData = async (): Promise<UserData> => ({
     progress: [], notes: [], cards: [], reviewLogs: [], trainAttempts: [], activity: [], meta: meta(),
   })

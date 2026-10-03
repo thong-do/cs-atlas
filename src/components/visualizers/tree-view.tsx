@@ -50,7 +50,8 @@ export function TreeView({ step }: { step: TreeStep }) {
           const seen = visited.includes(n.id)
           const cur = n.id === current
           return (
-            <g key={n.id} opacity={seen ? 1 : 0.35}>
+            <g key={n.id}>
+              <rect x={(xs.get(n.id) ?? 0) - NODE_W / 2} y={y(n.depth) - NODE_H / 2} width={NODE_W} height={NODE_H} rx={6} className="fill-background" />
               <rect
                 x={(xs.get(n.id) ?? 0) - NODE_W / 2}
                 y={y(n.depth) - NODE_H / 2}
@@ -59,8 +60,9 @@ export function TreeView({ step }: { step: TreeStep }) {
                 rx={6}
                 className={cn('fill-background stroke-border', seen && 'fill-primary/15 stroke-primary', cur && 'stroke-primary')}
                 strokeWidth={cur ? 3 : 1.5}
+                strokeOpacity={seen ? 1 : 0.5}
               />
-              <text x={xs.get(n.id)} y={y(n.depth)} textAnchor="middle" dominantBaseline="central" className="fill-foreground font-mono text-[11px]">{n.label}</text>
+              <text x={xs.get(n.id)} y={y(n.depth)} textAnchor="middle" dominantBaseline="central" className={cn('font-mono text-[11px]', seen ? 'fill-foreground' : 'fill-muted-foreground/50')}>{n.label}</text>
             </g>
           )
         })}

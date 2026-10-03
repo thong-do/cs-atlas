@@ -28,7 +28,8 @@ export function HeapView({ step }: { step: HeapStep }) {
           const on = active.includes(i)
           return (
             <g key={i}>
-              <circle cx={x} cy={y} r={R} className={cn('stroke-border fill-background', on && 'fill-primary/15 stroke-primary')} strokeWidth={on ? 3 : 1.5} />
+              <circle cx={x} cy={y} r={R} className="fill-background" />
+              <circle cx={x} cy={y} r={R} className={cn('fill-transparent stroke-border', on && 'fill-primary/15 stroke-primary')} strokeWidth={on ? 3 : 1.5} />
               <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-foreground font-mono text-[13px]">{v}</text>
             </g>
           )

@@ -3,10 +3,115 @@ slug: heap
 title: Heap / Priority Queue
 prerequisites: [trees]
 confusedWith: [binary-search, greedy]
-triggers: ["k largest / k smallest", "repeatedly take the min or max", "merge k sorted things", "running median"]
+triggers: ["k largest / k smallest / k closest", "repeatedly take the min or max", "merge k sorted things", "running median of a stream", "schedule the most urgent task next"]
 complexity: "O(log n) push/pop, O(1) peek"
 summary: "Keep the best candidates available in O(log n)."
-stub: true
+stub: false
 ---
 
-Theory page coming soon.
+## Intuition
+
+Sorting gives you everything in order, but often you only need **the current smallest (or largest)** — again and again, while new items keep arriving. A heap keeps exactly that: the top element is always the min, and both adding and removing cost O(log n).
+
+Picture a hospital emergency room. Patients arrive in any order, but the most urgent one is always treated next. The waiting room doesn't need to be fully sorted; it only needs to know who's most urgent right now.
+
+Shapes that cover the ladder:
+
+- **Top-K with a size-k heap**: to keep the k *largest*, use a **min**-heap of size k and pop the smallest whenever it grows past k. What's left is the answer.
+- **Repeatedly combine the extremes**: Last Stone Weight, Task Scheduler — pop the top one or two, do something, push the result back.
+- **K-way merge**: push the head of each sorted list; pop the smallest, then push that list's next item.
+- **Two heaps for a median**: a max-heap for the lower half and a min-heap for the upper half, kept balanced.
+
+## Visual
+
+```text
+A min-heap is a complete binary tree stored in an array:
+children of index i live at 2i+1 and 2i+2, and every parent ≤ its children.
+
+index:  0  1  2  3  4
+value: [1, 3, 2, 7, 4]            1
+                                 / \
+                                3   2
+                               / \
+                              7   4
+
+push(0): append at the end, then swap it up while it's smaller than its parent
+  [1,3,2,7,4,0] → 0 < 2, swap → [1,3,0,7,4,2] → 0 < 1, swap → [0,3,1,7,4,2]
+
+pop(): take index 0, move the last item to the top, swap it down with its smaller child
+```
+
+## Template
+
+```python
+import heapq
+
+
+def k_largest(nums: list[int], k: int) -> list[int]:
+    heap: list[int] = []              # min-heap holding the k largest seen so far
+    for x in nums:
+        heapq.heappush(heap, x)
+        if len(heap) > k:
+            heapq.heappop(heap)       # drop the smallest of them
+    return sorted(heap, reverse=True)
+
+
+def k_closest(points: list[list[int]], k: int) -> list[list[int]]:
+    heap: list[tuple[int, int, int]] = []   # max-heap by distance via negation
+    for x, y in points:
+        heapq.heappush(heap, (-(x * x + y * y), x, y))
+        if len(heap) > k:
+            heapq.heappop(heap)       # drop the farthest
+    return [[x, y] for _, x, y in heap]
+
+
+class MedianFinder:
+    def __init__(self):
+        self.low: list[int] = []      # max-heap (negated): the smaller half
+        self.high: list[int] = []     # min-heap: the larger half
+
+    def add(self, num: int) -> None:
+        heapq.heappush(self.low, -num)
+        heapq.heappush(self.high, -heapq.heappop(self.low))   # largest of low → high
+        if len(self.high) > len(self.low):                     # keep low the same size or one bigger
+            heapq.heappush(self.low, -heapq.heappop(self.high))
+
+    def median(self) -> float:
+        if len(self.low) > len(self.high):
+            return -self.low[0]
+        return (-self.low[0] + self.high[0]) / 2
+
+
+def merge_sorted(lists: list[list[int]]) -> list[int]:
+    heap = [(lst[0], i, 0) for i, lst in enumerate(lists) if lst]
+    heapq.heapify(heap)
+    out = []
+    while heap:
+        val, i, j = heapq.heappop(heap)
+        out.append(val)
+        if j + 1 < len(lists[i]):
+            heapq.heappush(heap, (lists[i][j + 1], i, j + 1))
+    return out
+```
+
+## Complexity
+
+- `heappush` / `heappop`: **O(log n)**. Peek at `heap[0]`: **O(1)**. `heapify` a list: **O(n)**.
+- Top-K with a size-k heap: **O(n log k)** time, **O(k)** space — better than sorting (O(n log n)) when k is small.
+- K-way merge of N total items across k lists: **O(N log k)**.
+
+## Pitfalls
+
+- Python's `heapq` is a **min**-heap only. For a max-heap, push `-x` and negate again when you pop.
+- Using the wrong heap for Top-K: the k *largest* need a **min**-heap (so the smallest of them is easy to evict), and vice versa.
+- Pushing tuples whose later fields aren't comparable (e.g. `ListNode`s): on a tie Python compares the next field and crashes. Add a unique index as a tiebreaker: `(val, i, node)`.
+- Reading `heap[-1]` expecting the max — a heap array is only partially ordered; only `heap[0]` is meaningful.
+- Forgetting to rebalance the two heaps in the median problem, so their sizes drift apart.
+
+## Tips & tricks
+
+- `heapq.nlargest(k, nums)` / `nsmallest` are fine for one-off answers; write the size-k heap yourself when data streams in.
+- Kth Largest in a Stream: keep the size-k min-heap between calls — `heap[0]` *is* the answer.
+- Task Scheduler: a max-heap of remaining counts plus a queue of tasks cooling down (or the counting formula `max(len(tasks), (max_count − 1) × (n + 1) + ties)`).
+- Design Twitter: merge each followee's newest tweets with a heap keyed by timestamp, stopping after 10.
+- Heaps pair naturally with **Greedy** (always take the best available option) and **Advanced Graphs** (Dijkstra pops the closest node).

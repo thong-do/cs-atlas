@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest'
+import type { ProblemMeta, ProblemProgress, ReviewCard, TrainAttempt } from '@/lib/types'
+import { newCard, scheduleReview } from './fsrs'
+import { computeMasteries, newlyMastered, patternMastery, recognitionAccuracy } from './mastery'
+
+const now = new Date('2026-10-03T09:00:00Z')
+const problem = (slug: string, patterns: string[]): ProblemMeta => ({
+  slug, title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',
+  patterns, ladderOrder: 1, recognitionPrompt: 'prompt text', hint: 'hint',
+})
+const solved = (slug: string, solveRating: ProblemProgress['solveRating']): ProblemProgress => ({
+  slug, status: 'solved', solveRating, firstSolvedAt: now.toISOString(), needsResolve: false, updatedAt: now.toISOString(),
+})
+const freshCard = (slug: string): ReviewCard => {
+  const card = scheduleReview(newCard(now), 'good', now, 0.9)
+  return { slug, card, due: card.due, updatedAt: now.toISOString() }
+}
+const attempt = (i: number, pattern: string, correct: boolean): TrainAttempt => ({
+  id: `a${i}`, problemSlug: 'p', correctPattern: pattern, chosenPattern: correct ? pattern : 'other', correct,
+  at: new Date(now.getTime() + i * 1000).toISOString(),
+})
+
+const base = { problems: [problem('p1', ['tp'])], progress: [], cards: [], attempts: [], now }
+
+describe('recognitionAccuracy', () => {
+  it('is undefined with no attempts for the pattern', () => {
+    expect(recognitionAccuracy([attempt(1, 'other', true)], 'tp')).toBeUndefined()
+  })
+
+  it('uses only the most recent 20 attempts', () => {
+    const attempts = [
+      ...Array.from({ length: 5 }, (_, i) => attempt(i, 'tp', false)), // oldest, ignored
+      ...Array.from({ length: 20 }, (_, i) => attempt(100 + i, 'tp', true)),
+    ]
+    expect(recognitionAccuracy(attempts, 'tp')).toBe(1)
+  })
+})
+
+describe('patternMastery', () => {
+  it('is 0 with nothing done', () => {
+    expect(patternMastery('tp', base)).toBe(0)
+  })
+
+  it('gives 70 for the whole ladder solved alone and fresh, with no recognition data', () => {
+    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] })).toBe(70)
+  })
+
+  it('weights hint and solution solves', () => {
+    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'hint')], cards: [freshCard('p1')] })).toBe(49)
+    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'solution')], cards: [freshCard('p1')] })).toBe(28)
+  })
+
+  it('treats a solved problem without a card as fully retrievable', () => {
+    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'alone')] })).toBe(70)
+  })
+
+  it('only counts problems whose primary pattern matches', () => {
+    const input = { ...base, problems: [problem('p1', ['tp']), problem('p2', ['other', 'tp'])], progress: [solved('p2', 'alone')] }
+    expect(patternMastery('tp', input)).toBe(0)
+  })
+
+  it('reaches 100 with full problems and perfect recognition', () => {
+    const attempts = Array.from({ length: 20 }, (_, i) => attempt(i, 'tp', true))
+    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')], attempts })).toBe(100)
+  })
+
+  it('falls back to recognition only when the ladder is empty (no NaN)', () => {
+    const attempts = Array.from({ length: 4 }, (_, i) => attempt(i, 'empty', i % 2 === 0))
+    expect(patternMastery('empty', { ...base, attempts })).toBe(15)
+  })
+
+  it('decays as retrievability drops', () => {
+    const input = { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] }
+    expect(patternMastery('tp', { ...input, now: new Date(now.getTime() + 90 * 86_400_000) })).toBeLessThan(70)
+  })
+})
+
+describe('computeMasteries / newlyMastered', () => {
+  it('computes a value for every pattern', () => {
+    const map = computeMasteries([{ slug: 'tp' }, { slug: 'x' }] as never, base)
+    expect([...map.keys()]).toEqual(['tp', 'x'])
+  })
+
+  it('reports patterns that crossed 80', () => {
+    const prev = new Map([['a', 79], ['b', 85], ['c', 10]])
+    const next = new Map([['a', 80], ['b', 90], ['c', 50], ['d', 81]])
+    expect(newlyMastered(prev, next)).toEqual(['a', 'd'])
+  })
+})

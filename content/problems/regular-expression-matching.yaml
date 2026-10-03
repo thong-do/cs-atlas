@@ -1,0 +1,9 @@
+slug: regular-expression-matching
+title: "Regular Expression Matching"
+leetcodeId: 10
+url: https://leetcode.com/problems/regular-expression-matching/
+difficulty: hard
+patterns: [dp-2d]
+ladderOrder: 8
+recognitionPrompt: "Decide whether a whole string matches a pattern where one symbol means any single character and another means zero or more of the previous one."
+hint: "Define the answer for prefixes of both text and pattern, with a special case for the repeat symbol."

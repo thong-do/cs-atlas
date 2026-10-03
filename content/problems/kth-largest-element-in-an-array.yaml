@@ -1,0 +1,9 @@
+slug: kth-largest-element-in-an-array
+title: "Kth Largest Element in an Array"
+leetcodeId: 215
+url: https://leetcode.com/problems/kth-largest-element-in-an-array/
+difficulty: medium
+patterns: [heap]
+ladderOrder: 4
+recognitionPrompt: "Find the kth largest value in an unsorted array without necessarily sorting everything."
+hint: "Maintain a small collection of the top candidates rather than ordering all elements."

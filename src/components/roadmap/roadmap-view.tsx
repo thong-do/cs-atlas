@@ -9,7 +9,8 @@ import { recommendedPattern } from '@/lib/logic/recommend'
 import { layoutRoadmap } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
 
-const COL = 150
+const COL = 190
+const PAD = 30
 const ROW = 120
 const R = 26
 const CIRC = 2 * Math.PI * R
@@ -29,20 +30,23 @@ export function RoadmapView() {
     return `${ladder.filter((p) => solved.has(p.slug)).length}/${ladder.length}`
   }
 
-  const width = layout.maxRow * COL
+  const width = layout.maxRow * COL + PAD * 2
   const height = layout.levels * ROW + 30
   const pos = new Map(layout.nodes.map((n) => [n.slug, {
-    x: ((layout.maxRow - n.rowSize) * COL) / 2 + n.index * COL + COL / 2,
+    x: PAD + ((layout.maxRow - n.rowSize) * COL) / 2 + n.index * COL + COL / 2,
     y: n.level * ROW + 40,
   }]))
 
   return (
     <div className="overflow-x-auto rounded-lg border p-2">
-      <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto h-auto w-full min-w-[560px] max-w-3xl" role="group" aria-label="Pattern roadmap">
+      <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto h-auto w-full min-w-[720px] max-w-4xl" role="group" aria-label="Pattern roadmap">
         {layout.edges.map((e) => {
           const a = pos.get(e.from)!
           const b = pos.get(e.to)!
-          return <line key={`${e.from}-${e.to}`} x1={a.x} y1={a.y + R + 40} x2={b.x} y2={b.y - R - 4} className="stroke-border" strokeWidth={2} />
+          const y1 = a.y + R + 40
+          const y2 = b.y - R - 4
+          const dy = (y2 - y1) / 2
+          return <path key={`${e.from}-${e.to}`} d={`M ${a.x} ${y1} C ${a.x} ${y1 + dy}, ${b.x} ${y2 - dy}, ${b.x} ${y2}`} fill="none" className="stroke-border" strokeWidth={2} />
         })}
         {layout.nodes.map((n) => {
           const p = pos.get(n.slug)!
@@ -74,8 +78,8 @@ export function RoadmapView() {
                 transform="rotate(-90)"
               />
               <text textAnchor="middle" dy="0.35em" className="fill-foreground text-[13px] font-semibold">{value}%</text>
-              <text y={R + 18} textAnchor="middle" className="fill-foreground text-[13px] font-medium">{title}</text>
-              <text y={R + 34} textAnchor="middle" className="fill-muted-foreground text-[11px]">{count(n.slug)}{isNext ? ' · next' : ''}</text>
+              <text y={R + 18} textAnchor="middle" className="fill-foreground stroke-background text-[13px] font-medium" strokeWidth={5} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{title}</text>
+              <text y={R + 34} textAnchor="middle" className="fill-muted-foreground stroke-background text-[11px]" strokeWidth={4} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{count(n.slug)}{isNext ? ' · next' : ''}</text>
             </g>
           )
         })}

@@ -1,0 +1,9 @@
+slug: binary-tree-level-order-traversal
+title: "Binary Tree Level Order Traversal"
+leetcodeId: 102
+url: https://leetcode.com/problems/binary-tree-level-order-traversal/
+difficulty: medium
+patterns: [trees, graphs]
+ladderOrder: 4
+recognitionPrompt: "Return the values of a binary tree grouped into lists, one list per depth from top to bottom."
+hint: "Process the nodes in waves, using the current queue size to know where a level ends."

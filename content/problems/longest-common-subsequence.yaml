@@ -1,0 +1,9 @@
+slug: longest-common-subsequence
+title: "Longest Common Subsequence"
+leetcodeId: 1143
+url: https://leetcode.com/problems/longest-common-subsequence/
+difficulty: medium
+patterns: [dp-2d]
+ladderOrder: 3
+recognitionPrompt: "Find the length of the longest sequence of characters appearing in the same order in both of two strings."
+hint: "Compare the last characters of the two prefixes: match or drop one."

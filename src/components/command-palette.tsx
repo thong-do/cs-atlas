@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+  Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
 import { useCatalog } from '@/lib/content/catalog-context'
 
@@ -49,7 +49,8 @@ export function CommandPalette() {
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen} title="Jump to" description="Search patterns and problems">
+      <Command>
       <CommandInput placeholder="Jump to a pattern or problem…" />
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
@@ -71,6 +72,7 @@ export function CommandPalette() {
           ))}
         </CommandGroup>
       </CommandList>
+      </Command>
     </CommandDialog>
   )
 }

@@ -1,0 +1,9 @@
+slug: palindrome-partitioning
+title: "Palindrome Partitioning"
+leetcodeId: 131
+url: https://leetcode.com/problems/palindrome-partitioning/
+difficulty: medium
+patterns: [backtracking]
+ladderOrder: 6
+recognitionPrompt: "Cut a string into pieces so that every piece reads the same forwards and backwards, and list all ways to do it."
+hint: "Choose the end of the next piece only if that piece qualifies, then continue from there."

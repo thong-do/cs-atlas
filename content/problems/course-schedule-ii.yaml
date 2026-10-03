@@ -1,0 +1,9 @@
+slug: course-schedule-ii
+title: "Course Schedule II"
+leetcodeId: 210
+url: https://leetcode.com/problems/course-schedule-ii/
+difficulty: medium
+patterns: [graphs]
+ladderOrder: 7
+recognitionPrompt: "Given courses with prerequisite pairs, output a valid order to take them or an empty answer if none exists."
+hint: "Repeatedly take items with no unmet dependencies."

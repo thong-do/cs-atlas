@@ -1,0 +1,9 @@
+slug: binary-tree-maximum-path-sum
+title: "Binary Tree Maximum Path Sum"
+leetcodeId: 124
+url: https://leetcode.com/problems/binary-tree-maximum-path-sum/
+difficulty: hard
+patterns: [trees]
+ladderOrder: 8
+recognitionPrompt: "Find the largest total along any connected downward-then-upward path in a binary tree whose values may be negative."
+hint: "Return the best one-sided gain to the parent while recording the best bent path at each node; ignore negative gains."

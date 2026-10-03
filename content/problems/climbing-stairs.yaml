@@ -1,0 +1,9 @@
+slug: climbing-stairs
+title: "Climbing Stairs"
+leetcodeId: 70
+url: https://leetcode.com/problems/climbing-stairs/
+difficulty: easy
+patterns: [dp-1d]
+ladderOrder: 1
+recognitionPrompt: "Count the distinct ways to climb n steps when each move goes up one or two steps."
+hint: "The count for step n is built from the counts of the two steps just below it."

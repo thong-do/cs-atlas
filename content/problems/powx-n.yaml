@@ -1,0 +1,9 @@
+slug: powx-n
+title: "Pow(x, n)"
+leetcodeId: 50
+url: https://leetcode.com/problems/powx-n/
+difficulty: medium
+patterns: [math-geometry]
+ladderOrder: 6
+recognitionPrompt: "Compute a number raised to an integer power, possibly negative, faster than multiplying n times."
+hint: "Halving the exponent squares the base."

@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const catalog = getCatalog()
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="bg-background text-foreground font-sans antialiased">
         <Providers catalog={catalog}>
           <AppShell>{children}</AppShell>
         </Providers>

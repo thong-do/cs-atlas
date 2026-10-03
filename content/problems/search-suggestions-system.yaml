@@ -1,0 +1,9 @@
+slug: search-suggestions-system
+title: "Search Suggestions System"
+leetcodeId: 1268
+url: https://leetcode.com/problems/search-suggestions-system/
+difficulty: medium
+patterns: [tries]
+ladderOrder: 4
+recognitionPrompt: "As a search term is typed letter by letter, produce up to three alphabetical product suggestions matching the current prefix."
+hint: "Each typed letter narrows the same path; sorted words under a prefix are contiguous."

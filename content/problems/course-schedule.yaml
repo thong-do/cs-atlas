@@ -1,0 +1,9 @@
+slug: course-schedule
+title: "Course Schedule"
+leetcodeId: 207
+url: https://leetcode.com/problems/course-schedule/
+difficulty: medium
+patterns: [graphs]
+ladderOrder: 6
+recognitionPrompt: "Given courses with prerequisite pairs, decide whether it is possible to take them all."
+hint: "The question is whether the dependency relation contains a loop."

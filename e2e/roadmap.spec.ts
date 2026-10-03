@@ -1,0 +1,32 @@
+import { expect, test } from '@playwright/test'
+
+test.use({ viewport: { width: 1280, height: 900 } })
+
+test('roadmap labels are inside the viewBox and do not overlap within a row', async ({ page }) => {
+  await page.goto('/roadmap/')
+  const svg = page.locator('svg[aria-label="Pattern roadmap"]')
+  await expect(svg).toBeVisible()
+  await expect(svg.locator('text').first()).toBeVisible()
+
+  const result = await svg.evaluate((el) => {
+    const s = el as SVGSVGElement
+    const vb = s.viewBox.baseVal
+    const boxes = [...s.querySelectorAll('text')].map((t) => {
+      const b = (t as SVGTextElement).getBBox()
+      const m = (t.closest('g') as SVGGElement).transform.baseVal.consolidate()!.matrix
+      return { text: t.textContent ?? '', x: b.x + m.e, y: b.y + m.f, w: b.width, h: b.height, row: Math.round(m.f) }
+    })
+    const outside = boxes.filter((b) => b.x < vb.x || b.y < vb.y || b.x + b.w > vb.x + vb.width || b.y + b.h > vb.y + vb.height).map((b) => b.text)
+    const overlaps: string[] = []
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j]
+        if (a.row !== b.row) continue
+        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) overlaps.push(`${a.text} / ${b.text}`)
+      }
+    }
+    return { outside, overlaps }
+  })
+  expect(result.outside).toEqual([])
+  expect(result.overlaps).toEqual([])
+})

@@ -1,0 +1,9 @@
+slug: missing-number
+title: "Missing Number"
+leetcodeId: 268
+url: https://leetcode.com/problems/missing-number/
+difficulty: easy
+patterns: [bit-manipulation]
+ladderOrder: 3
+recognitionPrompt: "An array holds n distinct numbers from 0 through n; find the one value from that range that is absent."
+hint: "Pair every index and every value, and see what is left unpaired."

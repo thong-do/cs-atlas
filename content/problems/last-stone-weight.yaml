@@ -1,0 +1,9 @@
+slug: last-stone-weight
+title: "Last Stone Weight"
+leetcodeId: 1046
+url: https://leetcode.com/problems/last-stone-weight/
+difficulty: easy
+patterns: [heap]
+ladderOrder: 2
+recognitionPrompt: "Repeatedly smash the two heaviest stones together, keeping any leftover, until at most one remains."
+hint: "You need quick access to the largest items after every change."

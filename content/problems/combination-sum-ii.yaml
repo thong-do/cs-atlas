@@ -1,0 +1,9 @@
+slug: combination-sum-ii
+title: "Combination Sum II"
+leetcodeId: 40
+url: https://leetcode.com/problems/combination-sum-ii/
+difficulty: medium
+patterns: [backtracking]
+ladderOrder: 5
+recognitionPrompt: "Find all unique groups of numbers from a list with duplicates, each element used at most once, that hit a target sum."
+hint: "Sort first so equal values sit together, then skip repeats at the same decision level."

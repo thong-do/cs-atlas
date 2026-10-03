@@ -1,0 +1,9 @@
+slug: partition-labels
+title: "Partition Labels"
+leetcodeId: 763
+url: https://leetcode.com/problems/partition-labels/
+difficulty: medium
+patterns: [greedy]
+ladderOrder: 6
+recognitionPrompt: "Split a string into as many pieces as possible so that no letter appears in more than one piece."
+hint: "A piece must at least extend to the last occurrence of every letter it contains."

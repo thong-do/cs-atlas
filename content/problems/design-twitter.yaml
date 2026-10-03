@@ -1,0 +1,9 @@
+slug: design-twitter
+title: "Design Twitter"
+leetcodeId: 355
+url: https://leetcode.com/problems/design-twitter/
+difficulty: medium
+patterns: [heap]
+ladderOrder: 6
+recognitionPrompt: "Build a tiny social feed where users post, follow each other, and fetch the ten most recent posts from themselves and those they follow."
+hint: "Each user's posts are already time-ordered, so merging several ordered streams is the core step."

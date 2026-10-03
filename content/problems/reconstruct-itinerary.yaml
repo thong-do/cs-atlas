@@ -1,0 +1,9 @@
+slug: reconstruct-itinerary
+title: "Reconstruct Itinerary"
+leetcodeId: 332
+url: https://leetcode.com/problems/reconstruct-itinerary/
+difficulty: hard
+patterns: [advanced-graphs]
+ladderOrder: 5
+recognitionPrompt: "Given airline tickets, build the lexicographically smallest trip that uses every ticket exactly once starting from a fixed airport."
+hint: "Use every edge exactly once; build the route as you backtrack out of dead ends."

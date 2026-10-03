@@ -1,0 +1,9 @@
+slug: happy-number
+title: "Happy Number"
+leetcodeId: 202
+url: https://leetcode.com/problems/happy-number/
+difficulty: easy
+patterns: [math-geometry]
+ladderOrder: 2
+recognitionPrompt: "Repeatedly replace a number with the sum of the squares of its digits and decide whether it reaches one or loops forever."
+hint: "If it does not reach one, the sequence must revisit a value."

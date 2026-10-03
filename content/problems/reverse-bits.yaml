@@ -1,0 +1,9 @@
+slug: reverse-bits
+title: "Reverse Bits"
+leetcodeId: 190
+url: https://leetcode.com/problems/reverse-bits/
+difficulty: easy
+patterns: [bit-manipulation]
+ladderOrder: 5
+recognitionPrompt: "Reverse the order of the 32 bits of an unsigned integer."
+hint: "Build the answer one bit at a time, shifting in opposite directions."

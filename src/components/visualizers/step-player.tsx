@@ -28,6 +28,32 @@ export function StepPlayer({ steps, title }: { steps: VisStep[]; title: string }
   return (
     <figure className="not-prose my-6 space-y-3 rounded-lg border p-4">
       <figcaption className="text-sm font-medium">{title}</figcaption>
+      {step.cols ? (
+        <div>
+          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${step.cols}, 2.5rem)` }}>
+            {step.cells.map((cell, idx) => {
+              const visited = step.visited?.includes(idx)
+              const queued = step.frontier?.includes(idx)
+              const water = cell === '0'
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    'flex size-10 items-center justify-center rounded-md border font-mono',
+                    water && 'bg-muted text-muted-foreground',
+                    visited && 'bg-primary/15 border-primary',
+                    queued && 'border-dashed border-amber-500',
+                    markersAt(idx).length > 0 && 'ring-2 ring-primary',
+                  )}
+                >
+                  {cell}
+                </div>
+              )
+            })}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Current: ring · In queue: dashed amber · Visited: tinted · Water: grey</p>
+        </div>
+      ) : (
       <div className="flex flex-wrap gap-1">
         {step.cells.map((cell, idx) => (
           <div key={idx} className="flex w-10 flex-col items-center">
@@ -38,6 +64,7 @@ export function StepPlayer({ steps, title }: { steps: VisStep[]; title: string }
           </div>
         ))}
       </div>
+      )}
       <p aria-live="polite" className={cn('min-h-12 text-sm', step.done && 'font-medium')}>{step.caption}</p>
       <div className="flex items-center gap-1">
         <Button size="icon" variant="outline" aria-label="Previous step" onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0}><SkipBack /></Button>

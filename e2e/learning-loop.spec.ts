@@ -46,7 +46,7 @@ test('solve → review when due → export → import into a fresh browser', asy
   await expect(page.getByText(INSIGHT)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Log a re-solve' })).toBeVisible()
   await expect(page.getByText('Next review:')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Reviews' }).locator('xpath=following::ol[1]/li')).toHaveCount(2)
+  await expect(page.getByRole('region', { name: 'Reviews' }).getByRole('listitem')).toHaveCount(2)
   await expect(page.getByText('Solved (alone)')).toBeVisible()
 
   await context.close()

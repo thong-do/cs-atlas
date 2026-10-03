@@ -7,7 +7,7 @@ import {
   type Activity, type Meta, type Note, type ReviewRating, type Settings, type SolveRating, type TrainAttempt, type UserData,
 } from '@/lib/types'
 import type { LeetHubDB } from './db'
-import type { Store } from './types'
+import type { MasteryInputs, Store } from './types'
 
 const emptyNote = (slug: string): Omit<Note, 'updatedAt'> => ({ slug, insight: '', approach: '', complexity: '', mistakes: '', code: '' })
 
@@ -107,6 +107,16 @@ export class DexieStore implements Store {
     return (await this.db.progress.count()) + (await this.db.trainAttempts.count()) > 0
   }
 
+  async getMasteryInputs(): Promise<MasteryInputs> {
+    const { db } = this
+    return db.transaction('r', [db.progress, db.cards, db.trainAttempts, db.meta], async () => {
+      const [progress, cards, attempts, meta] = await Promise.all([
+        db.progress.toArray(), db.cards.toArray(), db.trainAttempts.toArray(), db.meta.get('meta'),
+      ])
+      return { progress, cards, attempts, importId: meta?.importId }
+    })
+  }
+
   async getUserData(): Promise<UserData> {
     const { db } = this
     const [progress, notes, cards, reviewLogs, trainAttempts, activity, meta] = await Promise.all([
@@ -140,7 +150,7 @@ export class DexieStore implements Store {
       await db.reviewLogs.bulkPut(data.reviewLogs)
       await db.trainAttempts.bulkPut(data.trainAttempts)
       await db.activity.bulkPut(data.activity)
-      await db.meta.put({ ...data.meta, schemaVersion: SCHEMA_VERSION, key: 'meta' })
+      await db.meta.put({ ...data.meta, schemaVersion: SCHEMA_VERSION, importId: crypto.randomUUID(), key: 'meta' })
     })
   }
 

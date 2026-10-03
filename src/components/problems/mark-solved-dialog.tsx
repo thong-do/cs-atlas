@@ -27,14 +27,22 @@ export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; o
   const [saving, setSaving] = useState(false)
 
   // Initialise only when the dialog opens, so a stored-note update never overwrites what is being typed.
+  // If the note only resolves after opening, prefill once — but never over text the user already typed.
   const wasOpen = useRef(false)
+  const typed = useRef(false)
+  const prefilled = useRef(false)
   useEffect(() => {
     if (open && !wasOpen.current) {
+      typed.current = false
+      prefilled.current = note !== undefined
       setInsight(note?.insight ?? '')
       setError(null)
+    } else if (open && !prefilled.current && note !== undefined) {
+      prefilled.current = true
+      if (!typed.current) setInsight(note.insight)
     }
     wasOpen.current = open
-  }, [open, note?.insight])
+  }, [open, note])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -76,7 +84,7 @@ export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; o
             <Input
               id="insight"
               value={insight}
-              onChange={(e) => setInsight(e.target.value)}
+              onChange={(e) => { typed.current = true; setInsight(e.target.value) }}
               placeholder="e.g. Sorted → move the pointer that fixes the sum"
               aria-invalid={!!error}
               aria-describedby="insight-help"

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { localDate } from '@/lib/logic/dates'
 import { LeetHubDB } from './db'
 import { DexieStore } from './dexie-store'
+import type { UserData } from '@/lib/types'
+import { parseExport } from '@/lib/logic/transfer'
 import { NullStore, StoreUnavailableError } from './null-store'
 
 const day = (d: number, h = 9) => new Date(2026, 9, d, h)
@@ -82,6 +84,34 @@ describe('DexieStore notes, training and meta', () => {
   })
 })
 
+describe('DexieStore import generation', () => {
+  it('importAll changes importId in both modes and ignores one in the file', async () => {
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    expect((await store.getMasteryInputs()).importId).toBeUndefined()
+    const file = JSON.parse(JSON.stringify(await store.exportAll(day(4))))
+    file.data.meta.importId = 'smuggled'
+    const parsed = parseExport(JSON.stringify(file))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.file.data.meta).not.toHaveProperty('importId')
+
+    await store.importAll(parsed.file, 'replace')
+    const first = (await store.getMasteryInputs()).importId
+    expect(first).toBeTruthy()
+    expect(first).not.toBe('smuggled')
+    expect((await store.getMeta())).toHaveProperty('importId', first)
+    await store.importAll(parsed.file, 'merge')
+    const second = (await store.getMasteryInputs()).importId
+    expect(second).toBeTruthy()
+    expect(second).not.toBe(first)
+    expect((await store.getMasteryInputs()).progress).toHaveLength(1)
+  })
+
+  it('NullStore returns empty mastery inputs', async () => {
+    expect(await new NullStore().getMasteryInputs()).toEqual({ progress: [], cards: [], attempts: [] })
+  })
+})
+
 describe('DexieStore export/import', () => {
   it('stamps the export time as lastBackupAt inside the file', async () => {
     await store.markSolved('a', 'alone', 'insight a', day(3))
@@ -106,9 +136,10 @@ describe('DexieStore export/import', () => {
     const other = new DexieStore(new LeetHubDB(`test-${crypto.randomUUID()}`))
     await other.markSolved('b', 'hint', 'insight b', day(3))
     await other.importAll(file, 'merge')
-    const once = await other.getUserData()
+    const strip = (d: UserData): UserData => ({ ...d, meta: { ...d.meta, importId: undefined } })
+    const once = strip(await other.getUserData())
     await other.importAll(file, 'merge')
-    expect(await other.getUserData()).toEqual(once)
+    expect(strip(await other.getUserData())).toEqual(once)
     expect(once.progress.map((p) => p.slug).sort()).toEqual(['a', 'b'])
   })
 })

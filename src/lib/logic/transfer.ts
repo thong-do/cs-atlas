@@ -117,7 +117,6 @@ function mergeActivity(local: Activity[], incoming: Activity[]): Activity[] {
 }
 
 export function mergeUserData(local: UserData, incoming: UserData): UserData {
-  const backups = [local.meta.lastBackupAt, incoming.meta.lastBackupAt].filter((x): x is string => !!x).sort()
   return {
     progress: newest(local.progress, incoming.progress, (x) => x.slug, (x) => x.updatedAt),
     notes: newest(local.notes, incoming.notes, (x) => x.slug, (x) => x.updatedAt),
@@ -128,7 +127,8 @@ export function mergeUserData(local: UserData, incoming: UserData): UserData {
     meta: {
       schemaVersion: SCHEMA_VERSION,
       settings: local.meta.settings,
-      ...(backups.length ? { lastBackupAt: backups.at(-1) } : {}),
+      // The merged result has not been backed up, so keep the local backup time.
+      ...(local.meta.lastBackupAt ? { lastBackupAt: local.meta.lastBackupAt } : {}),
     },
   }
 }

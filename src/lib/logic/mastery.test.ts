@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProblemMeta, ProblemProgress, ReviewCard, TrainAttempt } from '@/lib/types'
 import { newCard, scheduleReview } from './fsrs'
-import { computeMasteries, newlyMastered, patternMastery, recognitionAccuracy } from './mastery'
+import { computeMasteries, newlyMastered, shouldCelebrate, patternMastery, recognitionAccuracy } from './mastery'
 
 const now = new Date('2026-10-03T09:00:00Z')
 const problem = (slug: string, patterns: string[]): ProblemMeta => ({
@@ -85,5 +85,24 @@ describe('computeMasteries / newlyMastered', () => {
     const prev = new Map([['a', 79], ['b', 85], ['c', 10]])
     const next = new Map([['a', 80], ['b', 90], ['c', 50], ['d', 81]])
     expect(newlyMastered(prev, next)).toEqual(['a', 'd'])
+  })
+})
+
+describe('shouldCelebrate', () => {
+  const store = {}
+  const snap = (value: number, o: { store?: object; importId?: string } = {}) => ({
+    store: o.store ?? store, importId: o.importId, masteries: new Map([['a', value]]),
+  })
+
+  it('celebrates genuine crossings within the same store and import generation', () => {
+    expect(shouldCelebrate(snap(50, { importId: 'x' }), snap(85, { importId: 'x' }))).toEqual(['a'])
+    expect(shouldCelebrate(snap(50), snap(85))).toEqual(['a'])
+  })
+
+  it('never celebrates on first snapshot, store swap or after an import', () => {
+    expect(shouldCelebrate(null, snap(85))).toEqual([])
+    expect(shouldCelebrate(snap(50), snap(85, { store: {} }))).toEqual([])
+    expect(shouldCelebrate(snap(50, { importId: 'x' }), snap(85, { importId: 'y' }))).toEqual([])
+    expect(shouldCelebrate(snap(50), snap(85, { importId: 'y' }))).toEqual([])
   })
 })

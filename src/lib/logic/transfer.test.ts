@@ -132,14 +132,14 @@ describe('mergeUserData', () => {
     expect(mergeUserData(local, incoming).activity).toEqual([{ date: '2026-10-01', reviews: 3, solves: 1, trains: 1 }])
   })
 
-  it('keeps local settings and the latest lastBackupAt', () => {
+  it('keeps local settings and local lastBackupAt (merged data is not backed up)', () => {
     const local = sample()
     local.meta = { ...local.meta, lastBackupAt: t(1), settings: { desiredRetention: 0.85, theme: 'dark' } }
     const incoming = sample()
     incoming.meta = { ...incoming.meta, lastBackupAt: t(4) }
     const merged = mergeUserData(local, incoming)
     expect(merged.meta.settings).toEqual({ desiredRetention: 0.85, theme: 'dark' })
-    expect(merged.meta.lastBackupAt).toBe(t(4))
+    expect(merged.meta.lastBackupAt).toBe(t(1))
   })
 
   it('is idempotent: merging the same backup twice changes nothing', () => {

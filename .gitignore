@@ -42,7 +42,6 @@ next-env.d.ts
 
 # generated
 /.velite
-/out
 /public/static
 /test-results
 /playwright-report

@@ -18,6 +18,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: `${getPatternDoc(slug)?.title ?? 'Pattern'} · LeetHub` }
 }
 
+function PatternLinks({ slugs, titleOf }: { slugs: string[]; titleOf: (slug: string) => string }) {
+  return slugs.map((s, i) => (
+    <span key={s}>{i > 0 && ', '}<Link href={`/patterns/${s}/`} className="underline">{titleOf(s)}</Link></span>
+  ))
+}
+
 export default async function PatternPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const doc = getPatternDoc(slug)
@@ -41,9 +47,7 @@ export default async function PatternPage({ params }: { params: Promise<{ slug: 
           <p className="text-sm"><span className="font-medium">Typical cost:</span> {doc.complexity}</p>
           {doc.prerequisites.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              Builds on: {doc.prerequisites.map((s, i) => (
-                <span key={s}>{i > 0 && ', '}<Link href={`/patterns/${s}/`} className="underline">{titleOf(s)}</Link></span>
-              ))}
+              Builds on: <PatternLinks slugs={doc.prerequisites} titleOf={titleOf} />
             </p>
           )}
           <MasteryBadge slug={slug} />
@@ -57,9 +61,7 @@ export default async function PatternPage({ params }: { params: Promise<{ slug: 
           </ul>
           {doc.confusedWith.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              Often confused with: {doc.confusedWith.map((s, i) => (
-                <span key={s}>{i > 0 && ', '}<Link href={`/patterns/${s}/`} className="underline">{titleOf(s)}</Link></span>
-              ))}
+              Often confused with: <PatternLinks slugs={doc.confusedWith} titleOf={titleOf} />
             </p>
           )}
         </section>

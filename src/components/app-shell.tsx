@@ -3,7 +3,7 @@
 import { BarChart3, ListChecks, Map as MapIcon, Search, Settings, Sun, Target } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { CommandPalette, openCommandPalette } from './command-palette'
 import { MasteryCelebration } from './mastery-celebration'
@@ -21,6 +21,12 @@ const trim = (p: string) => p.replace(/\/+$/, '') || '/'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = trim(usePathname() ?? '/')
+  // Default to "Ctrl" (server render), then swap to the macOS glyph after mount to avoid a hydration mismatch.
+  const [mac, setMac] = useState(false)
+  useEffect(() => {
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+    setMac(/mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? navigator.platform ?? ''))
+  }, [])
   const isActive = (href: string) => {
     const h = trim(href)
     return h === '/' ? pathname === '/' : pathname === h || pathname.startsWith(`${h}/`)
@@ -36,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="mb-3 flex items-center justify-between rounded-md border px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
         >
           <span className="flex items-center gap-2"><Search className="size-4" aria-hidden /> Search</span>
-          <kbd className="text-xs">⌘K</kbd>
+          <kbd className="text-xs">{mac ? '⌘K' : 'Ctrl K'}</kbd>
         </button>
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
@@ -49,7 +55,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
         <div className="mt-auto flex flex-col gap-1">
-          <Link href="/settings/" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted">
+          <Link
+            href="/settings/"
+            aria-current={isActive('/settings/') ? 'page' : undefined}
+            className={cn('flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted', isActive('/settings/') && 'bg-muted font-medium')}
+          >
             <Settings className="size-4" aria-hidden /> Settings
           </Link>
         </div>
@@ -60,7 +70,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="font-bold">LeetHub</Link>
           <div className="flex items-center gap-4">
             <button type="button" onClick={openCommandPalette} aria-label="Search"><Search className="size-5" /></button>
-            <Link href="/settings/" aria-label="Settings"><Settings className="size-5" /></Link>
+            <Link
+              href="/settings/"
+              aria-label="Settings"
+              aria-current={isActive('/settings/') ? 'page' : undefined}
+              className={cn(isActive('/settings/') ? 'text-foreground' : 'text-muted-foreground')}
+            >
+              <Settings className="size-5" />
+            </Link>
           </div>
         </header>
         <StatusBanners />

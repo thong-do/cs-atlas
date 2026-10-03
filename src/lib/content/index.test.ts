@@ -57,4 +57,12 @@ describe('content inventory', () => {
   it('uses https leetcode problem URLs', () => {
     for (const p of problems) expect(p.url, p.slug).toMatch(/^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/)
   })
+
+  it('has URL slugs matching problem slugs, except an explicit allow-list', () => {
+    const ALLOWED: Record<string, string> = { 'two-sum-ii': 'two-sum-ii-input-array-is-sorted' }
+    for (const p of problems) {
+      const urlSlug = p.url.match(/\/problems\/([a-z0-9-]+)\/$/)![1]
+      expect(urlSlug, p.slug).toBe(ALLOWED[p.slug] ?? p.slug)
+    }
+  })
 })

@@ -22,6 +22,13 @@ describe('validateContent', () => {
     expect(validateContent(valid())).toEqual([])
   })
 
+  it('reports each problematic roadmap slug once', () => {
+    const c = valid()
+    c.roadmap = ['a', 'b', 'zzz', 'zzz', 'a', 'a']
+    const errors = validateContent(c).filter((e) => e.startsWith('Roadmap'))
+    expect(errors).toEqual(['Roadmap: unknown pattern "zzz"', 'Roadmap: duplicate pattern "a"'])
+  })
+
   it('rejects unknown pattern references', () => {
     const c = valid()
     c.patterns[1] = pattern('b', { prerequisites: ['zzz'], confusedWith: ['yyy'] })

@@ -35,6 +35,14 @@ describe('pickDistractors', () => {
     expect(pickDistractors('tp', [p('tp')], mulberry32(1))).toEqual([])
   })
 
+  it('never returns duplicates when confusedWith repeats a slug', () => {
+    const dupes = [p('tp', ['sw', 'sw', 'bs']), p('sw'), p('bs'), p('stack')]
+    for (let seed = 0; seed < 20; seed++) {
+      const d = pickDistractors('tp', dupes, mulberry32(seed))
+      expect(new Set(d).size).toBe(d.length)
+    }
+  })
+
   it('ignores confusedWith slugs that are not in the pattern list', () => {
     expect(pickDistractors('tp', [p('tp', ['ghost']), p('sw')], mulberry32(1))).toEqual(['sw'])
   })

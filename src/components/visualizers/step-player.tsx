@@ -7,6 +7,11 @@ import type { VisStep } from '@/lib/visualizers/steps'
 import { cn } from '@/lib/utils'
 
 export function StepPlayer({ steps, title }: { steps: VisStep[]; title: string }) {
+  if (steps.length === 0) return null
+  return <Player steps={steps} title={title} />
+}
+
+function Player({ steps, title }: { steps: VisStep[]; title: string }) {
   const [i, setI] = useState(0)
   const [playing, setPlaying] = useState(false)
   const step = steps[i]

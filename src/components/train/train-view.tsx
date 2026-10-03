@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
@@ -20,6 +21,8 @@ export function TrainView() {
   const { patterns, problems, patternBySlug } = useCatalog()
   const attempts = useLive((s) => s.listTrainAttempts())
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' })
+  const quick = useSearchParams().get('quick') === '1'
+  const autoStarted = useRef(false)
   const title = (slug: string) => patternBySlug.get(slug)?.title ?? slug
 
   function start(count: number) {
@@ -30,6 +33,14 @@ export function TrainView() {
     }
     setPhase({ kind: 'question', questions, index: 0, chosen: null, correctCount: 0, missed: [] })
   }
+
+  // `/train/?quick=1` starts a 5-question round as soon as attempt history has loaded.
+  useEffect(() => {
+    if (!quick || autoStarted.current || attempts === undefined) return
+    autoStarted.current = true
+    start(5)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quick, attempts])
 
   function answer(option: string) {
     if (phase.kind !== 'question' || phase.chosen) return
@@ -126,7 +137,7 @@ export function TrainView() {
       {phase.chosen && (
         <div className="space-y-3" aria-live="polite">
           <p className={phase.chosen === q.correct ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}>
-            {phase.chosen === q.correct ? 'Correct!' : `Not quite — it's ${title(q.correct)}.`}{' '}
+            {phase.chosen === q.correct ? 'Correct!' : `Not quite — it’s ${title(q.correct)}.`}{' '}
             <Link href={`/patterns/${q.correct}/`} className="underline">Review {title(q.correct)}</Link>
           </p>
           <Button onClick={next}>{isLast ? 'See results' : 'Next question'}</Button>

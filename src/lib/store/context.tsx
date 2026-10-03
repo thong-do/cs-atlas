@@ -50,6 +50,5 @@ export function useStoreStatus(): { ready: boolean; available: boolean } {
 /** Live query over the store; re-runs when the underlying IndexedDB data changes. */
 export function useLive<T>(query: (store: Store) => Promise<T>, deps: unknown[] = []): T | undefined {
   const store = useStore()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   return useLiveQuery(() => query(store), [store, ...deps])
 }

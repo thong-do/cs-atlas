@@ -129,7 +129,7 @@ export function TodayView() {
           <h2 className="font-semibold">Can you spot the pattern?</h2>
           <p className="text-sm text-muted-foreground">Two minutes, five problems, pick the right tool.</p>
         </div>
-        <Button asChild variant="secondary"><Link href="/train/">Start training</Link></Button>
+        <Button asChild variant="secondary"><Link href="/train/?quick=1">Start a quick round</Link></Button>
       </section>
     </div>
   )

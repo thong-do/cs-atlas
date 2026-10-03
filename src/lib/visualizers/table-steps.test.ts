@@ -27,11 +27,12 @@ describe('lcsTableSteps', () => {
   })
 
   it('has one fill step per inner cell and ends with the LCS length', () => {
-    const fills = steps.filter((s) => s.current)
+    const fills = steps.filter((s) => s.current && !s.done)
     expect(fills).toHaveLength(15)
     const last = steps.at(-1)!
     expect(last).toMatchObject({ done: true, caption: 'LCS length = 3' })
     expect(last.values).toEqual(expected)
+    expect(last.current).toEqual([3, 5])
   })
 
   it('uses the diagonal on a match', () => {
@@ -64,13 +65,13 @@ describe('houseRobberSteps', () => {
   it('computes best = [2, 7, 11, 11, 12] and ends with the total', () => {
     const last = steps.at(-1)!
     expect(last.values[1]).toEqual([2, 7, 11, 11, 12])
-    expect(last).toMatchObject({ done: true, caption: 'Best total = 12' })
+    expect(last).toMatchObject({ done: true, caption: 'Best total = 12', current: [1, 4] })
   })
 
   it('explains each choice and marks the two dependencies', () => {
     const s = steps.find((x) => x.current?.[1] === 2)!
     expect(s.caption).toBe('max(skip: 7, rob: 2 + 9) = 11')
-    expect(s.deps).toEqual([[1, 1], [1, 0]])
+    expect(s.deps).toEqual([[1, 1], [1, 0], [0, 2]])
   })
 
   it('does not throw on empty input', () => {

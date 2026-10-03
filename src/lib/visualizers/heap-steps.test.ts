@@ -22,7 +22,7 @@ describe('heapSteps', () => {
   })
 
   it('explains sift-up comparisons and highlights the compared nodes', () => {
-    const swap = steps.find((s) => s.caption === '3 < 5 (its parent): swap up')
+    const swap = steps.find((s) => s.caption === 'Swapped up: 3 was smaller than its parent 5')
     expect(swap).toBeDefined()
     expect(swap!.heap).toEqual([3, 5])
     expect(swap!.active).toEqual([0, 1])
@@ -37,7 +37,7 @@ describe('heapSteps', () => {
     const idx = steps.findIndex((s) => s.caption.startsWith('Pop'))
     expect(idx).toBeGreaterThan(0)
     expect(steps[idx].heap[0]).toBe(steps[idx - 1].heap.at(-1))
-    expect(steps.some((s) => s.caption.includes('swap down'))).toBe(true)
+    expect(steps.some((s) => s.caption.startsWith('Swapped down: '))).toBe(true)
   })
 
   it('pop on an empty heap yields one explanatory step without throwing', () => {
@@ -45,6 +45,21 @@ describe('heapSteps', () => {
     expect(s).toHaveLength(1)
     expect(s[0]).toMatchObject({ heap: [], done: true })
     expect(s[0].caption).toContain('empty')
+  })
+
+  it('sifts down through the right child when it is the smaller one', () => {
+    const s = heapSteps([{ push: 1 }, { push: 9 }, { push: 2 }, { push: 10 }, { push: 11 }, { push: 3 }, 'pop'])
+    const first = s.find((x) => x.caption.startsWith('Swapped down'))!
+    expect(first.active).toEqual([0, 2])
+    expect(first.caption).toBe('Swapped down: 3 was larger than its smaller child 2')
+    expect(first.heap[0]).toBe(2)
+  })
+
+  it('ends with a unique summary step', () => {
+    const last = steps.at(-1)!
+    expect(last.caption).toBe('Done: popped 1, 3 — heap is [4, 5, 8]')
+    expect(steps.filter((s) => s.caption === last.caption)).toHaveLength(1)
+    expect(steps.filter((s) => s.done)).toHaveLength(1)
   })
 
   it('handles no operations', () => {

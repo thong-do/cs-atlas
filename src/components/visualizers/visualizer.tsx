@@ -40,7 +40,8 @@ function ArrayVisualizer({ kind }: { kind: keyof typeof ARRAY_EXAMPLES }) {
 
 function HeapVisualizer() {
   const steps = useMemo(() => heapSteps([{ push: 5 }, { push: 3 }, { push: 8 }, { push: 1 }, { push: 4 }, 'pop', 'pop']), [])
-  return <StepPlayer steps={steps} title="Min-heap: push 5, 3, 8, 1, 4, then pop twice" render={(s) => <HeapView step={s} />} />
+  const maxSize = Math.max(...steps.map((s) => s.heap.length))
+  return <StepPlayer steps={steps} title="Min-heap: push 5, 3, 8, 1, 4, then pop twice" render={(s) => <HeapView step={s} maxSize={maxSize} />} />
 }
 
 function LcsVisualizer() {

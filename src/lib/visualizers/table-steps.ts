@@ -37,7 +37,7 @@ export function lcsTableSteps(a: string, b: string): TableStep[] {
     }
   }
   const len = values[a.length][b.length]!
-  steps.push({ rowLabels, colLabels, values: copy(values), caption: `LCS length = ${len}`, done: true })
+  steps.push({ rowLabels, colLabels, values: copy(values), current: [a.length, b.length], caption: `LCS length = ${len}`, done: true })
   return steps
 }
 
@@ -55,6 +55,7 @@ export function houseRobberSteps(nums: number[]): TableStep[] {
     const deps: [number, number][] = []
     if (i >= 1) deps.push([1, i - 1])
     if (i >= 2) deps.push([1, i - 2])
+    if (i >= 1) deps.push([0, i])
     const caption =
       i === 0
         ? `best[0] = ${nums[0]}: with one house, rob it`
@@ -63,6 +64,6 @@ export function houseRobberSteps(nums: number[]): TableStep[] {
           : `max(skip: ${skip}, rob: ${prev2} + ${nums[i]}) = ${best[i]}`
     steps.push({ rowLabels, colLabels, values: snap(), current: [1, i], deps, caption })
   }
-  steps.push({ rowLabels, colLabels, values: snap(), caption: `Best total = ${nums.length ? best[nums.length - 1] : 0}`, done: true })
+  steps.push({ rowLabels, colLabels, values: snap(), current: nums.length ? [1, nums.length - 1] : undefined, caption: `Best total = ${nums.length ? best[nums.length - 1] : 0}`, done: true })
   return steps
 }

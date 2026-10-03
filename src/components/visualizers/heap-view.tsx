@@ -5,9 +5,10 @@ const W = 320
 const LEVEL_H = 52
 const R = 16
 
-export function HeapView({ step }: { step: HeapStep }) {
+export function HeapView({ step, maxSize }: { step: HeapStep; maxSize: number }) {
   const { heap, active = [], popped = [] } = step
-  const levels = heap.length ? Math.floor(Math.log2(heap.length)) + 1 : 1
+  // Size the tree for the largest heap in the sequence so the figure never changes height.
+  const levels = Math.floor(Math.log2(Math.max(maxSize, heap.length, 1))) + 1
   const pos = (i: number) => {
     const level = Math.floor(Math.log2(i + 1))
     const k = i - (2 ** level - 1)
@@ -44,7 +45,7 @@ export function HeapView({ step }: { step: HeapStep }) {
         ))}
         {heap.length === 0 && <div className="flex h-10 items-center text-sm text-muted-foreground">(empty heap)</div>}
       </div>
-      {popped.length > 0 && <p className="text-sm">Popped: {popped.join(', ')}</p>}
+      <p className="min-h-5 text-sm">{popped.length > 0 && `Popped: ${popped.join(', ')}`}</p>
     </div>
   )
 }

@@ -12,14 +12,14 @@ export function TableView({ step }: { step: TableStep }) {
             <tr>
               <th scope="col" className="size-9" />
               {colLabels.map((c, j) => (
-                <th key={j} scope="col" className="size-9 font-semibold text-muted-foreground">{c}</th>
+                <th key={j} scope="col" className="size-9 font-semibold text-muted-foreground">{c || '∅'}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {values.map((row, i) => (
               <tr key={i}>
-                <th scope="row" className="h-9 min-w-9 px-1 font-semibold text-muted-foreground">{rowLabels[i]}</th>
+                <th scope="row" className="h-9 min-w-9 px-1 font-semibold text-muted-foreground">{rowLabels[i] || '∅'}</th>
                 {row.map((v, j) => {
                   const cur = current?.[0] === i && current?.[1] === j
                   return (

@@ -40,7 +40,7 @@ export function heapSteps(ops: HeapOp[]): HeapStep[] {
         if (heap[c] < heap[k]) {
           const [a, b] = [heap[k], heap[c]]
           ;[heap[k], heap[c]] = [b, a]
-          add(`${a} > ${b} (its smaller child): swap down`, [k, c])
+          add(`Swapped down: ${a} was larger than its smaller child ${b}`, [k, c])
           k = c
         } else {
           add(`${heap[k]} ≤ ${heap[c]} (its smaller child): stop`, [k, c])
@@ -58,7 +58,7 @@ export function heapSteps(ops: HeapOp[]): HeapStep[] {
         if (heap[k] < heap[p]) {
           const [a, b] = [heap[k], heap[p]]
           ;[heap[k], heap[p]] = [b, a]
-          add(`${a} < ${b} (its parent): swap up`, [p, k])
+          add(`Swapped up: ${a} was smaller than its parent ${b}`, [p, k])
           k = p
         } else {
           add(`${heap[k]} ≥ ${heap[p]} (its parent): stop`, [k, p])
@@ -68,6 +68,11 @@ export function heapSteps(ops: HeapOp[]): HeapStep[] {
       add('Heap property restored')
     }
   }
-  if (steps.length > 0) steps[steps.length - 1].done = true
+  if (steps.length > 0) {
+    if (steps[steps.length - 1].caption === 'Heap property restored') {
+      add(`Done: popped ${popped.length ? popped.join(', ') : 'nothing'} — heap is [${heap.join(', ')}]`)
+    }
+    steps[steps.length - 1].done = true
+  }
   return steps
 }

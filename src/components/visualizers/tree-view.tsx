@@ -29,7 +29,7 @@ export function TreeView({ step }: { step: TreeStep }) {
   const height = y(depth) + NODE_H / 2 + 4
   return (
     <div className="space-y-3">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Decision tree, current path ${JSON.stringify(path)}, ${results.length} subsets recorded`} className="mx-auto w-full max-w-lg">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Decision tree, current path ${JSON.stringify(path)}, ${results.length} subsets recorded`} className="mx-auto w-full max-w-xs">
         {nodes.map((n) => {
           if (n.parent === null) return null
           const hot = action === 'choose' && n.id === current

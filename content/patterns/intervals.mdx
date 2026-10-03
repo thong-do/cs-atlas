@@ -3,10 +3,120 @@ slug: intervals
 title: Intervals
 prerequisites: [heap]
 confusedWith: [greedy, heap]
-triggers: ["ranges given as [start, end]", "merge overlapping ranges", "meeting rooms / scheduling"]
+triggers: ["ranges given as [start, end]", "merge or insert overlapping ranges", "meeting rooms / scheduling / bookings", "remove the fewest ranges so none overlap", "how many ranges overlap at once"]
 complexity: "O(n log n) for sorting"
 summary: "Sort by start (or end), then sweep once."
-stub: true
+stub: false
 ---
 
-Theory page coming soon.
+## Intuition
+
+Interval problems look messy until you **sort**. Once ranges are ordered by start, any range can only overlap the ones right next to it in the sweep, so a single pass with a little state is enough.
+
+Think of a day planner. If you list meetings by start time, you can tell at a glance which ones clash: a meeting clashes with the previous one exactly when it starts before the previous one ends.
+
+The two overlap tests to memorise, for `a = [s1, e1]` and `b = [s2, e2]` with `s1 ≤ s2`:
+
+- They **overlap** when `s2 <= e1`. (Use `<` instead if touching endpoints don't count — read the problem.)
+- Their **intersection** is `[max(s1, s2), min(e1, e2)]`, valid when the start ≤ the end.
+
+Which key to sort by depends on the question:
+
+- **Merge / insert**: sort by **start**, extend the last merged range or start a new one.
+- **Keep as many as possible / remove the fewest**: sort by **end** and greedily keep the range that finishes first. It leaves the most room for everything after it.
+- **How many overlap at once** (rooms, groups): sort by start and keep a min-heap of end times. The heap size is the number of rooms in use.
+
+## Visual
+
+```text
+Merge Intervals — sorted by start:
+
+  [1,3]   ├───┤
+  [2,6]     ├───────┤
+  [8,10]                 ├───┤
+  [15,18]                          ├─────┤
+          1 2 3 4 5 6 7 8 9 10 …   15 16 17 18
+
+  2 ≤ 3   → overlaps, extend [1,3] to [1,6]
+  8 > 6   → gap, start a new range [8,10]
+  15 > 10 → gap, start a new range [15,18]
+
+  Result: [1,6]  [8,10]  [15,18]
+```
+
+## Template
+
+```python
+import heapq
+
+
+def merge(intervals: list[list[int]]) -> list[list[int]]:
+    intervals.sort(key=lambda iv: iv[0])
+    merged: list[list[int]] = []
+    for start, end in intervals:
+        if merged and start <= merged[-1][1]:          # overlaps the last range
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
+
+
+def insert(intervals: list[list[int]], new: list[int]) -> list[list[int]]:
+    """intervals is sorted and non-overlapping."""
+    result, i, n = [], 0, len(intervals)
+    while i < n and intervals[i][1] < new[0]:          # entirely before
+        result.append(intervals[i])
+        i += 1
+    start, end = new
+    while i < n and intervals[i][0] <= end:            # overlapping: absorb
+        start, end = min(start, intervals[i][0]), max(end, intervals[i][1])
+        i += 1
+    result.append([start, end])
+    result.extend(intervals[i:])                        # entirely after
+    return result
+
+
+def min_removals(intervals: list[list[int]]) -> int:
+    """Non-overlapping Intervals: keep the range that ends first."""
+    intervals.sort(key=lambda iv: iv[1])               # sort by END
+    kept_end, removed = float("-inf"), 0
+    for start, end in intervals:
+        if start >= kept_end:
+            kept_end = end
+        else:
+            removed += 1
+    return removed
+
+
+def min_groups(intervals: list[list[int]]) -> int:
+    """Fewest groups/rooms so no group has overlapping (inclusive) ranges."""
+    intervals.sort(key=lambda iv: iv[0])
+    ends: list[int] = []                               # min-heap of each group's last end
+    for start, end in intervals:
+        if ends and ends[0] < start:                   # a group is free again: reuse it
+            heapq.heappop(ends)
+        heapq.heappush(ends, end)
+    return len(ends)
+```
+
+## Complexity
+
+- Sorting dominates: **O(n log n)** time. The sweep itself is O(n).
+- The rooms/groups heap adds **O(n log n)** and **O(n)** space.
+- Insert Interval on an already-sorted list: **O(n)**, no sort needed.
+
+## Pitfalls
+
+- Forgetting to sort — the one-pass logic only works on ordered ranges.
+- Getting the touching case wrong. `[1,5]` and `[5,6]` overlap when ranges are **inclusive** (Divide Intervals) but not when they're **half-open** like meetings that end at 5 and start at 5. Flip `<` vs `<=` accordingly.
+- Merging with `merged[-1][1] = end` instead of `max(...)` — a short range inside a long one would shrink it.
+- Sorting by start for "remove the fewest" — sort by **end** instead, or the greedy choice isn't safe.
+- Mutating the input with `.sort()` when the caller still needs the original order; use `sorted(...)` if so.
+
+## Tips & tricks
+
+- Summary Ranges is the warm-up: walk the sorted numbers and close a range whenever the next number isn't `current + 1`.
+- Interval List Intersections: two pointers, one per list. Record the intersection if it's valid, then advance whichever range **ends first**.
+- Minimum Interval to Include Each Query: sort the queries too, push every interval that has started into a min-heap keyed by size, and pop those that already ended.
+- A sweep line also works for "max overlap": turn each range into `(start, +1)` and `(end, −1)` events, sort, and track the running sum.
+- Intervals plus "choose greedily" is the bridge to **Greedy**; intervals plus "track what's still open" is the bridge to **Heap**.

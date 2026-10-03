@@ -3,10 +3,105 @@ slug: greedy
 title: Greedy
 prerequisites: [heap]
 confusedWith: [dp-1d, intervals]
-triggers: ["a locally best choice is provably safe", "jump / reachability games", "maximum subarray (Kadane)"]
+triggers: ["a locally best choice is provably safe", "jump / reachability games", "maximum subarray (Kadane)", "one pass, keep the best-so-far", "a circular route with a running balance"]
 complexity: "Usually O(n) or O(n log n)"
 summary: "Commit to the best local choice when an exchange argument shows it is safe."
-stub: true
+stub: false
 ---
 
-Theory page coming soon.
+## Intuition
+
+A greedy algorithm makes the choice that looks best **right now** and never revisits it. When that's safe, you get a fast, simple one-pass solution. When it isn't, greedy quietly returns a wrong answer — so the real skill is knowing **why** the local choice can't hurt you.
+
+Think of giving change with coins of 25, 10, 5 and 1 cents: always hand over the biggest coin that fits. With these coins that's always optimal. With coins of 1, 3 and 4 it fails for 6 (4+1+1 instead of 3+3). Same idea, different safety — that's the whole game.
+
+How to convince yourself a greedy choice is safe:
+
+- **Exchange argument**: take any optimal solution that doesn't make your choice, swap your choice in, and show it's still at least as good.
+- **"Nothing better is possible"**: in Jump Game, if you can't reach index i, you can't reach anything past it either.
+- **Try to break it**: spend two minutes hunting for a counter-example. If you find one, you probably need **DP**.
+
+Common shapes:
+
+- **Best-so-far in one pass**: Kadane's maximum subarray (drop a prefix once it goes negative), Jump Game (track the farthest reachable index).
+- **Running balance that resets**: Gas Station — when the tank goes negative, no start up to here can work, so restart after it.
+- **Sort, then take**: Hand of Straights (always start groups from the smallest card), plus the "sort by end" interval trick.
+
+## Visual
+
+```text
+Jump Game — track the farthest index you can reach:
+
+nums  = [2, 3, 1, 1, 4]
+index:   0  1  2  3  4
+i=0: reach = max(0, 0+2) = 2
+i=1: reach = max(2, 1+3) = 4   ≥ last index → True
+
+nums  = [3, 2, 1, 0, 4]
+reach after i=0..3:  3, 3, 3, 3
+i=4: 4 > reach (3)  → stuck at the 0 → False
+```
+
+## Template
+
+```python
+def max_subarray(nums: list[int]) -> int:
+    """Kadane: extend the current run, or start fresh at x if the run only hurts."""
+    best = cur = nums[0]
+    for x in nums[1:]:
+        cur = max(x, cur + x)
+        best = max(best, cur)
+    return best
+
+
+def can_jump(nums: list[int]) -> bool:
+    reach = 0
+    for i, step in enumerate(nums):
+        if i > reach:                 # this index can't be reached
+            return False
+        reach = max(reach, i + step)
+    return True
+
+
+def min_jumps(nums: list[int]) -> int:
+    """Jump Game II: BFS by 'windows' — each jump covers the next window."""
+    jumps = window_end = farthest = 0
+    for i in range(len(nums) - 1):
+        farthest = max(farthest, i + nums[i])
+        if i == window_end:           # used up this jump's range
+            jumps += 1
+            window_end = farthest
+    return jumps
+
+
+def gas_station(gas: list[int], cost: list[int]) -> int:
+    if sum(gas) < sum(cost):
+        return -1                     # not enough fuel overall
+    tank = start = 0
+    for i in range(len(gas)):
+        tank += gas[i] - cost[i]
+        if tank < 0:                  # no start in [start, i] can work
+            start, tank = i + 1, 0
+    return start
+```
+
+## Complexity
+
+- Most greedy solutions are a single pass: **O(n)** time, **O(1)** space.
+- Add **O(n log n)** when the greedy choice needs sorted input (Hand of Straights, interval problems).
+
+## Pitfalls
+
+- Using greedy without a reason it's safe. Coin Change with arbitrary coins, 0/1 knapsack and Longest Increasing Subsequence look greedy but need **DP**.
+- Kadane with `best = 0` as the start — an all-negative array then returns 0 instead of its largest element.
+- Jump Game II: looping to the last index and counting one jump too many — stop at `len(nums) - 1`.
+- Gas Station: forgetting the total-fuel check, which is what makes "restart after the failure point" correct.
+- Valid Parenthesis String: trying all three meanings of `*` by recursion — instead track the **range** of possible open counts `[low, high]`.
+
+## Tips & tricks
+
+- Ask: "what is the best decision for the next step, and what would I lose by making it?" If the answer is "nothing", it's greedy.
+- Partition Labels: record each letter's last index, then extend the current part's end to the max last index seen and cut when `i` reaches it.
+- Hand of Straights: count cards in a `Counter`, then repeatedly start a group at the smallest remaining card.
+- Lemonade Change: always give back a $10 before two $5s when making $15 change — $5 bills are more flexible.
+- When greedy fails a counter-example, the same problem usually has a **1-D DP** solution that considers every choice.

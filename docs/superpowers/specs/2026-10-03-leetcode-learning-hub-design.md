@@ -121,7 +121,7 @@ Every pattern page has the same section order:
 ### 5.1 Content (repo, shared)
 ```
 content/
-  roadmap.yaml            # ordered list of pattern slugs (display order)
+  roadmap.yaml            # `order:` list of pattern slugs — the single source of display order
   patterns/<slug>.mdx
   problems/<slug>.yaml
 ```
@@ -130,7 +130,6 @@ content/
 ```yaml
 slug: two-pointers
 title: Two Pointers
-order: 2
 prerequisites: [arrays-hashing]
 confusedWith: [sliding-window, binary-search]
 triggers: ["sorted array + find pair/triplet", "palindrome check", "in-place partition"]
@@ -163,9 +162,9 @@ hint: "The array is sorted — what happens to the sum if you move the left or r
 ### 5.2 User data (IndexedDB, private)
 ```ts
 ProblemProgress { slug; status: 'unsolved' | 'solved'; solveRating?: 'alone' | 'hint' | 'solution';
-                  firstSolvedAt?; needsResolve: boolean }
+                  firstSolvedAt?; needsResolve: boolean; updatedAt }
 Note            { slug; insight; approach; complexity; mistakes; code; updatedAt }
-ReviewCard      { slug; card: FsrsCard; due }
+ReviewCard      { slug; card: FsrsCard; due; updatedAt }
 ReviewLog       { id; slug; rating: 'again' | 'hard' | 'good' | 'easy'; reviewedAt }
 TrainAttempt    { id; problemSlug; correctPattern; chosenPattern; correct; at }
 Activity        { date: 'YYYY-MM-DD'; reviews; solves; trains }

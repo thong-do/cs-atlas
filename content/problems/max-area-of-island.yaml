@@ -1,0 +1,9 @@
+slug: max-area-of-island
+title: "Max Area of Island"
+leetcodeId: 695
+url: https://leetcode.com/problems/max-area-of-island/
+difficulty: medium
+patterns: [graphs]
+ladderOrder: 3
+recognitionPrompt: "Find the size of the biggest connected block of land cells in a grid."
+hint: "Same exploration as counting regions, but measure each one."

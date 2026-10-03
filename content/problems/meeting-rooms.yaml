@@ -1,0 +1,9 @@
+slug: meeting-rooms
+title: "Meeting Rooms"
+leetcodeId: 252
+url: https://leetcode.com/problems/meeting-rooms/
+difficulty: easy
+patterns: [intervals]
+ladderOrder: 1
+recognitionPrompt: "Given a list of meeting time ranges, decide whether one person could attend all of them."
+hint: "After ordering by start time, only neighbors can conflict."

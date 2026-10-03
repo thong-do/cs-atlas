@@ -1,0 +1,9 @@
+slug: minimum-path-sum
+title: "Minimum Path Sum"
+leetcodeId: 64
+url: https://leetcode.com/problems/minimum-path-sum/
+difficulty: medium
+patterns: [dp-2d]
+ladderOrder: 2
+recognitionPrompt: "Find the cheapest top-left to bottom-right route through a grid of costs moving only right or down."
+hint: "The best cost into a cell extends the better of its two possible predecessors."

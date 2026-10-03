@@ -1,0 +1,9 @@
+slug: meeting-rooms-ii
+title: "Meeting Rooms II"
+leetcodeId: 253
+url: https://leetcode.com/problems/meeting-rooms-ii/
+difficulty: medium
+patterns: [intervals, heap]
+ladderOrder: 6
+recognitionPrompt: "Given meeting time ranges, find the minimum number of rooms needed so no two meetings in one room overlap."
+hint: "Track how many meetings are running at once as time sweeps forward."

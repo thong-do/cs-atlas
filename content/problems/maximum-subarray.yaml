@@ -1,0 +1,9 @@
+slug: maximum-subarray
+title: "Maximum Subarray"
+leetcodeId: 53
+url: https://leetcode.com/problems/maximum-subarray/
+difficulty: medium
+patterns: [greedy]
+ladderOrder: 2
+recognitionPrompt: "Find the contiguous stretch of an integer array with the largest sum."
+hint: "If the running total goes negative it can only hurt whatever follows."

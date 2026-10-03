@@ -1,0 +1,9 @@
+slug: plus-one
+title: "Plus One"
+leetcodeId: 66
+url: https://leetcode.com/problems/plus-one/
+difficulty: easy
+patterns: [math-geometry]
+ladderOrder: 1
+recognitionPrompt: "A number is stored as an array of its decimal digits; return the array representing that number increased by one."
+hint: "Think about what happens when a digit is nine."

@@ -1,0 +1,9 @@
+slug: coin-change-ii
+title: "Coin Change II"
+leetcodeId: 518
+url: https://leetcode.com/problems/coin-change-ii/
+difficulty: medium
+patterns: [dp-2d]
+ladderOrder: 4
+recognitionPrompt: "Count the distinct combinations of coins, with unlimited supply of each kind, that sum to a given amount."
+hint: "Order must not matter, so process one coin type at a time."

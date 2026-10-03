@@ -1,0 +1,9 @@
+slug: implement-trie-prefix-tree
+title: "Implement Trie (Prefix Tree)"
+leetcodeId: 208
+url: https://leetcode.com/problems/implement-trie-prefix-tree/
+difficulty: medium
+patterns: [tries]
+ladderOrder: 2
+recognitionPrompt: "Design a structure that stores words and can tell whether a word or a prefix has been stored."
+hint: "Each node maps a letter to the next node and remembers whether a word ends there."

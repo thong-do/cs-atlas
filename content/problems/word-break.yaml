@@ -1,0 +1,9 @@
+slug: word-break
+title: "Word Break"
+leetcodeId: 139
+url: https://leetcode.com/problems/word-break/
+difficulty: medium
+patterns: [dp-1d]
+ladderOrder: 7
+recognitionPrompt: "Decide whether a string can be split entirely into words drawn from a given dictionary."
+hint: "A prefix is breakable if some earlier breakable prefix is followed by a dictionary word."

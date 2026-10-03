@@ -1,0 +1,9 @@
+slug: flood-fill
+title: "Flood Fill"
+leetcodeId: 733
+url: https://leetcode.com/problems/flood-fill/
+difficulty: easy
+patterns: [graphs]
+ladderOrder: 1
+recognitionPrompt: "Recolor a starting pixel of an image and every pixel connected to it that shares its original color."
+hint: "Spread outward from the start through matching neighbors."

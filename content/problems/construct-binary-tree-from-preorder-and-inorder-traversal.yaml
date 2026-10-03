@@ -1,0 +1,9 @@
+slug: construct-binary-tree-from-preorder-and-inorder-traversal
+title: "Construct Binary Tree from Preorder and Inorder Traversal"
+leetcodeId: 105
+url: https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/
+difficulty: medium
+patterns: [trees]
+ladderOrder: 7
+recognitionPrompt: "Rebuild a binary tree from two lists that record its nodes in different visiting orders."
+hint: "The first item of one order is the root; the other order tells you how many nodes go left."

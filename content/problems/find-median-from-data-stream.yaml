@@ -1,0 +1,9 @@
+slug: find-median-from-data-stream
+title: "Find Median from Data Stream"
+leetcodeId: 295
+url: https://leetcode.com/problems/find-median-from-data-stream/
+difficulty: hard
+patterns: [heap]
+ladderOrder: 7
+recognitionPrompt: "Support adding numbers one at a time and querying the median of everything added so far."
+hint: "Split the data into a lower half and an upper half and keep them balanced."

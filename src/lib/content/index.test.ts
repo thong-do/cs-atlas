@@ -33,11 +33,17 @@ describe('content inventory', () => {
     expect(patterns.filter((p) => !p.stub).map((p) => p.slug).sort()).toEqual([...FULL].sort())
   })
 
-  it('has 50 problems and every ladder is numbered 1..n', () => {
-    expect(problems).toHaveLength(50)
+  it('has 138 problems and every ladder is numbered 1..n', () => {
+    expect(problems).toHaveLength(138)
     for (const p of patterns) {
       const orders = problems.filter((x) => x.patterns[0] === p.slug).map((x) => x.ladderOrder).sort((a, b) => a - b)
       expect(orders, p.slug).toEqual(orders.map((_, i) => i + 1))
+    }
+  })
+
+  it('gives every one of the 18 patterns at least 5 ladder problems', () => {
+    for (const p of patterns) {
+      expect(problems.filter((x) => x.patterns[0] === p.slug).length, p.slug).toBeGreaterThanOrEqual(5)
     }
   })
 

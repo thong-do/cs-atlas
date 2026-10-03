@@ -1,0 +1,9 @@
+slug: swim-in-rising-water
+title: "Swim in Rising Water"
+leetcodeId: 778
+url: https://leetcode.com/problems/swim-in-rising-water/
+difficulty: hard
+patterns: [advanced-graphs]
+ladderOrder: 6
+recognitionPrompt: "In a grid where each cell becomes passable at a given time, find the earliest moment you can travel from corner to corner."
+hint: "The cost of a path is its highest cell, so always expand the lowest frontier cell."

@@ -1,0 +1,9 @@
+slug: jump-game-ii
+title: "Jump Game II"
+leetcodeId: 45
+url: https://leetcode.com/problems/jump-game-ii/
+difficulty: medium
+patterns: [greedy]
+ladderOrder: 4
+recognitionPrompt: "With the same jump rules, find the minimum number of jumps to reach the last index."
+hint: "Think in terms of expanding windows: everything reachable with one more jump."

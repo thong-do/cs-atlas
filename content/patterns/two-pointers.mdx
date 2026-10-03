@@ -1,0 +1,29 @@
+---
+slug: two-pointers
+title: Two Pointers
+prerequisites: [arrays-hashing]
+confusedWith: [arrays-hashing]
+triggers: ["sorted array + find pair/triplet", "palindrome check"]
+complexity: "Usually O(n) time, O(1) space"
+summary: "Move two indices toward/along each other to avoid nested loops."
+---
+
+## Intuition
+
+Seed body; replaced in Task 19.
+
+## Template
+
+```python
+def two_sum_sorted(nums: list[int], target: int) -> tuple[int, int] | None:
+    left, right = 0, len(nums) - 1
+    while left < right:
+        total = nums[left] + nums[right]
+        if total == target:
+            return left, right
+        if total < target:
+            left += 1
+        else:
+            right -= 1
+    return None
+```

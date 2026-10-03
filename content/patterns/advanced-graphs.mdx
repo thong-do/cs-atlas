@@ -3,10 +3,132 @@ slug: advanced-graphs
 title: Advanced Graphs
 prerequisites: [graphs, heap]
 confusedWith: [graphs, greedy]
-triggers: ["weighted shortest path (Dijkstra)", "minimum spanning tree", "cheapest path with constraints"]
+triggers: ["weighted shortest path (Dijkstra)", "connect everything as cheaply as possible (minimum spanning tree)", "cheapest path with at most k steps", "minimise the worst edge on a path", "order things under dependency rules"]
 complexity: "O(E log V)"
 summary: "Graph algorithms that need a heap or union-find."
-stub: true
+stub: false
 ---
 
-Theory page coming soon.
+## Intuition
+
+Plain BFS finds the shortest path when every edge costs the same. Once edges have **weights** (times, prices, effort), the path with the fewest edges is no longer the cheapest, so you need tools that respect costs.
+
+Picture water flowing from a source through pipes of different lengths. It reaches the nearest junctions first, and from each one it flows onward. **Dijkstra** simulates exactly that with a min-heap: always expand the closest unfinished node. Once a node comes off the heap, its distance is final.
+
+The toolbox for this ladder:
+
+- **Dijkstra** (min-heap): shortest paths from one source with non-negative weights. The same loop also solves "minimise the worst edge on the path" (Path With Minimum Effort, Swim in Rising Water) — just change how a path's cost is combined.
+- **Minimum spanning tree**: connect all nodes with the least total weight. **Kruskal** sorts edges and adds each one unless it would form a cycle, which **union-find** detects in near O(1). **Prim** grows one tree with a heap instead.
+- **Bellman-Ford with k rounds**: when the path may use at most k edges (Cheapest Flights), relax every edge k+1 times from a snapshot of the previous round.
+- **Topological sort** from Graphs, applied twice when there are two independent sets of rules (Build a Matrix With Conditions).
+
+## Visual
+
+```text
+Dijkstra from node 0:        0 ──4──▶ 1
+                              │        ▲
+                              1        2
+                              ▼        │
+                              2 ───────┘
+
+heap            pop      update                 dist [0, 1, 2]
+[(0,0)]         (0,0)    1 → 4, 2 → 1           [0, 4, 1]
+[(1,2),(4,1)]   (1,2)    1 → min(4, 1+2) = 3    [0, 3, 1]
+[(3,1),(4,1)]   (3,1)    nothing to relax       [0, 3, 1]
+[(4,1)]         (4,1)    stale (4 > 3), skip    final: [0, 3, 1]
+```
+
+## Template
+
+```python
+import heapq
+import math
+
+
+def dijkstra(n: int, edges: list[tuple[int, int, int]], src: int) -> list[float]:
+    """edges are directed (u, v, weight); weights must be non-negative."""
+    adj = [[] for _ in range(n)]
+    for u, v, w in edges:
+        adj[u].append((v, w))
+    dist = [math.inf] * n
+    dist[src] = 0
+    heap = [(0, src)]
+    while heap:
+        d, u = heapq.heappop(heap)
+        if d > dist[u]:
+            continue                       # stale entry: a shorter path was found already
+        for v, w in adj[u]:
+            if d + w < dist[v]:
+                dist[v] = d + w
+                heapq.heappush(heap, (dist[v], v))
+    return dist
+
+
+class DSU:
+    """Union-find with path halving and union by size."""
+    def __init__(self, n: int):
+        self.parent = list(range(n))
+        self.size = [1] * n
+
+    def find(self, x: int) -> int:
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]
+            x = self.parent[x]
+        return x
+
+    def union(self, a: int, b: int) -> bool:
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return False                   # already connected: this edge would make a cycle
+        if self.size[ra] < self.size[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        self.size[ra] += self.size[rb]
+        return True
+
+
+def kruskal(n: int, edges: list[tuple[int, int, int]]) -> int:
+    """Minimum spanning tree weight; edges are (weight, u, v). -1 if disconnected."""
+    dsu, total, used = DSU(n), 0, 0
+    for w, u, v in sorted(edges):
+        if dsu.union(u, v):
+            total += w
+            used += 1
+    return total if used == n - 1 else -1
+
+
+def cheapest_within_k(n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:
+    """Bellman-Ford limited to k stops (k + 1 edges)."""
+    prices = [math.inf] * n
+    prices[src] = 0
+    for _ in range(k + 1):
+        nxt = prices[:]                    # relax from the previous round only
+        for u, v, w in flights:
+            if prices[u] + w < nxt[v]:
+                nxt[v] = prices[u] + w
+        prices = nxt
+    return prices[dst] if prices[dst] != math.inf else -1
+```
+
+## Complexity
+
+- Dijkstra with a binary heap: **O((V + E) log V)**.
+- Kruskal: **O(E log E)** for sorting; union-find operations are nearly O(1) each.
+- Bellman-Ford with k rounds: **O(k · E)**.
+- Dense "every point connects to every point" graphs (Min Cost to Connect All Points) have E ≈ V², so Prim with a simple array, at **O(V²)**, can beat Kruskal.
+
+## Pitfalls
+
+- Using Dijkstra with **negative** edge weights — the "final once popped" guarantee breaks. Use Bellman-Ford instead.
+- Skipping the stale-entry check (`if d > dist[u]: continue`). Results stay correct, but old heap entries do extra work.
+- Cheapest Flights with plain Dijkstra: the cheapest path may use too many stops. Either carry the stop count in the state or use k-round Bellman-Ford.
+- Updating `prices` in place during a Bellman-Ford round, which lets a single round chain several edges and breaks the stop limit.
+- Union-find without path compression or union by size can degrade to O(n) per find.
+
+## Tips & tricks
+
+- Network Delay Time is plain Dijkstra: the answer is the largest distance, or −1 if some node stays at infinity.
+- Path With Minimum Effort and Swim in Rising Water: the cost of a path is its **maximum** step, so push `max(d, step)` instead of `d + step`.
+- Reconstruct Itinerary: Hierholzer's algorithm — DFS, using each ticket once in lexical order, append the airport after its edges run out, then reverse the list.
+- Build a Matrix With Conditions: topologically sort the row rules and the column rules separately; a cycle in either means it's impossible.
+- Union-find is also the quickest way to count connected components or detect a cycle in an undirected graph.

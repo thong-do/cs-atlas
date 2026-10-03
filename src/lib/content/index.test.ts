@@ -25,10 +25,10 @@ describe('content accessors', () => {
 
 describe('content inventory', () => {
   const { patterns, problems } = getCatalog()
-  const FULL = ['arrays-hashing', 'two-pointers', 'sliding-window', 'stack', 'binary-search', 'linked-list', 'trees', 'graphs', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'dp-1d']
+  const FULL = ['arrays-hashing', 'two-pointers', 'sliding-window', 'stack', 'binary-search', 'linked-list', 'trees', 'graphs', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
   const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
 
-  it('has 18 patterns, exactly the 14 with full theory', () => {
+  it('has 18 patterns, all of them with full theory', () => {
     expect(patterns).toHaveLength(18)
     expect(patterns.filter((p) => !p.stub).map((p) => p.slug).sort()).toEqual([...FULL].sort())
   })

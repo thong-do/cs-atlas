@@ -102,6 +102,39 @@ describe('DexieStore export/import', () => {
   })
 })
 
+describe('DexieStore destructive imports', () => {
+  it('replace-import over a non-empty store discards rows not in the file', async () => {
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    const file = await store.exportAll(day(4))
+    const other = new DexieStore(new LeetHubDB(`test-${crypto.randomUUID()}`))
+    await other.markSolved('b', 'hint', 'insight b', day(3))
+    await other.importAll(file, 'replace')
+    expect(await other.getProgress('b')).toBeUndefined()
+    expect(await other.getNote('b')).toBeUndefined()
+    expect(await other.getProgress('a')).toBeDefined()
+  })
+
+  it('is atomic: a failing import rejects and leaves existing data intact', async () => {
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    const file = JSON.parse(JSON.stringify(await store.exportAll(day(4))))
+    file.data.progress = [{ status: 'solved' }]
+    await expect(store.importAll(file as never, 'replace')).rejects.toBeDefined()
+    expect(await store.hasData()).toBe(true)
+    expect((await store.getNote('a'))?.insight).toBe('insight a')
+  })
+
+  it('merge keeps the newer record on both sides', async () => {
+    await store.markSolved('x', 'alone', 'old insight', day(3))
+    await store.markSolved('y', 'alone', 'local newer', day(9))
+    const other = new DexieStore(new LeetHubDB(`test-${crypto.randomUUID()}`))
+    await other.markSolved('x', 'alone', 'incoming newer', day(8))
+    await other.markSolved('y', 'alone', 'incoming older', day(4))
+    await store.importAll(await other.exportAll(day(10)), 'merge')
+    expect((await store.getNote('x'))?.insight).toBe('incoming newer')
+    expect((await store.getNote('y'))?.insight).toBe('local newer')
+  })
+})
+
 describe('NullStore', () => {
   it('reads empty and refuses writes', async () => {
     const n = new NullStore()

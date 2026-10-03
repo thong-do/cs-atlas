@@ -90,11 +90,17 @@ export class DexieStore implements Store {
   }
 
   async saveSettings(settings: Settings): Promise<void> {
-    await this.db.meta.put({ ...(await this.getMeta()), settings, key: 'meta' })
+    const { db } = this
+    await db.transaction('rw', db.meta, async () => {
+      await db.meta.put({ ...(await this.getMeta()), settings, key: 'meta' })
+    })
   }
 
   async markBackedUp(now: Date): Promise<void> {
-    await this.db.meta.put({ ...(await this.getMeta()), lastBackupAt: now.toISOString(), key: 'meta' })
+    const { db } = this
+    await db.transaction('rw', db.meta, async () => {
+      await db.meta.put({ ...(await this.getMeta()), lastBackupAt: now.toISOString(), key: 'meta' })
+    })
   }
 
   async hasData(): Promise<boolean> {
@@ -124,9 +130,9 @@ export class DexieStore implements Store {
   }
 
   async importAll(file: ExportFile, mode: 'replace' | 'merge'): Promise<void> {
-    const data = mode === 'replace' ? file.data : mergeUserData(await this.getUserData(), file.data)
     const { db } = this
     await db.transaction('rw', db.tables, async () => {
+      const data = mode === 'replace' ? file.data : mergeUserData(await this.getUserData(), file.data)
       await Promise.all(db.tables.map((t) => t.clear()))
       await db.progress.bulkPut(data.progress)
       await db.notes.bulkPut(data.notes)

@@ -2,9 +2,16 @@
 
 import { useMemo } from 'react'
 import { binarySearchSteps, gridBfsSteps, slidingWindowSteps, twoPointersSteps } from '@/lib/visualizers/steps'
+import { heapSteps } from '@/lib/visualizers/heap-steps'
+import { houseRobberSteps, lcsTableSteps } from '@/lib/visualizers/table-steps'
+import { subsetsTreeSteps } from '@/lib/visualizers/tree-steps'
+import { HeapView } from './heap-view'
+import { TableView } from './table-view'
+import { TreeView } from './tree-view'
 import { StepPlayer } from './step-player'
+import { VisStepView } from './step-views'
 
-const EXAMPLES = {
+const ARRAY_EXAMPLES = {
   'two-pointers': { title: 'Find two numbers summing to 10 in [1, 3, 4, 6, 8, 11]', build: () => twoPointersSteps([1, 3, 4, 6, 8, 11], 10) },
   'sliding-window': { title: 'Longest substring without repeats in "abcabcbb"', build: () => slidingWindowSteps('abcabcbb') },
   'binary-search': { title: 'Find 9 in [1, 3, 5, 7, 9, 11, 13]', build: () => binarySearchSteps([1, 3, 5, 7, 9, 11, 13], 9) },
@@ -23,10 +30,46 @@ const EXAMPLES = {
   },
 } as const
 
-export type VisualizerKind = keyof typeof EXAMPLES
+export type VisualizerKind = keyof typeof ARRAY_EXAMPLES | 'heap' | 'lcs-table' | 'house-robber' | 'subsets-tree'
+
+function ArrayVisualizer({ kind }: { kind: keyof typeof ARRAY_EXAMPLES }) {
+  const example = ARRAY_EXAMPLES[kind]
+  const steps = useMemo(() => example.build(), [example])
+  return <StepPlayer steps={steps} title={example.title} render={(s) => <VisStepView step={s} />} />
+}
+
+function HeapVisualizer() {
+  const steps = useMemo(() => heapSteps([{ push: 5 }, { push: 3 }, { push: 8 }, { push: 1 }, { push: 4 }, 'pop', 'pop']), [])
+  const maxSize = Math.max(...steps.map((s) => s.heap.length))
+  return <StepPlayer steps={steps} title="Min-heap: push 5, 3, 8, 1, 4, then pop twice" render={(s) => <HeapView step={s} maxSize={maxSize} />} />
+}
+
+function LcsVisualizer() {
+  const steps = useMemo(() => lcsTableSteps('ace', 'abcde'), [])
+  return <StepPlayer steps={steps} title={'Longest Common Subsequence of "ace" and "abcde"'} render={(s) => <TableView step={s} />} />
+}
+
+function HouseRobberVisualizer() {
+  const steps = useMemo(() => houseRobberSteps([2, 7, 9, 3, 1]), [])
+  return <StepPlayer steps={steps} title="House Robber on [2, 7, 9, 3, 1]" render={(s) => <TableView step={s} />} />
+}
+
+function SubsetsVisualizer() {
+  const steps = useMemo(() => subsetsTreeSteps([1, 2, 3]), [])
+  return <StepPlayer steps={steps} title="Subsets of [1, 2, 3] — the decision tree" render={(s) => <TreeView step={s} finalResults={steps.at(-1)!.results} />} />
+}
 
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
-  const example = EXAMPLES[kind]
-  const steps = useMemo(() => example.build(), [example])
-  return <StepPlayer steps={steps} title={example.title} />
+  switch (kind) {
+    case 'heap':
+      return <HeapVisualizer />
+    case 'lcs-table':
+      return <LcsVisualizer />
+    case 'house-robber':
+      return <HouseRobberVisualizer />
+    case 'subsets-tree':
+      return <SubsetsVisualizer />
+    default:
+      return <ArrayVisualizer kind={kind} />
+  }
 }

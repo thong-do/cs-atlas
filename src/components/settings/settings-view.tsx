@@ -29,25 +29,34 @@ export function SettingsView() {
   }, [savedRetention])
 
   async function exportBackup() {
-    const now = new Date()
-    const file = await store.exportAll(now)
-    downloadText(JSON.stringify(file, null, 2), `leethub-backup-${localDate(now)}.json`)
-    await store.markBackedUp(now).catch(() => undefined)
-    toast.success('Backup downloaded')
+    try {
+      const now = new Date()
+      const file = await store.exportAll(now)
+      downloadText(JSON.stringify(file, null, 2), `leethub-backup-${localDate(now)}.json`)
+      await store.markBackedUp(now).catch(() => undefined)
+      toast.success('Backup downloaded')
+    } catch (err) {
+      toast.error(message(err))
+    }
   }
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    const result = parseExport(await file.text())
-    if (!result.ok) {
-      setImportError(result.error)
+    try {
+      const result = parseExport(await file.text())
+      if (!result.ok) {
+        setImportError(result.error)
+        setPending(null)
+        return
+      }
+      setImportError(null)
+      setPending(result.file)
+    } catch {
+      setImportError('Could not read that file.')
       setPending(null)
-      return
     }
-    setImportError(null)
-    setPending(result.file)
   }
 
   async function doImport(mode: 'merge' | 'replace') {
@@ -55,6 +64,7 @@ export function SettingsView() {
     if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone.')) return
     try {
       await store.importAll(pending, mode)
+      if (mode === 'replace') setTheme(pending.data.meta.settings.theme)
       setPending(null)
       toast.success(mode === 'replace' ? 'Backup restored' : 'Backup merged')
     } catch (err) {

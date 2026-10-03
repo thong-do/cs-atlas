@@ -1,3 +1,5 @@
-export default function Home() {
-  return <h1 className="text-2xl font-bold">LeetHub</h1>
+import { TodayView } from '@/components/today/today-view'
+
+export default function TodayPage() {
+  return <TodayView />
 }

@@ -27,4 +27,4 @@ npm run build      # static site in out/
 
 ## Deploy
 
-Pushing to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml`. Set `NEXT_PUBLIC_BASE_PATH` there to `/<your-repo-name>` (or remove it for a custom domain / Vercel).
+Hosted on Vercel: every push to `main` deploys to production, and pull requests get preview deployments. The site is a static export (`out/`) with no base path. `NEXT_PUBLIC_BASE_PATH` is only needed when hosting under a sub-path (e.g. GitHub Pages).

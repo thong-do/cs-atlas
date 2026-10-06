@@ -39,16 +39,17 @@ export function RoadmapView() {
 
   const heights = bands.map((b) => TITLE + b.layout.levels * ROW + 20)
   const top = heights.map((_, i) => heights.slice(0, i).reduce((x, y) => x + y, 0))
-  const width = maxRow * COL + PAD * 2
+  const gutter = crossEdges.length ? 12 + 10 * crossEdges.length : 0
+  const width = maxRow * COL + PAD * 2 + gutter
   const height = heights.reduce((x, y) => x + y, 0) + 10
   const pos = new Map(bands.flatMap((band, i) => band.layout.nodes.map((n) => [n.slug, {
-    x: PAD + ((maxRow - n.rowSize) * COL) / 2 + n.index * COL + COL / 2,
+    x: gutter + PAD + ((maxRow - n.rowSize) * COL) / 2 + n.index * COL + COL / 2,
     y: top[i] + TITLE + n.level * ROW + 40,
   }] as const)))
   const nodes = bands.flatMap((band) => band.layout.nodes)
   const edges = [
-    ...bands.flatMap((band) => band.layout.edges.map((e) => ({ ...e, cross: false }))),
-    ...crossEdges.map((e) => ({ ...e, cross: true })),
+    ...bands.flatMap((band) => band.layout.edges.map((e) => ({ ...e, lane: -1 }))),
+    ...crossEdges.map((e, i) => ({ ...e, lane: i })),
   ]
 
   return (
@@ -56,8 +57,8 @@ export function RoadmapView() {
       <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto h-auto w-full min-w-[720px] max-w-4xl" role="group" aria-label="Roadmap">
         {bands.map((band, i) => (
           <g key={band.track}>
-            {i > 0 && <line x1={PAD} x2={width - PAD} y1={top[i] - 4} y2={top[i] - 4} className="stroke-border" strokeWidth={1} />}
-            <g transform={`translate(${PAD} ${top[i] + 24})`}>
+            {i > 0 && <line x1={gutter + PAD} x2={width - PAD} y1={top[i] - 4} y2={top[i] - 4} className="stroke-border" strokeWidth={1} />}
+            <g transform={`translate(${gutter + PAD} ${top[i] + 24})`}>
               <text className="fill-foreground text-[15px] font-semibold">{band.title}</text>
             </g>
           </g>
@@ -69,16 +70,20 @@ export function RoadmapView() {
           const y1 = a.y + R + 40
           const y2 = b.y - R - 4
           const dy = (y2 - y1) / 2
+          const cross = e.lane >= 0
+          const laneX = 12 + 10 * e.lane
+          const yOut = a.y + R + 46
+          const yIn = b.y - R - 16
           return (
             <path
               key={`${e.from}-${e.to}`}
               data-from={e.from}
               data-to={e.to}
-              d={`M ${a.x} ${y1} C ${a.x} ${y1 + dy}, ${b.x} ${y2 - dy}, ${b.x} ${y2}`}
+              d={cross ? `M ${a.x} ${yOut} H ${laneX} V ${yIn} H ${b.x} V ${y2}` : `M ${a.x} ${y1} C ${a.x} ${y1 + dy}, ${b.x} ${y2 - dy}, ${b.x} ${y2}`}
               fill="none"
               className="stroke-border"
               strokeWidth={2}
-              strokeDasharray={e.cross ? '6 4' : undefined}
+              strokeDasharray={cross ? '6 4' : undefined}
             />
           )
         })}

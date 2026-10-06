@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { getCatalog, getExercise, getLessonDoc } from './index'
 
@@ -83,4 +84,13 @@ describe('content inventory', () => {
       expect(urlSlug, e.slug).toBe(ALLOWED[e.slug] ?? e.slug)
     }
   })
+})
+
+it('ships contributor templates with the required sections and fields', () => {
+  const lesson = readFileSync('templates/lesson.mdx', 'utf8')
+  for (const h of ['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks']) expect(lesson).toContain(`\n## ${h}\n`)
+  const exercise = readFileSync('templates/exercise.yaml', 'utf8')
+  for (const f of ['slug', 'type', 'title', 'leetcodeId', 'url', 'difficulty', 'lessons', 'ladderOrder', 'recognitionPrompt', 'hint']) {
+    expect(exercise).toMatch(new RegExp(`^${f}:`, 'm'))
+  }
 })

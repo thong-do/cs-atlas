@@ -1,0 +1,18 @@
+name: Content error
+description: Something in a lesson or exercise is wrong or unclear
+labels: [content]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Page URL
+      placeholder: https://…/algorithms/two-pointers/
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong?
+      description: Quote the sentence or code, and say what it should be.
+    validations:
+      required: true

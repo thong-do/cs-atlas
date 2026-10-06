@@ -1,0 +1,10 @@
+slug: problem-slug-from-the-leetcode-url
+type: external-problem
+title: "Problem Title"
+leetcodeId: 1
+url: https://leetcode.com/problems/problem-slug-from-the-leetcode-url/
+difficulty: easy                 # easy | medium | hard
+lessons: [primary-lesson]        # first = the ladder it belongs to; add lessons from other tracks after it
+ladderOrder: 1                   # next free number in the primary lesson's ladder
+recognitionPrompt: "Describe the problem in your own words — never paste LeetCode's text."
+hint: "One nudge toward the approach, not the solution."

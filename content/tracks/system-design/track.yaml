@@ -1,0 +1,17 @@
+slug: system-design
+title: System Design
+summary: "How real systems scale, stay fast and survive failures."
+order: 2
+modules:
+  - slug: foundations
+    title: Foundations
+    lessons: [caching]
+    comingSoon: ["Client–server & HTTP", "DNS & CDNs", "SQL vs NoSQL"]
+  - slug: scaling
+    title: Scaling
+    lessons: []
+    comingSoon: ["Load balancing", "Replication & sharding", "Queues & streams", "Rate limiting"]
+  - slug: case-studies
+    title: Case Studies
+    lessons: []
+    comingSoon: ["URL shortener", "News feed", "Chat"]

@@ -39,6 +39,17 @@ describe('content accessors', () => {
 })
 
 describe('content inventory', () => {
+  it('has a System Design track with the Caching lesson and coming-soon outline', () => {
+    const { tracks, lessons, exercises } = getCatalog()
+    expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design'])
+    const sd = tracks[1]
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['caching'])
+    expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
+    expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing'] })
+    expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['lru-cache', 'time-based-key-value-store'])
+  })
+
   const { lessons, exercises } = getCatalog()
   const algorithms = lessons.filter((l) => l.track === 'algorithms')
 

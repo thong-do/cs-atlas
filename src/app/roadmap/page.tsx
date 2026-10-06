@@ -7,7 +7,7 @@ export default function RoadmapPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Roadmap</h1>
       <p className="text-muted-foreground">
-        Each ring shows your mastery. The dashed ring marks what to learn next — but every pattern is open, jump anywhere.
+        Each track is a band, and each ring shows your mastery. Dashed lines link lessons across tracks. The dashed ring marks what to learn next, but every lesson is open, so jump anywhere.
       </p>
       <RoadmapView />
     </div>

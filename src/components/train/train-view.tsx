@@ -34,7 +34,7 @@ export function TrainView() {
   const [quick, setQuick] = useState(false)
   const autoStarted = useRef(false)
   const markQuick = useCallback(() => setQuick(true), [])
-  const hrefOf = (slug: string) => lessonHref(lessonBySlug.get(slug) ?? { track: 'algorithms', slug })
+  const hrefOf = (slug: string) => lessonHref(lessonBySlug.get(slug)!)
   const title = (slug: string) => lessonBySlug.get(slug)?.title ?? slug
 
   function start(count: number) {

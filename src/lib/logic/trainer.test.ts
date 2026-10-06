@@ -85,4 +85,14 @@ describe('buildRound', () => {
   it('builds up to count questions and is shorter for a small pool', () => {
     expect(buildRound([prob('a', 'tp'), prob('b', 'sw')], lessons, [], 5, mulberry32(1))).toHaveLength(2)
   })
+
+  it('only asks about algorithms exercises and offers algorithms lessons as answers', () => {
+    const ls = [...lessons, { ...p('cache'), track: 'system-design' }]
+    const exs = [prob('a', 'tp'), prob('lru', 'cache'), prob('b', 'sw')]
+    for (let seed = 1; seed <= 20; seed++) {
+      const round = buildRound(exs, ls, [], 5, mulberry32(seed))
+      expect(round.map((q) => q.problemSlug)).not.toContain('lru')
+      for (const q of round) expect(q.options).not.toContain('cache')
+    }
+  })
 })

@@ -2,33 +2,32 @@ import { describe, expect, it } from 'vitest'
 import type { LessonMeta } from '@/lib/types'
 import { recommendedLesson } from './recommend'
 
-const p = (slug: string, prerequisites: string[] = []): LessonMeta => ({
-  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, confusedWith: [], triggers: ['t'], complexity: 'O(n)',
+const p = (slug: string, prerequisites: string[] = [], track = 'algorithms'): LessonMeta => ({
+  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, confusedWith: [], triggers: ['t'], complexity: 'O(n)',
 })
-const lessons = [p('a'), p('b', ['a']), p('c', ['a']), p('d', ['b', 'c'])]
-const order = ['a', 'b', 'c', 'd']
+const lessons = [p('a'), p('b', ['a']), p('c', ['a']), p('d', ['b', 'c']), p('sd1', ['a'], 'system-design')]
+const algo = new Set(['algorithms'])
 
 describe('recommendedLesson', () => {
-  it('starts at the first pattern', () => {
-    expect(recommendedLesson(order, lessons, new Map())).toBe('a')
+  it('starts with the first algorithms lesson when nothing is started', () => {
+    expect(recommendedLesson(lessons, new Map(), new Set())).toBe('a')
   })
-
-  it('moves on once a pattern is mastered and unlocks dependents at 50', () => {
-    expect(recommendedLesson(order, lessons, new Map([['a', 85]]))).toBe('b')
+  it('moves on once a lesson is mastered', () => {
+    expect(recommendedLesson(lessons, new Map([['a', 85]]), algo)).toBe('b')
   })
-
-  it('skips patterns whose prerequisites are below 50', () => {
-    const m = new Map([['a', 85], ['b', 85], ['c', 40]])
-    expect(recommendedLesson(order, lessons, m)).toBe('c')
+  it('skips lessons whose prerequisites are below 50', () => {
+    expect(recommendedLesson(lessons, new Map([['a', 85], ['b', 85], ['c', 40]]), algo)).toBe('c')
   })
-
-  it('falls back to the first unmastered pattern when none is ready', () => {
-    const m = new Map([['a', 40], ['b', 0]])
-    expect(recommendedLesson(['b', 'a'], lessons, m)).toBe('a')
-    expect(recommendedLesson(['b'], lessons, m)).toBe('b')
+  it('only recommends from started tracks, honouring cross-track prerequisites', () => {
+    const sdOnly = new Set(['system-design'])
+    expect(recommendedLesson(lessons, new Map(), sdOnly)).toBe('sd1')
+    expect(recommendedLesson(lessons, new Map([['a', 60]]), sdOnly)).toBe('sd1')
   })
-
-  it('returns null when everything is mastered', () => {
-    expect(recommendedLesson(order, lessons, new Map(order.map((s) => [s, 90])))).toBeNull()
+  it('returns null when every lesson in the started tracks is mastered', () => {
+    expect(recommendedLesson(lessons, new Map(lessons.map((l) => [l.slug, 90])), algo)).toBeNull()
+  })
+  it('falls back to the first unmastered lesson when none in the started track is ready', () => {
+    const ls = [p('b', ['a']), p('a', [], 'system-design')]
+    expect(recommendedLesson(ls, new Map(), new Set(['algorithms']))).toBe('b')
   })
 })

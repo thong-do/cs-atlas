@@ -6,6 +6,7 @@ import { useCatalog } from '@/lib/content/catalog-context'
 import { lessonHref } from '@/lib/content/hrefs'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { MASTERED } from '@/lib/logic/mastery'
+import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { layoutRoadmap } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
@@ -25,10 +26,11 @@ export function RoadmapView() {
   const layout = useMemo(() => layoutRoadmap(order, lessons), [order, lessons])
 
   const m = masteries ?? new Map<string, number>()
-  const recommended = masteries ? recommendedLesson(order, lessons, masteries) : null
   const solved = new Set((progress ?? []).filter((p) => p.status === 'solved').map((p) => p.slug))
+  const trackOf = trackLookup(lessons)
+  const recommended = masteries ? recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf)) : null
   const count = (slug: string) => {
-    const ladder = exercises.filter((p) => p.lessons[0] === slug)
+    const ladder = lessonExercises(lessonBySlug.get(slug)!, exercises, trackOf)
     return `${ladder.filter((p) => solved.has(p.slug)).length}/${ladder.length}`
   }
 
@@ -56,7 +58,7 @@ export function RoadmapView() {
           const isNext = n.slug === recommended
           const lesson = lessonBySlug.get(n.slug)
           const title = lesson?.title ?? n.slug
-          const go = () => router.push(lessonHref(lesson ?? { track: 'algorithms', slug: n.slug }))
+          const go = () => router.push(lessonHref(lesson!))
           return (
             <g
               key={n.slug}

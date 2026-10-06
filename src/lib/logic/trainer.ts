@@ -1,4 +1,5 @@
 import type { LessonMeta, ExerciseMeta, TrainAttempt } from '@/lib/types'
+import { TRAINER_TRACK } from './lessons'
 import { recognitionAccuracy } from './mastery'
 import { shuffle, type Rng } from './rng'
 
@@ -50,5 +51,8 @@ export function buildRound(
   count: number,
   rng: Rng,
 ): TrainQuestion[] {
-  return pickTrainExercises(exercises, attempts, count, rng).map((p) => buildQuestion(p, lessons, rng))
+  const pool = lessons.filter((l) => l.track === TRAINER_TRACK)
+  const inPool = new Set(pool.map((l) => l.slug))
+  const eligible = exercises.filter((e) => inPool.has(e.lessons[0]))
+  return pickTrainExercises(eligible, attempts, count, rng).map((e) => buildQuestion(e, pool, rng))
 }

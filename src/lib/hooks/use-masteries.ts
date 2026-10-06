@@ -17,7 +17,7 @@ export function useMasterySnapshot(): MasterySnapshot | undefined {
     () => data && {
       store: data.store,
       importId: data.importId,
-      masteries: computeMasteries(lessons, { exercises, progress: data.progress, cards: data.cards, attempts: data.attempts, now }),
+      masteries: computeMasteries(lessons, { exercises, lessons, progress: data.progress, cards: data.cards, attempts: data.attempts, now }),
     },
     [data, lessons, exercises, now],
   )

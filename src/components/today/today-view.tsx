@@ -10,6 +10,7 @@ import { exerciseHref, lessonHref } from '@/lib/content/hrefs'
 import { useNow } from '@/lib/hooks/use-now'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { currentStreak } from '@/lib/logic/dates'
+import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
 import type { ReviewRating } from '@/lib/types'
@@ -44,9 +45,10 @@ export function TodayView() {
   const progressBySlug = new Map(data.progress.map((p) => [p.slug, p]))
   const solved = new Set(data.progress.filter((p) => p.status === 'solved').map((p) => p.slug))
   const reviews = data.due.filter((d) => exerciseBySlug.has(d.card.slug))
-  const recommended = recommendedLesson(lessons.map((l) => l.slug), lessons, masteries)
+  const trackOf = trackLookup(lessons)
+  const recommended = recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf))
   const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
-  const recLadder = recommended ? exercises.filter((p) => p.lessons[0] === recommended) : []
+  const recLadder = recLesson ? lessonExercises(recLesson, exercises, trackOf) : []
   const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : exercises
   const nextUp = pool.filter((p) => !solved.has(p.slug)).slice(0, 3)
 

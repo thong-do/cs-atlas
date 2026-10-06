@@ -7,6 +7,7 @@ import { MasteryBadge } from '@/components/lessons/mastery-badge'
 import { Visualizer } from '@/components/visualizers/visualizer'
 import { getCatalog, getLessonDoc, type TocEntry } from '@/lib/content'
 import { lessonHref } from '@/lib/content/hrefs'
+import { lessonExercises, trackLookup } from '@/lib/logic/lessons'
 
 export const dynamicParams = false
 
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ track: st
 
 function LessonLinks({ slugs, lessonOf }: { slugs: string[]; lessonOf: (slug: string) => { track: string; slug: string; title: string } | undefined }) {
   return slugs.map((s, i) => (
-    <span key={s}>{i > 0 && ', '}<Link href={lessonHref(lessonOf(s) ?? { track: 'algorithms', slug: s })} className="underline">{lessonOf(s)?.title ?? s}</Link></span>
+    <span key={s}>{i > 0 && ', '}<Link href={lessonHref(lessonOf(s)!)} className="underline">{lessonOf(s)?.title ?? s}</Link></span>
   ))
 }
 
@@ -30,7 +31,7 @@ export default async function LessonPage({ params }: { params: Promise<{ track: 
   const doc = getLessonDoc(slug)
   if (!doc || doc.track !== track) notFound()
   const { exercises, lessons } = getCatalog()
-  const ladder = exercises.filter((e) => e.lessons[0] === slug)
+  const ladder = lessonExercises(doc, exercises, trackLookup(lessons))
   const lessonOf = (s: string) => lessons.find((l) => l.slug === s)
   const toc: TocEntry[] = [
     ...(doc.triggers.length > 0 ? [{ title: 'Recognize it', url: '#recognize-it', items: [] }] : []),

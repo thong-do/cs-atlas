@@ -11,7 +11,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
-  return { title: `${getExercise(slug)?.title ?? 'Exercise'} · LeetHub` }
+  return { title: `${getExercise(slug)?.title ?? 'Exercise'} · CS Atlas` }
 }
 
 export default async function ExercisePage({ params }: { params: Promise<{ slug: string }> }) {

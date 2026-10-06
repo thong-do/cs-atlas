@@ -17,7 +17,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ track: string; lesson: string }> }): Promise<Metadata> {
   const { lesson } = await params
-  return { title: `${getLessonDoc(lesson)?.title ?? 'Lesson'} · LeetHub` }
+  return { title: `${getLessonDoc(lesson)?.title ?? 'Lesson'} · CS Atlas` }
 }
 
 function LessonLinks({ slugs, lessonOf }: { slugs: string[]; lessonOf: (slug: string) => { track: string; slug: string; title: string } | undefined }) {

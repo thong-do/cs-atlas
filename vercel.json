@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    { "source": "/patterns/:slug", "destination": "/algorithms/:slug/", "permanent": true },
+    { "source": "/patterns/:slug/", "destination": "/algorithms/:slug/", "permanent": true },
+    { "source": "/problems", "destination": "/exercises/", "permanent": true },
+    { "source": "/problems/", "destination": "/exercises/", "permanent": true },
+    { "source": "/problems/:slug", "destination": "/exercises/:slug/", "permanent": true },
+    { "source": "/problems/:slug/", "destination": "/exercises/:slug/", "permanent": true }
+  ]
+}

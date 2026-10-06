@@ -1,6 +1,6 @@
 import { RoadmapView } from '@/components/roadmap/roadmap-view'
 
-export const metadata = { title: 'Roadmap · LeetHub' }
+export const metadata = { title: 'Roadmap · CS Atlas' }
 
 export default function RoadmapPage() {
   return (

@@ -1,5 +1,5 @@
 {
-  "name": "leethub",
+  "name": "cs-atlas",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "check:deploy": "node scripts/check-deploy.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

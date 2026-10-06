@@ -9,8 +9,8 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LeetHub',
-  description: 'Learn algorithm patterns, practice LeetCode, and remember what you solved.',
+  title: 'CS Atlas',
+  description: 'Learn algorithms, system design and CS fundamentals — and remember what you learn.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

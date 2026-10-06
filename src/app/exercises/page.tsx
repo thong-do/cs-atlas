@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { ExercisesTable } from '@/components/exercises/exercises-table'
 
-export const metadata = { title: 'Exercises · LeetHub' }
+export const metadata = { title: 'Exercises · CS Atlas' }
 
 export default function ExercisesPage() {
   return (

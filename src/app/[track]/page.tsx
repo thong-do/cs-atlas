@@ -13,7 +13,7 @@ type Params = Promise<{ track: string }>
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { track } = await params
-  return { title: `${getCatalog().tracks.find((t) => t.slug === track)?.title ?? 'Track'} · LeetHub` }
+  return { title: `${getCatalog().tracks.find((t) => t.slug === track)?.title ?? 'Track'} · CS Atlas` }
 }
 
 export default async function TrackPage({ params }: { params: Params }) {

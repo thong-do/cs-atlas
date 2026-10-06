@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <div className="mx-auto max-w-md space-y-4 py-16 text-center">
       <h1 className="text-2xl font-bold">Page not found</h1>
-      <p className="text-muted-foreground">That pattern or problem doesn’t exist. Try searching:</p>
+      <p className="text-muted-foreground">That lesson or exercise doesn’t exist. Try searching:</p>
       <form action={`${base}/exercises/`} method="get" className="flex gap-2">
         <Input name="q" placeholder="Search exercises…" aria-label="Search exercises" />
         <Button type="submit">Search</Button>

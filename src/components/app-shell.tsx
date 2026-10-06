@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[220px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col gap-1 border-r p-4 md:flex">
-        <Link href="/" className="mb-4 text-lg font-bold">LeetHub</Link>
+        <Link href="/" className="mb-4 text-lg font-bold">CS Atlas</Link>
         <button
           type="button"
           onClick={openCommandPalette}
@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-col">
         <header className="flex h-12 items-center justify-between border-b px-4 md:hidden">
-          <Link href="/" className="font-bold">LeetHub</Link>
+          <Link href="/" className="font-bold">CS Atlas</Link>
           <div className="flex items-center gap-4">
             <button type="button" onClick={openCommandPalette} aria-label="Search"><Search className="size-5" /></button>
             <Link

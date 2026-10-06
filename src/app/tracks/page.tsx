@@ -1,6 +1,6 @@
 import { TracksOverview } from '@/components/tracks/tracks-overview'
 
-export const metadata = { title: 'Tracks · LeetHub' }
+export const metadata = { title: 'Tracks · CS Atlas' }
 
 export default function TracksPage() {
   return (

@@ -8,7 +8,7 @@ import {
 import { useCatalog } from '@/lib/content/catalog-context'
 import { exerciseHref, lessonHref } from '@/lib/content/hrefs'
 
-const OPEN_EVENT = 'leethub:open-palette'
+const OPEN_EVENT = 'csatlas:open-palette'
 
 export function openCommandPalette(): void {
   window.dispatchEvent(new Event(OPEN_EVENT))

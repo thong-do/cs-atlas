@@ -31,3 +31,9 @@ test('body font resolves to Geist', async ({ page }) => {
   const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily)
   expect(family.toLowerCase()).toContain('geist')
 })
+
+test('exercises can be filtered by track from the URL', async ({ page }) => {
+  await page.goto('/exercises/?track=system-design')
+  await expect(page.getByLabel('Track')).toHaveValue('system-design')
+  await expect(page.getByText('2 of 138 exercises')).toBeVisible()
+})

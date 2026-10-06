@@ -1,0 +1,10 @@
+slug: copy-list-with-random-pointer
+type: external-problem
+title: "Copy List with Random Pointer"
+leetcodeId: 138
+url: https://leetcode.com/problems/copy-list-with-random-pointer/
+difficulty: medium
+lessons: [linked-list, arrays-hashing]
+ladderOrder: 6
+recognitionPrompt: "Deep-copy a list where every node also points to a random node."
+hint: "Map each old node to its new copy, then wire next and random."

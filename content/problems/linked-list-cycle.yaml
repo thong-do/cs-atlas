@@ -1,9 +1,0 @@
-slug: linked-list-cycle
-title: "Linked List Cycle"
-leetcodeId: 141
-url: https://leetcode.com/problems/linked-list-cycle/
-difficulty: easy
-patterns: [linked-list, two-pointers]
-ladderOrder: 3
-recognitionPrompt: "Does a linked list loop back on itself?"
-hint: "A fast and a slow pointer meet if and only if there is a cycle."

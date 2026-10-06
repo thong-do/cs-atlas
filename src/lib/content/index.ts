@@ -1,5 +1,5 @@
-import { patterns, problems, roadmap } from '#site/content'
-import type { Catalog, PatternMeta, ProblemMeta } from '@/lib/types'
+import { exercises, lessons, tracks } from '#site/content'
+import type { Catalog, ExerciseMeta, LessonMeta, TrackMeta } from '@/lib/types'
 
 export interface TocEntry {
   title: string
@@ -7,37 +7,50 @@ export interface TocEntry {
   items: TocEntry[]
 }
 
-export type PatternDoc = PatternMeta & { body: string; toc: TocEntry[] }
+export type LessonDoc = LessonMeta & { body: string; toc: TocEntry[] }
 
-function toPatternMeta(p: PatternMeta): PatternMeta {
+function toTrackMeta(t: TrackMeta): TrackMeta {
   return {
-    slug: p.slug,
-    title: p.title,
-    prerequisites: p.prerequisites,
-    confusedWith: p.confusedWith,
-    triggers: p.triggers,
-    complexity: p.complexity,
-    summary: p.summary,
-    stub: p.stub,
+    slug: t.slug,
+    title: t.title,
+    summary: t.summary,
+    order: t.order,
+    modules: t.modules.map((m) => ({ slug: m.slug, title: m.title, lessons: m.lessons, comingSoon: m.comingSoon })),
+  }
+}
+
+function toLessonMeta(l: LessonMeta): LessonMeta {
+  return {
+    slug: l.slug,
+    track: l.track,
+    title: l.title,
+    summary: l.summary,
+    level: l.level,
+    authors: l.authors,
+    prerequisites: l.prerequisites,
+    confusedWith: l.confusedWith,
+    triggers: l.triggers,
+    ...(l.complexity ? { complexity: l.complexity } : {}),
   }
 }
 
 export function getCatalog(): Catalog {
-  const order = roadmap.order
-  const rank = (slug: string) => order.indexOf(slug)
+  const sortedTracks = [...tracks].sort((a, b) => a.order - b.order).map(toTrackMeta)
+  const order = sortedTracks.flatMap((t) => t.modules.flatMap((m) => m.lessons))
+  const rank = new Map(order.map((slug, i) => [slug, i]))
   return {
-    order,
-    patterns: order.map((slug) => toPatternMeta(patterns.find((p) => p.slug === slug)!)),
-    problems: [...(problems as ProblemMeta[])].sort(
-      (a, b) => rank(a.patterns[0]) - rank(b.patterns[0]) || a.ladderOrder - b.ladderOrder,
+    tracks: sortedTracks,
+    lessons: order.map((slug) => toLessonMeta(lessons.find((l) => l.slug === slug)!)),
+    exercises: [...(exercises as ExerciseMeta[])].sort(
+      (a, b) => rank.get(a.lessons[0])! - rank.get(b.lessons[0])! || a.ladderOrder - b.ladderOrder,
     ),
   }
 }
 
-export function getPatternDoc(slug: string): PatternDoc | undefined {
-  return patterns.find((p) => p.slug === slug) as PatternDoc | undefined
+export function getLessonDoc(slug: string): LessonDoc | undefined {
+  return lessons.find((l) => l.slug === slug) as LessonDoc | undefined
 }
 
-export function getProblem(slug: string): ProblemMeta | undefined {
-  return (problems as ProblemMeta[]).find((p) => p.slug === slug)
+export function getExercise(slug: string): ExerciseMeta | undefined {
+  return (exercises as ExerciseMeta[]).find((e) => e.slug === slug)
 }

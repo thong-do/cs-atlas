@@ -1,9 +1,0 @@
-slug: number-of-islands
-title: "Number of Islands"
-leetcodeId: 200
-url: https://leetcode.com/problems/number-of-islands/
-difficulty: medium
-patterns: [graphs]
-ladderOrder: 2
-recognitionPrompt: "Count the separate landmasses in a grid of land and water cells, where land connects in four directions."
-hint: "Each time you meet unvisited land, explore its whole region and mark it."

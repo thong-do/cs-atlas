@@ -1,9 +1,0 @@
-slug: non-overlapping-intervals
-title: "Non-overlapping Intervals"
-leetcodeId: 435
-url: https://leetcode.com/problems/non-overlapping-intervals/
-difficulty: medium
-patterns: [intervals, greedy]
-ladderOrder: 4
-recognitionPrompt: "Find the fewest ranges to delete so that the remaining ranges do not overlap."
-hint: "Keeping the range that finishes earliest leaves the most room for the rest."

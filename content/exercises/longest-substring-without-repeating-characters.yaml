@@ -1,0 +1,10 @@
+slug: longest-substring-without-repeating-characters
+type: external-problem
+title: "Longest Substring Without Repeating Characters"
+leetcodeId: 3
+url: https://leetcode.com/problems/longest-substring-without-repeating-characters/
+difficulty: medium
+lessons: [sliding-window]
+ladderOrder: 2
+recognitionPrompt: "Find the length of the longest contiguous substring with all distinct characters."
+hint: "Grow the right edge; shrink the left edge while a duplicate is inside."

@@ -1,0 +1,111 @@
+---
+slug: bit-manipulation
+title: Bit Manipulation
+prerequisites: [dp-1d]
+confusedWith: [math-geometry, arrays-hashing]
+triggers: ["every number appears twice except one (XOR)", "count set bits", "find the missing number in O(1) space", "add or reverse integers without normal operators", "subsets as bitmasks"]
+complexity: "O(1) per operation"
+level: intermediate
+authors: [cs-atlas]
+summary: "Work directly with binary representation and bitwise operators."
+---
+
+## Intuition
+
+Every integer is a row of bits, and a few operators work on all of them at once. When a problem forbids extra memory or arithmetic, or says "every element appears twice except one", the binary view often turns it into a one-liner.
+
+The facts worth memorising:
+
+- `x ^ x == 0` and `x ^ 0 == x`, and XOR is order-independent. XOR everything together and **pairs cancel**.
+- `x & (x - 1)` clears the **lowest set bit**. Loop it to count bits in O(number of 1s).
+- `x & 1` is the last bit (odd/even); `x >> 1` drops it, which is integer division by 2.
+- `x & -x` isolates the lowest set bit; `1 << k` is a mask with only bit k set.
+
+Think of XOR as light switches: flipping the same switch twice leaves it where it started. After every number has flipped its switches, only the unpaired one's switches remain on.
+
+## Visual
+
+```text
+Single Number: XOR cancels pairs
+  4 ^ 1 ^ 2 ^ 1 ^ 2  =  4 ^ (1 ^ 1) ^ (2 ^ 2)  =  4 ^ 0 ^ 0  =  4
+
+Clearing the lowest set bit with n & (n - 1):  n = 12
+  n       = 1100
+  n - 1   = 1011
+  n & n-1 = 1000    one set bit removed — repeat until n == 0, counting steps
+
+Counting Bits:  bits[i] = bits[i >> 1] + (i & 1)
+  i = 6  (110)  →  bits[3] (11) + 0  =  2
+```
+
+## Template
+
+```python
+def single_number(nums: list[int]) -> int:
+    x = 0
+    for v in nums:
+        x ^= v                     # pairs cancel, the single one remains
+    return x
+
+
+def hamming_weight(n: int) -> int:
+    """Number of 1 Bits (Brian Kernighan's trick)."""
+    count = 0
+    while n:
+        n &= n - 1                 # drop the lowest set bit
+        count += 1
+    return count
+
+
+def counting_bits(n: int) -> list[int]:
+    bits = [0] * (n + 1)
+    for i in range(1, n + 1):
+        bits[i] = bits[i >> 1] + (i & 1)   # i without its last bit, plus that bit
+    return bits
+
+
+def missing_number(nums: list[int]) -> int:
+    x = len(nums)
+    for i, v in enumerate(nums):
+        x ^= i ^ v                 # every index meets its value except the missing one
+    return x
+
+
+def reverse_bits(n: int) -> int:
+    out = 0
+    for _ in range(32):
+        out = (out << 1) | (n & 1)
+        n >>= 1
+    return out
+
+
+def get_sum(a: int, b: int) -> int:
+    """Add without + or -, emulating 32-bit integers (Python ints are unbounded)."""
+    MASK, MAX = 0xFFFFFFFF, 0x7FFFFFFF
+    while b != 0:
+        a, b = (a ^ b) & MASK, ((a & b) << 1) & MASK   # sum without carry, then the carry
+    return a if a <= MAX else ~(a ^ MASK)              # map back to a negative number
+```
+
+## Complexity
+
+- Each bitwise operation is **O(1)**.
+- Looping over the bits of a 32-bit number is **O(32) = O(1)**; Kernighan's loop runs once per set bit.
+- Counting Bits for 0..n: **O(n)** with the DP recurrence.
+- Bitmask enumeration of all subsets: **O(n · 2ⁿ)**.
+
+## Pitfalls
+
+- Python integers have no fixed width: `~x` and left shifts never overflow, and negative numbers act as if they had infinitely many leading 1s. Mask with `& 0xFFFFFFFF` when a problem assumes 32-bit integers.
+- `^` is XOR, not exponentiation: `2 ^ 3` is `1` in Python. Use `2 ** 3` or `1 << 3` for powers of two.
+- Using `>>` on a negative number when you meant a logical shift — Python shifts arithmetically, keeping the sign.
+- Sum of Two Integers without the mask loops forever on negative inputs, because the carry never reaches zero.
+- Reaching for bits when a hash set is clearer and the problem doesn't demand O(1) extra space.
+
+## Tips & tricks
+
+- Missing Number also works with math: `n·(n+1)/2 − sum(nums)`. XOR avoids overflow in fixed-width languages.
+- Check a power of two with `n > 0 and n & (n - 1) == 0`.
+- Generate all subsets of n items by counting a mask from 0 to `2**n − 1`; bit i set means item i is in the subset.
+- `bin(n).count("1")` and `int.bit_count()` (Python 3.10+) are fine shortcuts, but interviewers usually want the loop.
+- For "every number appears three times except one", count each bit position modulo 3.

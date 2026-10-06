@@ -1,9 +1,0 @@
-slug: task-scheduler
-title: "Task Scheduler"
-leetcodeId: 621
-url: https://leetcode.com/problems/task-scheduler/
-difficulty: medium
-patterns: [heap]
-ladderOrder: 5
-recognitionPrompt: "Tasks labeled by letter must be separated by a cooldown when repeated; find the shortest total time to finish them all."
-hint: "Always run the task with the most remaining copies that is off cooldown."

@@ -1,0 +1,10 @@
+slug: edit-distance
+type: external-problem
+title: "Edit Distance"
+leetcodeId: 72
+url: https://leetcode.com/problems/edit-distance/
+difficulty: medium
+lessons: [dp-2d]
+ladderOrder: 7
+recognitionPrompt: "Find the fewest single-character insertions, deletions or replacements to turn one word into another."
+hint: "Compare prefixes of the two words and consider each of the three edits."

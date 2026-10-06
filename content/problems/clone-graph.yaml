@@ -1,9 +1,0 @@
-slug: clone-graph
-title: "Clone Graph"
-leetcodeId: 133
-url: https://leetcode.com/problems/clone-graph/
-difficulty: medium
-patterns: [graphs]
-ladderOrder: 4
-recognitionPrompt: "Produce a deep copy of a connected undirected graph given one of its nodes."
-hint: "Keep a lookup from original nodes to their copies so each is created once."

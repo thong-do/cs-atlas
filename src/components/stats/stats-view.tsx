@@ -16,7 +16,7 @@ const level = (count: number) =>
   : 'bg-emerald-600 dark:bg-emerald-500'
 
 export function StatsView() {
-  const { patterns } = useCatalog()
+  const { lessons } = useCatalog()
   const masteries = useMasteries()
   const data = useLive(async (s) => ({
     activity: await s.listActivity(),
@@ -29,7 +29,7 @@ export function StatsView() {
   const days = heatmapDays(data.activity, today, 26)
   const forecast = reviewForecast(data.cards, today)
   const maxForecast = Math.max(1, ...forecast)
-  const accuracy = patterns
+  const accuracy = lessons
     .map((p) => ({ p, acc: recognitionAccuracy(data.attempts, p.slug) }))
     .filter((x): x is { p: typeof x.p; acc: number } => x.acc !== undefined)
 
@@ -56,7 +56,7 @@ export function StatsView() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Mastery</h2>
         <ul className="space-y-2">
-          {patterns.map((p) => (
+          {lessons.map((p) => (
             <li key={p.slug} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-3 text-sm sm:grid-cols-[12rem_1fr_3rem]">
               <span className="truncate">{p.title}</span>
               <Progress value={masteries.get(p.slug) ?? 0} className="h-2" aria-label={`${p.title} mastery`} />

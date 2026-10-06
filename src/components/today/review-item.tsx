@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
-import type { ProblemMeta, ReviewRating } from '@/lib/types'
+import { exerciseHref } from '@/lib/content/hrefs'
+import type { ExerciseMeta, ReviewRating } from '@/lib/types'
 
 const RATINGS: { value: ReviewRating; label: string }[] = [
   { value: 'again', label: 'Again' },
@@ -15,14 +16,14 @@ const RATINGS: { value: ReviewRating; label: string }[] = [
 ]
 
 export function ReviewItem({
-  problem, insight, needsResolve, onRate,
+  exercise, insight, needsResolve, onRate,
 }: {
-  problem: ProblemMeta
+  exercise: ExerciseMeta
   insight?: string
   needsResolve: boolean
   onRate: (rating: ReviewRating) => Promise<void>
 }) {
-  const { patternBySlug } = useCatalog()
+  const { lessonBySlug } = useCatalog()
   const [revealed, setRevealed] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -30,9 +31,9 @@ export function ReviewItem({
     <article className="space-y-3 rounded-lg border p-4">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold">
-          <Link href={`/problems/${problem.slug}/`} className="hover:underline">{problem.title}</Link>
+          <Link href={exerciseHref(exercise.slug)} className="hover:underline">{exercise.title}</Link>
         </h3>
-        <a href={problem.url} target="_blank" rel="noreferrer" className="shrink-0 text-sm text-muted-foreground hover:text-foreground">LeetCode ↗</a>
+        <a href={exercise.url} target="_blank" rel="noreferrer" className="shrink-0 text-sm text-muted-foreground hover:text-foreground">LeetCode ↗</a>
       </div>
       {needsResolve && <p className="text-xs text-amber-700 dark:text-amber-400">Marked for re-solve last time.</p>}
       {!revealed ? (
@@ -43,7 +44,7 @@ export function ReviewItem({
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
-            {problem.patterns.map((s) => <Badge key={s} variant="secondary">{patternBySlug.get(s)?.title ?? s}</Badge>)}
+            {exercise.lessons.map((s) => <Badge key={s} variant="secondary">{lessonBySlug.get(s)?.title ?? s}</Badge>)}
           </div>
           <blockquote className="border-l-4 border-primary pl-3">{insight || 'No insight saved.'}</blockquote>
           <div role="group" aria-label="How well did you remember?" className="grid grid-cols-4 gap-2">

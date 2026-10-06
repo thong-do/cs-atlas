@@ -1,9 +1,0 @@
-slug: insert-interval
-title: "Insert Interval"
-leetcodeId: 57
-url: https://leetcode.com/problems/insert-interval/
-difficulty: medium
-patterns: [intervals]
-ladderOrder: 3
-recognitionPrompt: "Given sorted non-overlapping ranges and one new range, produce the sorted non-overlapping result after adding it."
-hint: "Three phases: ranges entirely before, ranges overlapping the new one, ranges entirely after."

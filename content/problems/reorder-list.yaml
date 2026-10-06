@@ -1,9 +1,0 @@
-slug: reorder-list
-title: "Reorder List"
-leetcodeId: 143
-url: https://leetcode.com/problems/reorder-list/
-difficulty: medium
-patterns: [linked-list]
-ladderOrder: 4
-recognitionPrompt: "Rearrange L0→L1→…→Ln into L0→Ln→L1→Ln−1→… in place."
-hint: "Find the middle, reverse the second half, then interleave."

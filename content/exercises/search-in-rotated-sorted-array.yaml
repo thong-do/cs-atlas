@@ -1,0 +1,10 @@
+slug: search-in-rotated-sorted-array
+type: external-problem
+title: "Search in Rotated Sorted Array"
+leetcodeId: 33
+url: https://leetcode.com/problems/search-in-rotated-sorted-array/
+difficulty: medium
+lessons: [binary-search]
+ladderOrder: 6
+recognitionPrompt: "Find a target in a rotated sorted array in O(log n)."
+hint: "One half is always sorted; check whether the target lies inside it."

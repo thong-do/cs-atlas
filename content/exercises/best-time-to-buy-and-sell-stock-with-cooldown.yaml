@@ -1,0 +1,10 @@
+slug: best-time-to-buy-and-sell-stock-with-cooldown
+type: external-problem
+title: "Best Time to Buy and Sell Stock with Cooldown"
+leetcodeId: 309
+url: https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-cooldown/
+difficulty: medium
+lessons: [dp-2d]
+ladderOrder: 6
+recognitionPrompt: "Maximize profit from trading a stock many times, but you must rest one day after every sale."
+hint: "Model a small set of states per day and how you move between them."

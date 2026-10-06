@@ -10,16 +10,16 @@ import type { Store } from '@/lib/store'
 export type MasterySnapshot = MasteryBaseline & { store: Store }
 
 export function useMasterySnapshot(): MasterySnapshot | undefined {
-  const { patterns, problems } = useCatalog()
+  const { lessons, exercises } = useCatalog()
   const now = useNow()
   const data = useLive(async (store) => ({ store, ...(await store.getMasteryInputs()) }))
   return useMemo(
     () => data && {
       store: data.store,
       importId: data.importId,
-      masteries: computeMasteries(patterns, { problems, progress: data.progress, cards: data.cards, attempts: data.attempts, now }),
+      masteries: computeMasteries(lessons, { exercises, progress: data.progress, cards: data.cards, attempts: data.attempts, now }),
     },
-    [data, patterns, problems, now],
+    [data, lessons, exercises, now],
   )
 }
 

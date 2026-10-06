@@ -1,0 +1,10 @@
+slug: coin-change
+type: external-problem
+title: "Coin Change"
+leetcodeId: 322
+url: https://leetcode.com/problems/coin-change/
+difficulty: medium
+lessons: [dp-1d]
+ladderOrder: 6
+recognitionPrompt: "Find the fewest coins from given denominations needed to make an exact amount, or report it is impossible."
+hint: "Build answers for every smaller amount, each from a smaller amount reachable by one coin."

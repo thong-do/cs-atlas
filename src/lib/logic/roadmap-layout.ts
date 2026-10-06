@@ -1,4 +1,4 @@
-import type { PatternMeta } from '@/lib/types'
+import type { LessonMeta } from '@/lib/types'
 
 export interface RoadmapLayout {
   nodes: { slug: string; level: number; index: number; rowSize: number }[]
@@ -7,8 +7,8 @@ export interface RoadmapLayout {
   maxRow: number
 }
 
-export function layoutRoadmap(order: string[], patterns: PatternMeta[]): RoadmapLayout {
-  const bySlug = new Map(patterns.map((p) => [p.slug, p]))
+export function layoutRoadmap(order: string[], lessons: LessonMeta[]): RoadmapLayout {
+  const bySlug = new Map(lessons.map((l) => [l.slug, l]))
   const prereqs = (slug: string) => (bySlug.get(slug)?.prerequisites ?? []).filter((s) => bySlug.has(s))
   const memo = new Map<string, number>()
   const level = (slug: string): number => {

@@ -1,0 +1,10 @@
+slug: combination-sum
+type: external-problem
+title: "Combination Sum"
+leetcodeId: 39
+url: https://leetcode.com/problems/combination-sum/
+difficulty: medium
+lessons: [backtracking]
+ladderOrder: 4
+recognitionPrompt: "Find all multisets of candidate numbers, each reusable any number of times, that add up to a target."
+hint: "Decide whether the next step reuses the current candidate or moves past it; stop when the sum overshoots."

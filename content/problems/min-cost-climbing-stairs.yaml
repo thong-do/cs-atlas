@@ -1,9 +1,0 @@
-slug: min-cost-climbing-stairs
-title: "Min Cost Climbing Stairs"
-leetcodeId: 746
-url: https://leetcode.com/problems/min-cost-climbing-stairs/
-difficulty: easy
-patterns: [dp-1d]
-ladderOrder: 2
-recognitionPrompt: "Each stair has a toll to step off it; find the cheapest way to get past the top moving one or two stairs at a time."
-hint: "The cheapest way to reach a stair depends on the two before it."

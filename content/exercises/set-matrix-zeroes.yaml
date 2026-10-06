@@ -1,0 +1,10 @@
+slug: set-matrix-zeroes
+type: external-problem
+title: "Set Matrix Zeroes"
+leetcodeId: 73
+url: https://leetcode.com/problems/set-matrix-zeroes/
+difficulty: medium
+lessons: [math-geometry]
+ladderOrder: 5
+recognitionPrompt: "If any cell of a matrix is zero, make its entire row and column zero, ideally with little extra memory."
+hint: "Use the matrix's own first row and column to store markers."

@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import { useCatalog } from '@/lib/content/catalog-context'
+import { lessonHref } from '@/lib/content/hrefs'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { MASTERED } from '@/lib/logic/mastery'
-import { recommendedPattern } from '@/lib/logic/recommend'
+import { recommendedLesson } from '@/lib/logic/recommend'
 import { layoutRoadmap } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
 
@@ -17,16 +18,17 @@ const CIRC = 2 * Math.PI * R
 
 export function RoadmapView() {
   const router = useRouter()
-  const { order, patterns, problems, patternBySlug } = useCatalog()
+  const { lessons, exercises, lessonBySlug } = useCatalog()
+  const order = useMemo(() => lessons.map((l) => l.slug), [lessons])
   const masteries = useMasteries()
   const progress = useLive((s) => s.listProgress())
-  const layout = useMemo(() => layoutRoadmap(order, patterns), [order, patterns])
+  const layout = useMemo(() => layoutRoadmap(order, lessons), [order, lessons])
 
   const m = masteries ?? new Map<string, number>()
-  const recommended = masteries ? recommendedPattern(order, patterns, masteries) : null
+  const recommended = masteries ? recommendedLesson(order, lessons, masteries) : null
   const solved = new Set((progress ?? []).filter((p) => p.status === 'solved').map((p) => p.slug))
   const count = (slug: string) => {
-    const ladder = problems.filter((p) => p.patterns[0] === slug)
+    const ladder = exercises.filter((p) => p.lessons[0] === slug)
     return `${ladder.filter((p) => solved.has(p.slug)).length}/${ladder.length}`
   }
 
@@ -52,8 +54,9 @@ export function RoadmapView() {
           const p = pos.get(n.slug)!
           const value = m.get(n.slug) ?? 0
           const isNext = n.slug === recommended
-          const title = patternBySlug.get(n.slug)?.title ?? n.slug
-          const go = () => router.push(`/patterns/${n.slug}/`)
+          const lesson = lessonBySlug.get(n.slug)
+          const title = lesson?.title ?? n.slug
+          const go = () => router.push(lessonHref(lesson ?? { track: 'algorithms', slug: n.slug }))
           return (
             <g
               key={n.slug}

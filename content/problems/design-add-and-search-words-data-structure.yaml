@@ -1,9 +1,0 @@
-slug: design-add-and-search-words-data-structure
-title: "Design Add and Search Words Data Structure"
-leetcodeId: 211
-url: https://leetcode.com/problems/design-add-and-search-words-data-structure/
-difficulty: medium
-patterns: [tries]
-ladderOrder: 5
-recognitionPrompt: "Build a dictionary supporting insertion and lookup where a lookup pattern may contain wildcard characters standing for any letter."
-hint: "On a wildcard, explore every child at that level."

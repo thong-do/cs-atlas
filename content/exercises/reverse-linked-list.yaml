@@ -1,0 +1,10 @@
+slug: reverse-linked-list
+type: external-problem
+title: "Reverse Linked List"
+leetcodeId: 206
+url: https://leetcode.com/problems/reverse-linked-list/
+difficulty: easy
+lessons: [linked-list]
+ladderOrder: 1
+recognitionPrompt: "Reverse a singly linked list."
+hint: "Walk once, flipping each next pointer; keep prev, curr and next."

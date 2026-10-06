@@ -1,0 +1,10 @@
+slug: multiply-strings
+type: external-problem
+title: "Multiply Strings"
+leetcodeId: 43
+url: https://leetcode.com/problems/multiply-strings/
+difficulty: medium
+lessons: [math-geometry]
+ladderOrder: 7
+recognitionPrompt: "Multiply two non-negative integers given as digit strings without converting them to numbers directly."
+hint: "Mimic grade-school multiplication and note where each digit product lands."

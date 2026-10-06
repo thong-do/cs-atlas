@@ -1,0 +1,10 @@
+slug: subsets
+type: external-problem
+title: "Subsets"
+leetcodeId: 78
+url: https://leetcode.com/problems/subsets/
+difficulty: medium
+lessons: [backtracking]
+ladderOrder: 1
+recognitionPrompt: "Given distinct integers, list every possible selection of them, including the empty one."
+hint: "For each element you either take it or skip it; recurse on both choices."

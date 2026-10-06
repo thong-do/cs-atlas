@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { PatternMeta } from '@/lib/types'
+import type { LessonMeta } from '@/lib/types'
 import { layoutRoadmap } from './roadmap-layout'
 
-const p = (slug: string, prerequisites: string[] = []): PatternMeta => ({
-  slug, title: slug, prerequisites, confusedWith: [], triggers: ['t'], complexity: '', summary: '', stub: false,
+const p = (slug: string, prerequisites: string[] = []): LessonMeta => ({
+  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, confusedWith: [], triggers: ['t'], complexity: 'O(n)',
 })
 
 describe('layoutRoadmap', () => {
   it('levels nodes by longest prerequisite chain and keeps roadmap order within a level', () => {
-    const patterns = [p('a'), p('c', ['a']), p('b', ['a']), p('d', ['b', 'c']), p('e', ['a', 'd'])]
-    const layout = layoutRoadmap(['a', 'b', 'c', 'd', 'e'], patterns)
+    const lessons = [p('a'), p('c', ['a']), p('b', ['a']), p('d', ['b', 'c']), p('e', ['a', 'd'])]
+    const layout = layoutRoadmap(['a', 'b', 'c', 'd', 'e'], lessons)
     const at = (slug: string) => layout.nodes.find((n) => n.slug === slug)!
     expect(at('a')).toEqual({ slug: 'a', level: 0, index: 0, rowSize: 1 })
     expect(at('b')).toEqual({ slug: 'b', level: 1, index: 0, rowSize: 2 })

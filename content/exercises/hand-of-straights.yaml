@@ -1,0 +1,10 @@
+slug: hand-of-straights
+type: external-problem
+title: "Hand of Straights"
+leetcodeId: 846
+url: https://leetcode.com/problems/hand-of-straights/
+difficulty: medium
+lessons: [greedy]
+ladderOrder: 7
+recognitionPrompt: "Decide whether a hand of cards can be rearranged into groups of equal size, each made of consecutive values."
+hint: "The smallest remaining card must start a group."

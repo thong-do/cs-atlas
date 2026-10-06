@@ -6,10 +6,11 @@ import { DifficultyBadge } from '@/components/difficulty-badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useCatalog } from '@/lib/content/catalog-context'
+import { exerciseHref, lessonHref } from '@/lib/content/hrefs'
 import { useNow } from '@/lib/hooks/use-now'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { currentStreak } from '@/lib/logic/dates'
-import { recommendedPattern } from '@/lib/logic/recommend'
+import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
 import type { ReviewRating } from '@/lib/types'
 import { ReviewItem } from './review-item'
@@ -25,7 +26,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function TodayView() {
   const store = useStore()
-  const { order, patterns, problems, patternBySlug, problemBySlug } = useCatalog()
+  const { lessons, exercises, lessonBySlug, exerciseBySlug } = useCatalog()
   const masteries = useMasteries()
   const now = useNow()
   const data = useLive(async (s) => {
@@ -42,11 +43,11 @@ export function TodayView() {
 
   const progressBySlug = new Map(data.progress.map((p) => [p.slug, p]))
   const solved = new Set(data.progress.filter((p) => p.status === 'solved').map((p) => p.slug))
-  const reviews = data.due.filter((d) => problemBySlug.has(d.card.slug))
-  const recommended = recommendedPattern(order, patterns, masteries)
-  const recPattern = recommended ? patternBySlug.get(recommended) : undefined
-  const recLadder = recommended ? problems.filter((p) => p.patterns[0] === recommended) : []
-  const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : problems
+  const reviews = data.due.filter((d) => exerciseBySlug.has(d.card.slug))
+  const recommended = recommendedLesson(lessons.map((l) => l.slug), lessons, masteries)
+  const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
+  const recLadder = recommended ? exercises.filter((p) => p.lessons[0] === recommended) : []
+  const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : exercises
   const nextUp = pool.filter((p) => !solved.has(p.slug)).slice(0, 3)
 
   async function rate(slug: string, rating: ReviewRating) {
@@ -72,18 +73,18 @@ export function TodayView() {
         </div>
       </header>
 
-      {recPattern && (
+      {recLesson && (
         <section className="space-y-3 rounded-lg border bg-muted/40 p-4" aria-label="Continue">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Continue</p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold">{recPattern.title}</h2>
+              <h2 className="text-lg font-semibold">{recLesson.title}</h2>
               <p className="text-sm text-muted-foreground">
-                {recLadder.filter((p) => solved.has(p.slug)).length}/{recLadder.length} solved · {masteries.get(recPattern.slug) ?? 0}% mastery
+                {recLadder.filter((p) => solved.has(p.slug)).length}/{recLadder.length} solved · {masteries.get(recLesson.slug) ?? 0}% mastery
               </p>
-              <Progress value={masteries.get(recPattern.slug) ?? 0} className="h-2 w-48" aria-label="Mastery" />
+              <Progress value={masteries.get(recLesson.slug) ?? 0} className="h-2 w-48" aria-label="Mastery" />
             </div>
-            <Button asChild><Link href={`/patterns/${recPattern.slug}/`}>Open pattern</Link></Button>
+            <Button asChild><Link href={lessonHref(recLesson)}>Open lesson</Link></Button>
           </div>
         </section>
       )}
@@ -97,7 +98,7 @@ export function TodayView() {
             {reviews.map(({ card, note }) => (
               <li key={card.slug}>
                 <ReviewItem
-                  problem={problemBySlug.get(card.slug)!}
+                  exercise={exerciseBySlug.get(card.slug)!}
                   insight={note?.insight}
                   needsResolve={!!progressBySlug.get(card.slug)?.needsResolve}
                   onRate={(rating) => rate(card.slug, rating)}
@@ -116,7 +117,7 @@ export function TodayView() {
           <ul className="divide-y rounded-lg border">
             {nextUp.map((p) => (
               <li key={p.slug} className="flex items-center gap-3 px-3 py-2">
-                <Link href={`/problems/${p.slug}/`} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
+                <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
                 <DifficultyBadge difficulty={p.difficulty} />
               </li>
             ))}

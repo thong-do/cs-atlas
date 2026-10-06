@@ -1,9 +1,0 @@
-slug: gas-station
-title: "Gas Station"
-leetcodeId: 134
-url: https://leetcode.com/problems/gas-station/
-difficulty: medium
-patterns: [greedy]
-ladderOrder: 5
-recognitionPrompt: "On a circular route with fuel gained and spent at each stop, find the starting stop that lets you complete the loop, if any."
-hint: "If you run dry going from A to B, no start between A and B can work."

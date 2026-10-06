@@ -1,9 +1,0 @@
-slug: jump-game
-title: "Jump Game"
-leetcodeId: 55
-url: https://leetcode.com/problems/jump-game/
-difficulty: medium
-patterns: [greedy]
-ladderOrder: 3
-recognitionPrompt: "Each array value is the farthest you may jump from that spot; decide whether you can reach the final index from the first."
-hint: "Keep track of the farthest position reachable so far."

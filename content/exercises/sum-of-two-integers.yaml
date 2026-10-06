@@ -1,0 +1,10 @@
+slug: sum-of-two-integers
+type: external-problem
+title: "Sum of Two Integers"
+leetcodeId: 371
+url: https://leetcode.com/problems/sum-of-two-integers/
+difficulty: medium
+lessons: [bit-manipulation]
+ladderOrder: 6
+recognitionPrompt: "Add two integers without using the plus or minus operators."
+hint: "Separate the digit-wise sum from the carries and repeat until no carry remains."

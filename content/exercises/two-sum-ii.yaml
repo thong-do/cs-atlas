@@ -1,0 +1,10 @@
+slug: two-sum-ii
+type: external-problem
+title: "Two Sum II - Input Array Is Sorted"
+leetcodeId: 167
+url: https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/
+difficulty: medium
+lessons: [two-pointers]
+ladderOrder: 4
+recognitionPrompt: "Sorted numbers; return indices of two that add to a target using O(1) extra space."
+hint: "The array is sorted — what happens to the sum if you move the left or right end?"

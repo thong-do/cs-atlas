@@ -1,0 +1,10 @@
+slug: interval-list-intersections
+type: external-problem
+title: "Interval List Intersections"
+leetcodeId: 986
+url: https://leetcode.com/problems/interval-list-intersections/
+difficulty: medium
+lessons: [intervals]
+ladderOrder: 5
+recognitionPrompt: "Given two sorted lists of disjoint ranges, return all the ranges that appear in both."
+hint: "Advance whichever list has the range that ends first."

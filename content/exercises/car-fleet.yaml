@@ -1,0 +1,10 @@
+slug: car-fleet
+type: external-problem
+title: "Car Fleet"
+leetcodeId: 853
+url: https://leetcode.com/problems/car-fleet/
+difficulty: medium
+lessons: [stack]
+ladderOrder: 6
+recognitionPrompt: "Cars on a one-lane road head to a target; count how many groups arrive together."
+hint: "Sort by position closest to the target first and compare arrival times."

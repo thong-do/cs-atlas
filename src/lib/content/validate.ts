@@ -1,68 +1,134 @@
-import type { PatternMeta, ProblemMeta } from '@/lib/types'
+import type { ExerciseMeta, LessonMeta } from '@/lib/types'
 
+/** Track slugs become top-level routes, so they must not shadow a page or a redirected v1 path. */
+export const RESERVED_TRACK_SLUGS = ['tracks', 'exercises', 'roadmap', 'train', 'stats', 'settings', 'patterns', 'problems', 'static']
+export const REQUIRED_SECTIONS = ['Intuition', 'Visual', 'Pitfalls', 'Tips & tricks']
+export const ALGORITHMS = 'algorithms'
+
+export interface TrackInput {
+  slug: string
+  /** Folder name under content/tracks/. */
+  folder: string
+  order: number
+  modules: { slug: string; lessons: string[]; comingSoon: string[] }[]
+}
+/** A lesson plus its top-level (`##`) headings. */
+export type LessonInput = LessonMeta & { headings: string[] }
 export interface ContentInput {
-  roadmap: string[]
-  patterns: PatternMeta[]
-  problems: ProblemMeta[]
+  tracks: TrackInput[]
+  lessons: LessonInput[]
+  exercises: ExerciseMeta[]
 }
 
-export function validateContent({ roadmap, patterns, problems }: ContentInput): string[] {
+const trackFile = (folder: string) => `content/tracks/${folder}/track.yaml`
+const lessonFile = (l: { track: string; slug: string }) => `content/tracks/${l.track}/lessons/${l.slug}.mdx`
+const exerciseFile = (slug: string) => `content/exercises/${slug}.yaml`
+
+/** Every message is "[rule] file: problem" so a contributor can fix it without reading code. */
+export function validateContent({ tracks, lessons, exercises }: ContentInput): string[] {
   const errors: string[] = []
+  const err = (rule: string, file: string, message: string) => errors.push(`[${rule}] ${file}: ${message}`)
 
-  const patternSlugs = new Set<string>()
-  for (const p of patterns) {
-    if (patternSlugs.has(p.slug)) errors.push(`Duplicate pattern slug "${p.slug}"`)
-    patternSlugs.add(p.slug)
+  // V1 — tracks
+  const orders = new Set<number>()
+  for (const t of tracks) {
+    if (t.slug !== t.folder) err('V1', trackFile(t.folder), `slug "${t.slug}" must equal the folder name "${t.folder}"`)
+    if (RESERVED_TRACK_SLUGS.includes(t.slug)) err('V1', trackFile(t.folder), `slug "${t.slug}" is reserved for a site route`)
+    if (orders.has(t.order)) err('V1', trackFile(t.folder), `order ${t.order} is already used by another track`)
+    orders.add(t.order)
   }
-  const known = (slug: string) => patternSlugs.has(slug)
+  const trackFolders = new Set(tracks.map((t) => t.folder))
 
-  for (const p of patterns) {
-    for (const ref of p.prerequisites) if (!known(ref)) errors.push(`Pattern "${p.slug}": unknown prerequisite "${ref}"`)
-    for (const ref of p.confusedWith) if (!known(ref)) errors.push(`Pattern "${p.slug}": unknown confusedWith "${ref}"`)
+  // V2 — lesson slugs unique across tracks
+  const bySlug = new Map<string, LessonInput>()
+  for (const l of lessons) {
+    const first = bySlug.get(l.slug)
+    if (first) err('V2', lessonFile(l), `slug "${l.slug}" is already used in track "${first.track}"`)
+    else bySlug.set(l.slug, l)
   }
+  const known = (slug: string) => bySlug.has(slug)
 
-  const inRoadmap = new Set<string>()
-  const reported = new Set<string>()
-  for (const slug of roadmap) {
-    if (!reported.has(slug)) {
-      if (!known(slug)) {
-        errors.push(`Roadmap: unknown pattern "${slug}"`)
-        reported.add(slug)
-      } else if (inRoadmap.has(slug)) {
-        errors.push(`Roadmap: duplicate pattern "${slug}"`)
-        reported.add(slug)
+  // V3/V4 — modules
+  const placements = new Map<string, number>()
+  for (const t of tracks) {
+    for (const m of t.modules) {
+      if (m.lessons.length === 0 && m.comingSoon.length === 0) {
+        err('V4', trackFile(t.folder), `module "${m.slug}" needs at least one lesson or comingSoon title`)
+      }
+      for (const slug of m.lessons) {
+        const l = bySlug.get(slug)
+        if (!l || l.track !== t.folder) {
+          err('V3', trackFile(t.folder), `module "${m.slug}" lists "${slug}", which is not a lesson in this track`)
+        } else {
+          placements.set(slug, (placements.get(slug) ?? 0) + 1)
+        }
       }
     }
-    inRoadmap.add(slug)
   }
-  for (const slug of patternSlugs) if (!inRoadmap.has(slug)) errors.push(`Roadmap: missing pattern "${slug}"`)
-
-  const cycle = findCycle(patterns)
-  if (cycle) errors.push(`Prerequisite cycle: ${cycle.join(' -> ')}`)
-
-  const problemSlugs = new Set<string>()
-  const ids = new Set<number>()
-  const ladderKeys = new Set<string>()
-  for (const pr of problems) {
-    if (problemSlugs.has(pr.slug)) errors.push(`Duplicate problem slug "${pr.slug}"`)
-    problemSlugs.add(pr.slug)
-    if (ids.has(pr.leetcodeId)) errors.push(`Duplicate leetcodeId ${pr.leetcodeId} ("${pr.slug}")`)
-    ids.add(pr.leetcodeId)
-    if (pr.patterns.length === 0) {
-      errors.push(`Problem "${pr.slug}": no patterns`)
+  for (const l of bySlug.values()) {
+    if (!trackFolders.has(l.track)) {
+      err('V3', lessonFile(l), `track folder "${l.track}" has no track.yaml`)
       continue
     }
-    for (const ref of pr.patterns) if (!known(ref)) errors.push(`Problem "${pr.slug}": unknown pattern "${ref}"`)
-    const key = `${pr.patterns[0]}#${pr.ladderOrder}`
-    if (ladderKeys.has(key)) errors.push(`Problem "${pr.slug}": duplicate ladderOrder ${pr.ladderOrder} in "${pr.patterns[0]}"`)
+    const n = placements.get(l.slug) ?? 0
+    if (n === 0) err('V3', lessonFile(l), `lesson is not listed in any module of track "${l.track}"`)
+    if (n > 1) err('V3', lessonFile(l), `lesson is listed ${n} times in its track; list it once`)
+  }
+
+  // V5 — lesson references
+  for (const l of lessons) {
+    for (const ref of l.prerequisites) if (!known(ref)) err('V5', lessonFile(l), `unknown prerequisite "${ref}"`)
+    for (const ref of l.confusedWith) if (!known(ref)) err('V5', lessonFile(l), `unknown confusedWith "${ref}"`)
+  }
+
+  // V6 — no prerequisite cycles
+  const cycle = findCycle(lessons)
+  if (cycle) err('V6', 'content/tracks', `prerequisite cycle ${cycle.join(' -> ')}`)
+
+  // V8/V9 — per-track requirements and the quality bar
+  for (const l of lessons) {
+    if (l.track === ALGORITHMS) {
+      if (l.triggers.length === 0) err('V8', lessonFile(l), 'algorithms lessons need at least one trigger')
+      if (!l.complexity) err('V8', lessonFile(l), 'algorithms lessons need a complexity')
+    }
+    const required = [...REQUIRED_SECTIONS, l.track === ALGORITHMS ? 'Template' : 'Example']
+    const missing = required.filter((h) => !l.headings.includes(h))
+    if (missing.length > 0) err('V9', lessonFile(l), `missing section(s) ${missing.map((h) => `"## ${h}"`).join(', ')}`)
+  }
+
+  // V5/V7/V11 — exercises
+  const exerciseSlugs = new Set<string>()
+  const ids = new Set<number>()
+  const ladderKeys = new Set<string>()
+  const practised = new Set<string>()
+  for (const e of exercises) {
+    const file = exerciseFile(e.slug)
+    if (exerciseSlugs.has(e.slug)) err('V11', file, `duplicate exercise slug "${e.slug}"`)
+    exerciseSlugs.add(e.slug)
+    if (ids.has(e.leetcodeId)) err('V11', file, `duplicate leetcodeId ${e.leetcodeId}`)
+    ids.add(e.leetcodeId)
+    if (!/^https:\/\/leetcode\.com\//.test(e.url)) err('V11', file, 'url must be on leetcode.com')
+    if (e.lessons.length === 0) {
+      err('V5', file, 'lists no lessons')
+      continue
+    }
+    for (const ref of e.lessons) {
+      if (known(ref)) practised.add(ref)
+      else err('V5', file, `unknown lesson "${ref}"`)
+    }
+    const key = `${e.lessons[0]}#${e.ladderOrder}`
+    if (ladderKeys.has(key)) err('V7', file, `ladderOrder ${e.ladderOrder} is already used in "${e.lessons[0]}"`)
     ladderKeys.add(key)
   }
+
+  // V10 — every lesson is practised
+  for (const l of bySlug.values()) if (!practised.has(l.slug)) err('V10', lessonFile(l), 'no exercise lists this lesson')
 
   return errors
 }
 
-function findCycle(patterns: PatternMeta[]): string[] | null {
-  const bySlug = new Map(patterns.map((p) => [p.slug, p]))
+function findCycle(lessons: LessonMeta[]): string[] | null {
+  const bySlug = new Map(lessons.map((l) => [l.slug, l]))
   const state = new Map<string, 'visiting' | 'done'>()
   const path: string[] = []
 
@@ -81,8 +147,8 @@ function findCycle(patterns: PatternMeta[]): string[] | null {
     return null
   }
 
-  for (const p of patterns) {
-    const found = visit(p.slug)
+  for (const l of lessons) {
+    const found = visit(l.slug)
     if (found) return found
   }
   return null

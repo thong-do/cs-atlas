@@ -17,7 +17,7 @@ for (const { slug, final } of PAGES) {
       const errors: Error[] = []
       page.on('pageerror', (e) => errors.push(e))
       await page.setViewportSize(vp)
-      await page.goto(`/patterns/${slug}/`)
+      await page.goto(`/algorithms/${slug}/`)
       const next = page.getByRole('button', { name: 'Next step' })
       await expect(next).toBeVisible()
       await expect(page.getByText(/Step 1 \/ \d+/)).toBeVisible()
@@ -41,7 +41,7 @@ for (const { slug, final } of PAGES) {
 }
 
 test('existing two-pointers visualizer still steps to its end', async ({ page }) => {
-  await page.goto('/patterns/two-pointers/')
+  await page.goto('/algorithms/two-pointers/')
   const next = page.getByRole('button', { name: 'Next step' })
   await expect(next).toBeVisible()
   while (await next.isEnabled()) await next.click()

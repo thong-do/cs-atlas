@@ -1,9 +1,0 @@
-slug: lru-cache
-title: "LRU Cache"
-leetcodeId: 146
-url: https://leetcode.com/problems/lru-cache/
-difficulty: medium
-patterns: [linked-list, arrays-hashing]
-ladderOrder: 9
-recognitionPrompt: "Design a fixed-size cache that evicts the least recently used key, with O(1) operations."
-hint: "A hash map for lookup plus a doubly linked list for recency order."

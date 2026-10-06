@@ -1,0 +1,10 @@
+slug: valid-parentheses
+type: external-problem
+title: "Valid Parentheses"
+leetcodeId: 20
+url: https://leetcode.com/problems/valid-parentheses/
+difficulty: easy
+lessons: [stack]
+ladderOrder: 1
+recognitionPrompt: "Check that a string of brackets ()[]{} is properly opened and closed."
+hint: "The most recent unmatched opener must be closed first."

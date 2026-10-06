@@ -1,0 +1,10 @@
+slug: number-of-1-bits
+type: external-problem
+title: "Number of 1 Bits"
+leetcodeId: 191
+url: https://leetcode.com/problems/number-of-1-bits/
+difficulty: easy
+lessons: [bit-manipulation]
+ladderOrder: 2
+recognitionPrompt: "Count how many bits are set in the binary form of a given unsigned integer."
+hint: "Find a cheap way to remove or test the lowest set bit."

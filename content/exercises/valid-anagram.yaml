@@ -1,0 +1,10 @@
+slug: valid-anagram
+type: external-problem
+title: "Valid Anagram"
+leetcodeId: 242
+url: https://leetcode.com/problems/valid-anagram/
+difficulty: easy
+lessons: [arrays-hashing]
+ladderOrder: 2
+recognitionPrompt: "Decide whether two strings use exactly the same letters with the same counts."
+hint: "Compare letter frequencies instead of orderings."

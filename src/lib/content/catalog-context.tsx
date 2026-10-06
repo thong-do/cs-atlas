@@ -1,11 +1,12 @@
 'use client'
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import type { Catalog, PatternMeta, ProblemMeta } from '@/lib/types'
+import type { Catalog, ExerciseMeta, LessonMeta, TrackMeta } from '@/lib/types'
 
 type CatalogValue = Catalog & {
-  patternBySlug: Map<string, PatternMeta>
-  problemBySlug: Map<string, ProblemMeta>
+  trackBySlug: Map<string, TrackMeta>
+  lessonBySlug: Map<string, LessonMeta>
+  exerciseBySlug: Map<string, ExerciseMeta>
 }
 
 const CatalogContext = createContext<CatalogValue | null>(null)
@@ -14,8 +15,9 @@ export function CatalogProvider({ catalog, children }: { catalog: Catalog; child
   const value = useMemo<CatalogValue>(
     () => ({
       ...catalog,
-      patternBySlug: new Map(catalog.patterns.map((p) => [p.slug, p])),
-      problemBySlug: new Map(catalog.problems.map((p) => [p.slug, p])),
+      trackBySlug: new Map(catalog.tracks.map((t) => [t.slug, t])),
+      lessonBySlug: new Map(catalog.lessons.map((l) => [l.slug, l])),
+      exerciseBySlug: new Map(catalog.exercises.map((e) => [e.slug, e])),
     }),
     [catalog],
   )

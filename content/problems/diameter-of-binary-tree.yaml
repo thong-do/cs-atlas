@@ -1,9 +1,0 @@
-slug: diameter-of-binary-tree
-title: "Diameter of Binary Tree"
-leetcodeId: 543
-url: https://leetcode.com/problems/diameter-of-binary-tree/
-difficulty: easy
-patterns: [trees]
-ladderOrder: 3
-recognitionPrompt: "Find the longest path, measured in edges, between any two nodes of a binary tree."
-hint: "The best path through a node combines the heights reported by its two sides; track a global best while returning height."

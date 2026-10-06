@@ -1,0 +1,10 @@
+slug: group-anagrams
+type: external-problem
+title: "Group Anagrams"
+leetcodeId: 49
+url: https://leetcode.com/problems/group-anagrams/
+difficulty: medium
+lessons: [arrays-hashing]
+ladderOrder: 5
+recognitionPrompt: "Bucket a list of words so that words made of the same letters end up together."
+hint: "Find a key that is identical for all rearrangements of a word."

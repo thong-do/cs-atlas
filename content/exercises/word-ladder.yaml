@@ -1,0 +1,10 @@
+slug: word-ladder
+type: external-problem
+title: "Word Ladder"
+leetcodeId: 127
+url: https://leetcode.com/problems/word-ladder/
+difficulty: hard
+lessons: [graphs]
+ladderOrder: 8
+recognitionPrompt: "Transform one word into another by changing a single letter at a time, with every intermediate word from a given list, using as few steps as possible."
+hint: "Words are nodes, one-letter differences are edges, and you want the fewest hops."

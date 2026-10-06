@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
+import { lessonHref } from '@/lib/content/hrefs'
 import { mulberry32 } from '@/lib/logic/rng'
 import { buildRound, type TrainQuestion } from '@/lib/logic/trainer'
 import { useLive, useStore } from '@/lib/store/context'
@@ -27,16 +28,17 @@ function QuickParam({ onQuick }: { onQuick: () => void }) {
 
 export function TrainView() {
   const store = useStore()
-  const { patterns, problems, patternBySlug } = useCatalog()
+  const { lessons, exercises, lessonBySlug } = useCatalog()
   const attempts = useLive((s) => s.listTrainAttempts())
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' })
   const [quick, setQuick] = useState(false)
   const autoStarted = useRef(false)
   const markQuick = useCallback(() => setQuick(true), [])
-  const title = (slug: string) => patternBySlug.get(slug)?.title ?? slug
+  const hrefOf = (slug: string) => lessonHref(lessonBySlug.get(slug) ?? { track: 'algorithms', slug })
+  const title = (slug: string) => lessonBySlug.get(slug)?.title ?? slug
 
   function start(count: number) {
-    const questions = buildRound(problems, patterns, attempts ?? [], count, mulberry32(Date.now()))
+    const questions = buildRound(exercises, lessons, attempts ?? [], count, mulberry32(Date.now()))
     if (questions.length === 0) {
       toast.error('No training questions are available yet.')
       return
@@ -104,7 +106,7 @@ export function TrainView() {
             <ul className="space-y-1">
               {missedCounts.map(([slug, n]) => (
                 <li key={slug}>
-                  <Link href={`/patterns/${slug}/`} className="underline">{title(slug)}</Link>
+                  <Link href={hrefOf(slug)} className="underline">{title(slug)}</Link>
                   <span className="text-muted-foreground"> — missed {n}×</span>
                 </li>
               ))}
@@ -149,7 +151,7 @@ export function TrainView() {
         <div className="space-y-3" aria-live="polite">
           <p className={phase.chosen === q.correct ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}>
             {phase.chosen === q.correct ? 'Correct!' : `Not quite — it’s ${title(q.correct)}.`}{' '}
-            <Link href={`/patterns/${q.correct}/`} className="underline">Review {title(q.correct)}</Link>
+            <Link href={hrefOf(q.correct)} className="underline">Review {title(q.correct)}</Link>
           </p>
           <Button onClick={next}>{isLast ? 'See results' : 'Next question'}</Button>
         </div>

@@ -1,0 +1,10 @@
+slug: contains-duplicate
+type: external-problem
+title: "Contains Duplicate"
+leetcodeId: 217
+url: https://leetcode.com/problems/contains-duplicate/
+difficulty: easy
+lessons: [arrays-hashing]
+ladderOrder: 1
+recognitionPrompt: "Given a list of numbers, report whether any value appears at least twice."
+hint: "What structure answers “have I seen this before?” in O(1)?"

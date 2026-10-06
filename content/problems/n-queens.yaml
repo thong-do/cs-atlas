@@ -1,9 +1,0 @@
-slug: n-queens
-title: "N-Queens"
-leetcodeId: 51
-url: https://leetcode.com/problems/n-queens/
-difficulty: hard
-patterns: [backtracking]
-ladderOrder: 8
-recognitionPrompt: "Place n chess queens on an n by n board so none attack each other and list every arrangement."
-hint: "Place one queen per row and remember which columns and diagonals are taken."

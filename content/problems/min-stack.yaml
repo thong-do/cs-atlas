@@ -1,9 +1,0 @@
-slug: min-stack
-title: "Min Stack"
-leetcodeId: 155
-url: https://leetcode.com/problems/min-stack/
-difficulty: medium
-patterns: [stack]
-ladderOrder: 2
-recognitionPrompt: "Design a stack that can also return its minimum value in O(1)."
-hint: "Store the minimum-so-far alongside each pushed value."

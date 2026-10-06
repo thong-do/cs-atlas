@@ -1,9 +1,0 @@
-slug: min-cost-to-connect-all-points
-title: "Min Cost to Connect All Points"
-leetcodeId: 1584
-url: https://leetcode.com/problems/min-cost-to-connect-all-points/
-difficulty: medium
-patterns: [advanced-graphs]
-ladderOrder: 2
-recognitionPrompt: "Given points on a plane with Manhattan distances, find the cheapest set of links that joins them all into one network."
-hint: "Grow a connected set by repeatedly adding the cheapest link that reaches a new point."

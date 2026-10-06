@@ -1,9 +1,0 @@
-slug: word-search
-title: "Word Search"
-leetcodeId: 79
-url: https://leetcode.com/problems/word-search/
-difficulty: medium
-patterns: [backtracking]
-ladderOrder: 7
-recognitionPrompt: "Decide whether a word can be traced through neighboring cells of a letter grid without reusing any cell."
-hint: "Mark a cell while exploring from it and restore it when you step back."

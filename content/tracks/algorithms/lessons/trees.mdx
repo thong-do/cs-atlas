@@ -1,0 +1,123 @@
+---
+slug: trees
+title: Trees
+prerequisites: [binary-search, linked-list]
+confusedWith: [graphs, backtracking]
+triggers: ["input is a TreeNode / root", "hierarchical parent/child data", "BST ordering property (left < node < right)", "level-by-level processing", "answer for a node depends on its subtrees"]
+complexity: "O(n) traversal, O(h) recursion stack"
+level: intermediate
+authors: [cs-atlas]
+summary: "Solve each subtree recursively and combine; use BFS for level order."
+---
+
+## Intuition
+
+A tree is recursion made visible: every node is the root of a smaller tree. So most tree problems shrink to one question — **"if I already had the answer for my left and right subtrees, how would I build the answer for this node?"** Write that combine step, add a base case for `None`, and recursion does the rest.
+
+Think of a company org chart. To count everyone, each manager asks each direct report "how many people are under you?", adds them up, adds one for themselves, and reports upward. Nobody needs to see the whole chart.
+
+Three shapes cover almost everything:
+
+- **Bottom-up DFS** (return a value): depth, size, balanced?, diameter — children report up, the parent combines.
+- **Top-down DFS** (pass a value down): validate BST with `(low, high)` bounds, path sums — the parent hands constraints to the children.
+- **BFS by level** (a queue): level order, right side view, minimum depth — process the tree one row at a time.
+
+Some answers don't pass through the root (diameter, max path sum). Then the recursion **returns** one thing (the best single downward path) while updating a **global best** with another (the path that bends at this node).
+
+## Visual
+
+```text
+        4             max_depth(4)
+       / \              = 1 + max(max_depth(2), max_depth(7))
+      2   7             = 1 + max(2, 1)
+     / \                = 3
+    1   3
+                      Each node waits for its children's answers,
+                      then returns ONE number to its parent.
+
+Level order (BFS):  [4]  →  [2, 7]  →  [1, 3]
+Inorder of a BST:   1, 2, 3, 4, 7   (always sorted)
+```
+
+## Template
+
+```python
+from collections import deque
+
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val, self.left, self.right = val, left, right
+
+
+def max_depth(root: TreeNode | None) -> int:
+    """Bottom-up: ask the children, combine."""
+    if not root:
+        return 0
+    return 1 + max(max_depth(root.left), max_depth(root.right))
+
+
+def is_valid_bst(root, low=float("-inf"), high=float("inf")) -> bool:
+    """Top-down: pass the allowed range to each child."""
+    if not root:
+        return True
+    if not (low < root.val < high):
+        return False
+    return is_valid_bst(root.left, low, root.val) and is_valid_bst(root.right, root.val, high)
+
+
+def level_order(root) -> list[list[int]]:
+    if not root:
+        return []
+    levels, queue = [], deque([root])
+    while queue:
+        level = []
+        for _ in range(len(queue)):       # exactly the nodes of this level
+            node = queue.popleft()
+            level.append(node.val)
+            if node.left:
+                queue.append(node.left)
+            if node.right:
+                queue.append(node.right)
+        levels.append(level)
+    return levels
+
+
+def diameter(root) -> int:
+    """Return one thing, track another: height goes up, best path is global."""
+    best = 0
+
+    def height(node) -> int:
+        nonlocal best
+        if not node:
+            return 0
+        left, right = height(node.left), height(node.right)
+        best = max(best, left + right)    # path that bends at this node
+        return 1 + max(left, right)       # what the parent can extend
+
+    height(root)
+    return best
+```
+
+## Complexity
+
+- Time: **O(n)** — every node is visited once.
+- Space: **O(h)** for recursion, where h is the height: O(log n) when balanced, **O(n)** for a skewed "linked list" tree.
+- BFS queue: **O(w)**, the widest level — up to n/2 for a full tree.
+
+## Pitfalls
+
+- Forgetting the `None` base case — almost every crash in tree code is `None.left`.
+- Validating a BST by comparing a node only with its direct children. A value deep in the right subtree must still be greater than the root — pass `(low, high)` bounds down.
+- Mixing up **height** (edges/nodes below) and **depth** (distance from the root), or counting nodes vs edges in the diameter.
+- Returning the global answer from the helper (e.g. the diameter) instead of the value the parent needs (the height).
+- Python's default recursion limit (~1000) on very deep, skewed trees — switch to an explicit stack or raise the limit.
+
+## Tips & tricks
+
+- Ask "what does my parent need from me?" — that's the return value. Anything else goes in a `nonlocal` / outer variable.
+- Traversal orders: **preorder** (node, left, right) copies or serializes a tree; **inorder** of a BST is sorted; **postorder** (left, right, node) is bottom-up.
+- Right Side View is level order keeping the **last** node of each level.
+- Construct from preorder + inorder: the first preorder value is the root; a hash map of inorder positions splits left and right in O(1).
+- Max Path Sum: clamp negative child contributions to 0 with `max(0, gain(child))`.
+- A tree is just a graph with no cycles and one parent per node — when nodes can have several parents or loops, switch to **Graphs** and track `visited`.

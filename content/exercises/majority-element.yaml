@@ -1,0 +1,10 @@
+slug: majority-element
+type: external-problem
+title: "Majority Element"
+leetcodeId: 169
+url: https://leetcode.com/problems/majority-element/
+difficulty: easy
+lessons: [arrays-hashing]
+ladderOrder: 4
+recognitionPrompt: "Find the value that appears more than half the time in an array."
+hint: "Counting works; can a running “candidate and votes” do it in O(1) space?"

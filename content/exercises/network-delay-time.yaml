@@ -1,0 +1,10 @@
+slug: network-delay-time
+type: external-problem
+title: "Network Delay Time"
+leetcodeId: 743
+url: https://leetcode.com/problems/network-delay-time/
+difficulty: medium
+lessons: [advanced-graphs]
+ladderOrder: 1
+recognitionPrompt: "A signal starts at one node of a directed weighted network; find how long until every node has received it, or report it cannot."
+hint: "Always settle the node with the smallest known arrival time next."

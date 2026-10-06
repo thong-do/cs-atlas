@@ -1,9 +1,0 @@
-slug: unique-paths
-title: "Unique Paths"
-leetcodeId: 62
-url: https://leetcode.com/problems/unique-paths/
-difficulty: medium
-patterns: [dp-2d]
-ladderOrder: 1
-recognitionPrompt: "Count the routes from the top-left to the bottom-right of a grid when you can only move right or down."
-hint: "Each cell's count comes from the cell above and the cell to the left."

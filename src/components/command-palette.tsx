@@ -6,6 +6,7 @@ import {
   Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
 import { useCatalog } from '@/lib/content/catalog-context'
+import { exerciseHref, lessonHref } from '@/lib/content/hrefs'
 
 const OPEN_EVENT = 'leethub:open-palette'
 
@@ -16,7 +17,7 @@ export function openCommandPalette(): void {
 const PAGES = [
   { href: '/', label: 'Today' },
   { href: '/roadmap/', label: 'Roadmap' },
-  { href: '/problems/', label: 'Problems' },
+  { href: '/exercises/', label: 'Exercises' },
   { href: '/train/', label: 'Train' },
   { href: '/stats/', label: 'Stats' },
   { href: '/settings/', label: 'Settings' },
@@ -25,7 +26,7 @@ const PAGES = [
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const { patterns, problems } = useCatalog()
+  const { lessons, exercises } = useCatalog()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -49,9 +50,9 @@ export function CommandPalette() {
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Jump to" description="Search patterns and problems">
+    <CommandDialog open={open} onOpenChange={setOpen} title="Jump to" description="Search lessons and exercises">
       <Command>
-      <CommandInput placeholder="Jump to a pattern or problem…" />
+      <CommandInput placeholder="Jump to a lesson or exercise…" />
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
         <CommandGroup heading="Pages">
@@ -59,14 +60,14 @@ export function CommandPalette() {
             <CommandItem key={p.href} value={`page ${p.label}`} onSelect={() => go(p.href)}>{p.label}</CommandItem>
           ))}
         </CommandGroup>
-        <CommandGroup heading="Patterns">
-          {patterns.map((p) => (
-            <CommandItem key={p.slug} value={`pattern ${p.title} ${p.slug}`} onSelect={() => go(`/patterns/${p.slug}/`)}>{p.title}</CommandItem>
+        <CommandGroup heading="Lessons">
+          {lessons.map((p) => (
+            <CommandItem key={p.slug} value={`lesson ${p.title} ${p.slug}`} onSelect={() => go(lessonHref(p))}>{p.title}</CommandItem>
           ))}
         </CommandGroup>
-        <CommandGroup heading="Problems">
-          {problems.map((p) => (
-            <CommandItem key={p.slug} value={`problem ${p.leetcodeId} ${p.title}`} onSelect={() => go(`/problems/${p.slug}/`)}>
+        <CommandGroup heading="Exercises">
+          {exercises.map((p) => (
+            <CommandItem key={p.slug} value={`exercise ${p.leetcodeId} ${p.title}`} onSelect={() => go(exerciseHref(p.slug))}>
               <span className="text-muted-foreground">{p.leetcodeId}.</span> {p.title}
             </CommandItem>
           ))}

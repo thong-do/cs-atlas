@@ -1,9 +1,0 @@
-slug: divide-intervals-into-minimum-number-of-groups
-title: "Divide Intervals Into Minimum Number of Groups"
-leetcodeId: 2406
-url: https://leetcode.com/problems/divide-intervals-into-minimum-number-of-groups/
-difficulty: medium
-patterns: [intervals, heap]
-ladderOrder: 6
-recognitionPrompt: "Given inclusive ranges, split them into as few collections as possible so that no two ranges in the same collection share a point."
-hint: "Process ranges by start and keep track of the earliest finishing time among the groups currently in use."

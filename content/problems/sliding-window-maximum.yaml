@@ -1,9 +1,0 @@
-slug: sliding-window-maximum
-title: "Sliding Window Maximum"
-leetcodeId: 239
-url: https://leetcode.com/problems/sliding-window-maximum/
-difficulty: hard
-patterns: [sliding-window]
-ladderOrder: 6
-recognitionPrompt: "Report the maximum of every contiguous block of size k."
-hint: "Keep a deque of indices whose values are decreasing."

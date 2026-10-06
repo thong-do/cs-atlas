@@ -12,7 +12,7 @@ import { StatusBanners } from './status-banners'
 const NAV = [
   { href: '/', label: 'Today', icon: Sun },
   { href: '/roadmap/', label: 'Roadmap', icon: MapIcon },
-  { href: '/problems/', label: 'Problems', icon: ListChecks },
+  { href: '/exercises/', label: 'Exercises', icon: ListChecks },
   { href: '/train/', label: 'Train', icon: Target },
   { href: '/stats/', label: 'Stats', icon: BarChart3 },
 ]

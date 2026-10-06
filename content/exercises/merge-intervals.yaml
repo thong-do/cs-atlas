@@ -1,0 +1,10 @@
+slug: merge-intervals
+type: external-problem
+title: "Merge Intervals"
+leetcodeId: 56
+url: https://leetcode.com/problems/merge-intervals/
+difficulty: medium
+lessons: [intervals]
+ladderOrder: 2
+recognitionPrompt: "Given a collection of ranges, combine all that overlap and return the resulting disjoint ranges."
+hint: "Order by start, then extend the last range while the next one begins inside it."

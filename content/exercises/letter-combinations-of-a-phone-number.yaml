@@ -1,0 +1,10 @@
+slug: letter-combinations-of-a-phone-number
+type: external-problem
+title: "Letter Combinations of a Phone Number"
+leetcodeId: 17
+url: https://leetcode.com/problems/letter-combinations-of-a-phone-number/
+difficulty: medium
+lessons: [backtracking]
+ladderOrder: 2
+recognitionPrompt: "Given a string of digits, list every letter string a classic phone keypad could spell with them."
+hint: "Pick one letter per digit position, advancing position by position."

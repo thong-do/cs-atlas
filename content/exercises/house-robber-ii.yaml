@@ -1,0 +1,10 @@
+slug: house-robber-ii
+type: external-problem
+title: "House Robber II"
+leetcodeId: 213
+url: https://leetcode.com/problems/house-robber-ii/
+difficulty: medium
+lessons: [dp-1d]
+ladderOrder: 4
+recognitionPrompt: "The same robbery problem, but the houses form a circle so the first and last are neighbors."
+hint: "Break the circle into two ordinary rows and take the better result."

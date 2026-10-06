@@ -1,9 +1,0 @@
-slug: k-closest-points-to-origin
-title: "K Closest Points to Origin"
-leetcodeId: 973
-url: https://leetcode.com/problems/k-closest-points-to-origin/
-difficulty: medium
-patterns: [heap]
-ladderOrder: 3
-recognitionPrompt: "From a list of points on a plane, return the k that are nearest the origin."
-hint: "A bounded collection that evicts its worst member keeps only the best k."

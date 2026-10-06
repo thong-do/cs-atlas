@@ -137,15 +137,15 @@ title: "LRU Cache"
 leetcodeId: 146
 url: https://leetcode.com/problems/lru-cache/
 difficulty: medium
-lessons: [linked-list, caching]    # first entry = primary lesson (ladder placement)
+lessons: [linked-list, arrays-hashing, caching]    # first entry = primary lesson (ladder placement)
 ladderOrder: 4
 recognitionPrompt: "…"
 hint: "…"
 ```
 
-- The schema is a discriminated union on `type`, with one member today. Phase 2 adds `quiz` and `flashcard` as further members.
+- `type` is a literal (`external-problem`) in Phase 0. Phase 2 turns the schema into a discriminated union on `type` when it adds `quiz` and `flashcard`.
 - Changes to existing exercises:
-  - `lru-cache.yaml` and `time-based-key-value-store.yaml` gain `caching` as a second lesson.
+  - `lru-cache.yaml` and `time-based-key-value-store.yaml` gain `caching` as an extra lesson (appended last).
   - Every file gains `type: external-problem` and renames `patterns:` to `lessons:`.
 
 ### 3.5 Validation rules (`validateContent`)
@@ -207,14 +207,17 @@ With `trailingSlash: true`, each rule has a variant with and without the trailin
 
 - One horizontal band per track, ordered by `track.order`.
 - Within a band, lessons are laid out by module, using the existing layering logic.
-- Prerequisite edges inside and between tracks are drawn the same way.
+- Prerequisite edges inside a track are drawn as today. Edges between tracks are dashed so they read as cross-track links.
 - `comingSoon` titles are not drawn.
 - The existing roadmap tests about overlap and clipping must still pass with two bands.
 
 ### 4.5 Behaviour changes
 
 - **Mastery** is computed per lesson.
-  - An exercise counts towards every lesson it lists.
+  - An exercise counts towards its **primary** lesson, as in v1, and also towards any listed lesson in a **different track**.
+    *Amended while planning:* counting every listed lesson would change the mastery of the 17 algorithms exercises that list a second algorithms lesson, so existing learners' numbers would shift.
+  - Recognition accuracy (30% of mastery) applies only to lessons in the algorithms track, which is the only track the trainer covers.
+    For any other track, mastery is the exercise score alone. Otherwise a System Design lesson could never pass 70%.
   - The `mastery.ts` rules are otherwise unchanged.
   - A lesson with no exercises can't exist (V10).
 - **Recommendations (Today):** "next lesson" follows the tracks the learner has started, in track order then lesson order.
@@ -255,7 +258,7 @@ With `trailingSlash: true`, each rule has a variant with and without the trailin
 **`cache-lru` visualizer**
 - `src/lib/visualizers/cache-steps.ts` is a pure generator for a capacity-3 cache. Requests: `A B C A D B E A`.
 - Each step records the cache contents from most to least recently used, the key requested, `hit`/`miss`, any evicted key, and a caption written after the event in past tense.
-- The final caption states the totals: "Done: 2 hits, 6 misses, 3 evictions". These numbers are pinned by a unit test written against a hand-traced expected sequence.
+- The final caption states the totals: "Done: 1 hit, 7 misses, 4 evictions" (corrected by hand-tracing while planning). A unit test pins the full traced sequence.
 - `CacheView` renders the slots and has a constant height on every step, as the other visualizers do.
 
 ## 6. Rebrand and open-source files

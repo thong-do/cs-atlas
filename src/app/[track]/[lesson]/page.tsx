@@ -6,7 +6,7 @@ import { LadderList } from '@/components/lessons/ladder-list'
 import { MasteryBadge } from '@/components/lessons/mastery-badge'
 import { Visualizer } from '@/components/visualizers/visualizer'
 import { getCatalog, getLessonDoc, type TocEntry } from '@/lib/content'
-import { lessonHref } from '@/lib/content/hrefs'
+import { lessonHref, trackHref } from '@/lib/content/hrefs'
 import { lessonExercises, trackLookup } from '@/lib/logic/lessons'
 
 export const dynamicParams = false
@@ -43,7 +43,7 @@ export default async function LessonPage({ params }: { params: Promise<{ track: 
     <div className="gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_200px]">
       <article className="min-w-0 space-y-8">
         <header className="space-y-3">
-          <p className="text-sm text-muted-foreground"><Link href="/roadmap/" className="hover:underline">Roadmap</Link> / {doc.title}</p>
+          <p className="text-sm text-muted-foreground"><Link href={trackHref(doc.track)} className="hover:underline">{getCatalog().tracks.find((t) => t.slug === doc.track)!.title}</Link> / {doc.title}</p>
           <h1 className="text-3xl font-bold">{doc.title}</h1>
           <p className="text-lg text-muted-foreground">{doc.summary}</p>
           {doc.complexity && <p className="text-sm"><span className="font-medium">Typical cost:</span> {doc.complexity}</p>}

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test.use({ viewport: { width: 375, height: 812 } })
 
-const PAGES = ['/', '/roadmap/', '/exercises/', '/algorithms/two-pointers/', '/train/', '/stats/', '/settings/']
+const PAGES = ['/', '/roadmap/', '/exercises/', '/algorithms/two-pointers/', '/train/', '/stats/', '/settings/', '/tracks/', '/algorithms/', '/system-design/', '/system-design/caching/']
 
 for (const path of PAGES) {
   test(`no horizontal page scroll at 375px: ${path}`, async ({ page }) => {

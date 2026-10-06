@@ -16,6 +16,7 @@ export function openCommandPalette(): void {
 
 const PAGES = [
   { href: '/', label: 'Today' },
+  { href: '/tracks/', label: 'Tracks' },
   { href: '/roadmap/', label: 'Roadmap' },
   { href: '/exercises/', label: 'Exercises' },
   { href: '/train/', label: 'Train' },
@@ -26,7 +27,7 @@ const PAGES = [
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const { lessons, exercises } = useCatalog()
+  const { tracks, lessons, exercises } = useCatalog()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,11 +61,13 @@ export function CommandPalette() {
             <CommandItem key={p.href} value={`page ${p.label}`} onSelect={() => go(p.href)}>{p.label}</CommandItem>
           ))}
         </CommandGroup>
-        <CommandGroup heading="Lessons">
-          {lessons.map((p) => (
-            <CommandItem key={p.slug} value={`lesson ${p.title} ${p.slug}`} onSelect={() => go(lessonHref(p))}>{p.title}</CommandItem>
-          ))}
-        </CommandGroup>
+        {tracks.map((t) => (
+          <CommandGroup key={t.slug} heading={t.title}>
+            {lessons.filter((l) => l.track === t.slug).map((l) => (
+              <CommandItem key={l.slug} value={`lesson ${l.title} ${l.slug} ${t.title}`} onSelect={() => go(lessonHref(l))}>{l.title}</CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
         <CommandGroup heading="Exercises">
           {exercises.map((p) => (
             <CommandItem key={p.slug} value={`exercise ${p.leetcodeId} ${p.title}`} onSelect={() => go(exerciseHref(p.slug))}>

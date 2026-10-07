@@ -47,8 +47,9 @@ const BATCH = 10
 for (let i = 0; i < pages.length; i += BATCH) {
   await Promise.all(
     pages.slice(i, i + BATCH).map(async (path) => {
-      const res = await fetch(base + path)
-      if (res.status !== 200) failures.push(`${path}: ${res.status}`)
+      // Don't follow redirects: a page that bounces elsewhere (e.g. a login wall) must not count as 200.
+      const res = await fetch(base + path, { redirect: 'manual' })
+      if (res.status !== 200) failures.push(`${path}: ${res.status}${res.headers.get('location') ? ` → ${res.headers.get('location')}` : ''}`)
     }),
   )
 }

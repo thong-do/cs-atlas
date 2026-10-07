@@ -1,0 +1,116 @@
+---
+slug: graphs
+title: Graphs
+prerequisites: [backtracking]
+confusedWith: [trees, backtracking]
+triggers: ["grid of cells / islands", "dependencies or prerequisites", "connected components", "shortest path in an unweighted graph", "transform one word or state into another step by step"]
+complexity: "O(V + E)"
+level: intermediate
+authors: [cs-atlas]
+summary: "Model the problem as nodes and edges, then BFS, DFS or topological sort."
+---
+
+## Intuition
+
+Many problems are graphs in disguise. Once you name the **nodes** (cells, courses, words, states) and the **edges** (neighbouring cells, "must come before", "differs by one letter"), a handful of standard traversals solve them.
+
+The one rule that separates graphs from trees: **graphs can have cycles**, so you must remember where you've been (`visited`) or you'll loop forever.
+
+Pick the traversal by the question:
+
+- **BFS** (a queue) spreads out in rings, like ripples from a stone dropped in a pond. The first time it reaches a node is along the **fewest edges** — use it for shortest paths in unweighted graphs and for "minutes until everything rots".
+- **DFS** (recursion or a stack) goes as deep as it can, then backtracks. Use it to explore a whole region: count islands, measure an area, clone a graph.
+- **Topological sort** orders nodes so every edge points forward — "take the prerequisites first". If some nodes can never be ordered, there's a cycle.
+
+A grid is an *implicit* graph: each cell is a node, and its up/down/left/right neighbours are its edges. You never build an adjacency list for it.
+
+## Visual
+
+<Visualizer kind="grid-bfs" />
+
+## Template
+
+```python
+from collections import deque
+
+
+def num_islands(grid: list[list[str]]) -> int:
+    rows, cols = len(grid), len(grid[0])
+    seen = set()
+
+    def bfs(r: int, c: int) -> None:
+        queue = deque([(r, c)])
+        seen.add((r, c))                          # mark when ENQUEUED
+        while queue:
+            r, c = queue.popleft()
+            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == "1" and (nr, nc) not in seen:
+                    seen.add((nr, nc))
+                    queue.append((nr, nc))
+
+    count = 0
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == "1" and (r, c) not in seen:
+                bfs(r, c)                         # one call = one whole island
+                count += 1
+    return count
+
+
+def shortest_path(graph: dict[str, list[str]], start: str, goal: str) -> int:
+    """Fewest edges from start to goal in an unweighted graph; -1 if unreachable."""
+    dist = {start: 0}
+    queue = deque([start])
+    while queue:
+        node = queue.popleft()
+        if node == goal:
+            return dist[node]
+        for nxt in graph.get(node, []):
+            if nxt not in dist:
+                dist[nxt] = dist[node] + 1
+                queue.append(nxt)
+    return -1
+
+
+def topo_order(n: int, edges: list[tuple[int, int]]) -> list[int]:
+    """Kahn's algorithm. Edge (a, b) means a must come before b. [] if there's a cycle."""
+    adj = [[] for _ in range(n)]
+    indegree = [0] * n
+    for a, b in edges:
+        adj[a].append(b)
+        indegree[b] += 1
+    queue = deque(i for i in range(n) if indegree[i] == 0)
+    order = []
+    while queue:
+        node = queue.popleft()
+        order.append(node)
+        for nxt in adj[node]:
+            indegree[nxt] -= 1
+            if indegree[nxt] == 0:
+                queue.append(nxt)
+    return order if len(order) == n else []
+```
+
+## Complexity
+
+- Time: **O(V + E)** — each node is processed once and each edge is looked at once (twice for undirected graphs).
+- Grids: **O(rows × cols)**, since each cell has at most 4 edges.
+- Space: **O(V)** for `visited` plus the queue or recursion stack.
+
+## Pitfalls
+
+- No `visited` set → infinite loops on cycles (and on every grid, since neighbours point back at each other).
+- Marking visited when you **dequeue** instead of when you **enqueue**: the same node gets queued many times, which is slow and can double-count.
+- Getting edge direction backwards. In Course Schedule, the pair `[course, prereq]` means the edge goes **prereq → course**.
+- Deep recursive DFS on a large grid can hit Python's recursion limit — BFS or an explicit stack avoids it.
+- Clone Graph: create the copy and record it in your `old → new` map **before** visiting neighbours, or cycles recurse forever.
+
+## Tips & tricks
+
+- Grid neighbours: loop over `((1, 0), (-1, 0), (0, 1), (0, -1))` and bounds-check once.
+- **Multi-source BFS**: start with every source in the queue at distance 0 (all rotten oranges at once). The number of BFS levels is the answer.
+- Process BFS level by level with `for _ in range(len(queue))` — the same trick as tree level order — when you need "minutes" or "steps".
+- Word Ladder: generate neighbours by changing one letter at a time (or group words by wildcard patterns like `h*t`) instead of comparing every pair.
+- Cycle detection in a directed graph: Kahn's algorithm leaves nodes unprocessed, or DFS finds a node that is still "in progress".
+- When edges have **weights**, plain BFS is no longer shortest — move on to **Advanced Graphs** (Dijkstra).

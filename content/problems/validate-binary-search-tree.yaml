@@ -1,9 +1,0 @@
-slug: validate-binary-search-tree
-title: "Validate Binary Search Tree"
-leetcodeId: 98
-url: https://leetcode.com/problems/validate-binary-search-tree/
-difficulty: medium
-patterns: [trees]
-ladderOrder: 6
-recognitionPrompt: "Decide whether a binary tree obeys the ordering rule where everything left of a node is smaller and everything right is larger."
-hint: "Checking only the parent is not enough; pass down an allowed value range."

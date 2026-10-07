@@ -1,33 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import type { ProblemMeta, ProblemProgress } from '@/lib/types'
-import { filterProblems, problemStatus, type ProblemFilter } from './filter'
+import type { ExerciseMeta, ProblemProgress } from '@/lib/types'
+import { filterExercises, exerciseStatus, type ExerciseFilter } from './filter'
 
-const prob = (slug: string, title: string, id: number, patterns: string[], difficulty: ProblemMeta['difficulty']): ProblemMeta => ({
-  slug, title, leetcodeId: id, url: 'https://leetcode.com/problems/x/', difficulty, patterns, ladderOrder: 1, recognitionPrompt: 'prompt', hint: 'h',
+const prob = (slug: string, title: string, id: number, lessons: string[], difficulty: ExerciseMeta['difficulty']): ExerciseMeta => ({
+  slug, type: 'external-problem', title, leetcodeId: id, url: 'https://leetcode.com/problems/x/', difficulty, lessons, ladderOrder: 1, recognitionPrompt: 'prompt', hint: 'h',
 })
-const problems = [
+const exercises = [
   prob('two-sum', 'Two Sum', 1, ['arrays-hashing'], 'easy'),
   prob('3sum', '3Sum', 15, ['two-pointers'], 'medium'),
   prob('trap', 'Trapping Rain Water', 42, ['two-pointers', 'stack'], 'hard'),
+  prob('lru', 'LRU Cache', 146, ['ll', 'cache'], 'medium'),
 ]
+const trackOf = (slug: string) => (slug === 'cache' ? 'system-design' : 'algorithms')
 const progress = new Map<string, ProblemProgress>([
   ['two-sum', { slug: 'two-sum', status: 'solved', solveRating: 'alone', needsResolve: false, updatedAt: '' }],
   ['3sum', { slug: '3sum', status: 'solved', solveRating: 'hint', needsResolve: true, updatedAt: '' }],
 ])
-const all: ProblemFilter = { q: '', pattern: 'all', difficulty: 'all', status: 'all' }
-const slugs = (f: Partial<ProblemFilter>) => filterProblems(problems, progress, { ...all, ...f }).map((p) => p.slug)
+const all: ExerciseFilter = { q: '', track: 'all', lesson: 'all', difficulty: 'all', status: 'all' }
+const slugs = (f: Partial<ExerciseFilter>) => filterExercises(exercises, progress, { ...all, ...f }, trackOf).map((p) => p.slug)
 
-describe('problemStatus', () => {
+describe('exerciseStatus', () => {
   it('derives unsolved, helped and alone', () => {
-    expect(problemStatus(undefined)).toBe('unsolved')
-    expect(problemStatus(progress.get('two-sum'))).toBe('alone')
-    expect(problemStatus(progress.get('3sum'))).toBe('helped')
+    expect(exerciseStatus(undefined)).toBe('unsolved')
+    expect(exerciseStatus(progress.get('two-sum'))).toBe('alone')
+    expect(exerciseStatus(progress.get('3sum'))).toBe('helped')
   })
 })
 
-describe('filterProblems', () => {
+describe('filterExercises', () => {
   it('returns everything with no filters', () => {
-    expect(slugs({})).toEqual(['two-sum', '3sum', 'trap'])
+    expect(slugs({})).toEqual(['two-sum', '3sum', 'trap', 'lru'])
   })
 
   it('searches title case-insensitively and by leetcode id prefix', () => {
@@ -36,13 +38,18 @@ describe('filterProblems', () => {
   })
 
   it('filters by any listed pattern and difficulty', () => {
-    expect(slugs({ pattern: 'stack' })).toEqual(['trap'])
-    expect(slugs({ pattern: 'two-pointers', difficulty: 'medium' })).toEqual(['3sum'])
+    expect(slugs({ lesson: 'stack' })).toEqual(['trap'])
+    expect(slugs({ lesson: 'two-pointers', difficulty: 'medium' })).toEqual(['3sum'])
   })
 
   it('filters by status, including needs re-solve', () => {
-    expect(slugs({ status: 'unsolved' })).toEqual(['trap'])
+    expect(slugs({ status: 'unsolved' })).toEqual(['trap', 'lru'])
     expect(slugs({ status: 'alone' })).toEqual(['two-sum'])
     expect(slugs({ status: 'resolve' })).toEqual(['3sum'])
+  })
+
+  it('filters by track: an exercise matches every track one of its lessons belongs to', () => {
+    expect(slugs({ track: 'system-design' })).toEqual(['lru'])
+    expect(slugs({ track: 'algorithms' })).toContain('lru')
   })
 })

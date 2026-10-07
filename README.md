@@ -1,30 +1,33 @@
-# LeetHub
+# CS Atlas
 
-Learn algorithm patterns, practice them on LeetCode, and actually remember them.
+An open, community-built place to learn computer science — algorithms, system design and more — in a way that lasts.
 
-- **Roadmap** of 18 patterns with mastery rings
-- **Pattern pages**: how to recognize it, intuition, step-through visuals, Python templates, pitfalls, tips, and a problem ladder
-- **Notes** with a required one-line insight for every solved problem
-- **Spaced repetition** (FSRS) on the Today page
-- **Pattern Recognition Trainer**
-- Progress stays in your browser (IndexedDB) — export a backup from Settings
+**Live:** https://leethub-nine.vercel.app · **Roadmap:** [docs/roadmap.md](docs/roadmap.md) · **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## What's inside
+
+- **Tracks**: Algorithms (18 lessons, 138 exercises) and System Design (growing), each with modules and a "continue" button
+- **Lessons**: intuition first, step-through visualizers, templates or worked examples, pitfalls and tips
+- **Exercises**: practice ladders linked to LeetCode, with notes in your own words
+- **Spaced repetition** (FSRS) on the Today page, so you review just before you'd forget
+- **Pattern-recognition trainer** for algorithms
+- **Cross-track roadmap** with your mastery on every lesson
+- Progress stays in your browser (IndexedDB); export a backup from Settings
 
 ## Develop
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm test           # unit tests (Vitest)
+npm test           # content validation + unit tests (Vitest)
 npm run e2e        # end-to-end (Playwright)
 npm run build      # static site in out/
 ```
 
-## Add content
-
-- Problem: add `content/problems/<slug>.yaml` (see any existing file). Write `recognitionPrompt` in your own words — never paste LeetCode’s text or a solution.
-- Pattern theory: edit `content/patterns/<slug>.mdx`, set `stub: false`, and use the six H2 sections: Intuition, Visual, Template, Complexity, Pitfalls, Tips & tricks.
-- The build fails with a clear message if references are broken.
-
 ## Deploy
 
-Hosted on Vercel: every push to `main` deploys to production, and pull requests get preview deployments. The site is a static export (`out/`) with no base path. `NEXT_PUBLIC_BASE_PATH` is only needed when hosting under a sub-path (e.g. GitHub Pages).
+Hosted on Vercel: every push to `main` deploys to production, and pull requests get preview deployments. `vercel.json` redirects v1 URLs (`/patterns/*`, `/problems/*`). After a deploy, run `npm run check:deploy -- <url>` to verify the redirects and every page.
+
+## Licence
+
+Code: [MIT](LICENSE). Content in `content/`: [CC BY-SA 4.0](LICENSE-CONTENT).

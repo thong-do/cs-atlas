@@ -1,0 +1,27 @@
+name: Lesson request
+description: Suggest a lesson or a topic for a track
+labels: [lesson-request]
+body:
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track
+      options: [Algorithms, System Design, CS Fundamentals, Technologies, Other]
+    validations:
+      required: true
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What should a learner be able to do afterwards?
+  - type: checkboxes
+    id: write
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to write this lesson myself

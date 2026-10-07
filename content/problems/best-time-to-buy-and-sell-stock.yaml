@@ -1,9 +1,0 @@
-slug: best-time-to-buy-and-sell-stock
-title: "Best Time to Buy and Sell Stock"
-leetcodeId: 121
-url: https://leetcode.com/problems/best-time-to-buy-and-sell-stock/
-difficulty: easy
-patterns: [sliding-window]
-ladderOrder: 1
-recognitionPrompt: "One buy then one later sell; maximize the profit from a list of daily prices."
-hint: "Track the lowest price seen so far as you scan."

@@ -3,46 +3,72 @@ import rehypeShiki from '@shikijs/rehype'
 import rehypeSlug from 'rehype-slug'
 import { validateContent } from './src/lib/content/validate'
 
-const patterns = defineCollection({
-  name: 'Pattern',
-  pattern: 'patterns/*.mdx',
-  schema: s.object({
-    slug: s.slug('patterns'),
-    title: s.string(),
-    prerequisites: s.array(s.string()).default([]),
-    confusedWith: s.array(s.string()).default([]),
-    triggers: s.array(s.string()).min(1),
-    complexity: s.string(),
-    summary: s.string(),
-    stub: s.boolean().default(false),
-    toc: s.toc(),
-    body: s.mdx(),
-  }),
-})
-
-const problems = defineCollection({
-  name: 'Problem',
-  pattern: 'problems/*.yaml',
+const tracks = defineCollection({
+  name: 'Track',
+  pattern: 'tracks/*/track.yaml',
   schema: s
     .object({
-      slug: s.slug('problems'),
+      slug: s.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be lowercase words separated by dashes'),
+      title: s.string(),
+      summary: s.string(),
+      order: s.number().int().positive(),
+      modules: s
+        .array(
+          s.object({
+            slug: s.string(),
+            title: s.string(),
+            lessons: s.array(s.string()).default([]),
+            comingSoon: s.array(s.string()).default([]),
+          }).strict(),
+        )
+        .min(1),
+      path: s.path(),
+    })
+    .transform(({ path, ...t }) => ({ ...t, folder: path.split('/')[1] })),
+})
+
+const lessons = defineCollection({
+  name: 'Lesson',
+  pattern: 'tracks/*/lessons/*.mdx',
+  schema: s
+    .object({
+      slug: s.slug('lessons'),
+      title: s.string(),
+      summary: s.string(),
+      level: s.enum(['beginner', 'intermediate', 'advanced']),
+      authors: s.array(s.string()).default([]),
+      prerequisites: s.array(s.string()).default([]),
+      confusedWith: s.array(s.string()).default([]),
+      triggers: s.array(s.string()).default([]),
+      complexity: s.string().optional(),
+      path: s.path(),
+      toc: s.toc(),
+      raw: s.raw(),
+      body: s.mdx(),
+    })
+    .strict() // unknown frontmatter keys (e.g. a typo like `prerequisite`) fail the build
+    .transform(({ path, ...l }) => ({ ...l, path, track: path.split('/')[1] })),
+})
+
+const exercises = defineCollection({
+  name: 'Exercise',
+  pattern: 'exercises/*.yaml',
+  schema: s
+    .object({
+      slug: s.slug('exercises'),
+      // Phase 2 turns this into a discriminated union when quiz and flashcard exercises arrive.
+      type: s.literal('external-problem'),
       title: s.string(),
       leetcodeId: s.number().int().positive(),
       url: s.string().url(),
       difficulty: s.enum(['easy', 'medium', 'hard']),
-      patterns: s.array(s.string()).min(1),
+      lessons: s.array(s.string()).min(1),
       ladderOrder: s.number().int().positive(),
       recognitionPrompt: s.string().min(10),
       hint: s.string().min(5),
+      path: s.path(),
     })
     .strict(), // unknown fields (e.g. a pasted solution) fail the build
-})
-
-const roadmap = defineCollection({
-  name: 'Roadmap',
-  pattern: 'roadmap.yaml',
-  single: true,
-  schema: s.object({ order: s.array(s.string()).min(1) }),
 })
 
 export default defineConfig({
@@ -55,7 +81,7 @@ export default defineConfig({
     name: '[name]-[hash:6].[ext]',
     clean: true,
   },
-  collections: { patterns, problems, roadmap },
+  collections: { tracks, lessons, exercises },
   mdx: {
     rehypePlugins: [
       rehypeSlug,
@@ -63,10 +89,20 @@ export default defineConfig({
       [rehypeShiki as any, { themes: { light: 'github-light', dark: 'github-dark' } }],
     ],
   },
-  prepare: ({ patterns, problems, roadmap }) => {
-    const errors = validateContent({ roadmap: roadmap.order, patterns, problems })
+  prepare: ({ tracks, lessons, exercises }) => {
+    const errors = validateContent({
+      tracks: tracks.map((t) => ({ slug: t.slug, folder: t.folder, order: t.order, modules: t.modules })),
+      lessons: lessons.map((l) => ({ ...l, headings: l.toc.map((h) => h.title) })),
+      exercises,
+    })
     if (errors.length > 0) {
       throw new Error(`Content validation failed:\n- ${errors.join('\n- ')}`)
     }
+    // path and raw exist only for validation; keep them out of the emitted data (and the client bundle).
+    for (const l of lessons) {
+      delete (l as { raw?: string }).raw
+      delete (l as { path?: string }).path
+    }
+    for (const e of exercises) delete (e as { path?: string }).path
   },
 })

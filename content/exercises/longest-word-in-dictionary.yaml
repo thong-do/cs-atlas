@@ -1,0 +1,10 @@
+slug: longest-word-in-dictionary
+type: external-problem
+title: "Longest Word in Dictionary"
+leetcodeId: 720
+url: https://leetcode.com/problems/longest-word-in-dictionary/
+difficulty: medium
+lessons: [tries]
+ladderOrder: 1
+recognitionPrompt: "From a list of words, find the longest one that can be assembled one letter at a time with every intermediate prefix also in the list."
+hint: "Prefix membership is the key query; ties go to the alphabetically smaller word."

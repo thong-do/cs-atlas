@@ -1,0 +1,10 @@
+slug: 3sum
+type: external-problem
+title: "3Sum"
+leetcodeId: 15
+url: https://leetcode.com/problems/3sum/
+difficulty: medium
+lessons: [two-pointers]
+ladderOrder: 6
+recognitionPrompt: "Find all unique triplets in an array that sum to zero."
+hint: "Sort, fix one number, then two-pointer the rest; skip duplicates."

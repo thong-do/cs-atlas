@@ -1,10 +1,13 @@
 'use client'
 
 import { useMemo } from 'react'
+import { VISUALIZER_KINDS, type VisualizerKind } from '@/lib/visualizers/kinds'
 import { binarySearchSteps, gridBfsSteps, slidingWindowSteps, twoPointersSteps } from '@/lib/visualizers/steps'
+import { lruCacheSteps } from '@/lib/visualizers/cache-steps'
 import { heapSteps } from '@/lib/visualizers/heap-steps'
 import { houseRobberSteps, lcsTableSteps } from '@/lib/visualizers/table-steps'
 import { subsetsTreeSteps } from '@/lib/visualizers/tree-steps'
+import { CacheView } from './cache-view'
 import { HeapView } from './heap-view'
 import { TableView } from './table-view'
 import { TreeView } from './tree-view'
@@ -30,7 +33,9 @@ const ARRAY_EXAMPLES = {
   },
 } as const
 
-export type VisualizerKind = keyof typeof ARRAY_EXAMPLES | 'heap' | 'lcs-table' | 'house-robber' | 'subsets-tree'
+export type { VisualizerKind }
+
+const isArrayKind = (kind: string): kind is keyof typeof ARRAY_EXAMPLES => Object.hasOwn(ARRAY_EXAMPLES, kind)
 
 function ArrayVisualizer({ kind }: { kind: keyof typeof ARRAY_EXAMPLES }) {
   const example = ARRAY_EXAMPLES[kind]
@@ -59,6 +64,11 @@ function SubsetsVisualizer() {
   return <StepPlayer steps={steps} title="Subsets of [1, 2, 3] — the decision tree" render={(s) => <TreeView step={s} finalResults={steps.at(-1)!.results} />} />
 }
 
+function CacheVisualizer() {
+  const steps = useMemo(() => lruCacheSteps(3, ['A', 'B', 'C', 'A', 'D', 'B', 'E', 'A']), [])
+  return <StepPlayer steps={steps} title="LRU cache with room for 3: read A B C A D B E A" render={(s) => <CacheView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -69,7 +79,10 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <HouseRobberVisualizer />
     case 'subsets-tree':
       return <SubsetsVisualizer />
+    case 'cache-lru':
+      return <CacheVisualizer />
     default:
-      return <ArrayVisualizer kind={kind} />
+      if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
+      throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)
   }
 }

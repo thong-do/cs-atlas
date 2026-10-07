@@ -1,9 +1,0 @@
-slug: longest-repeating-character-replacement
-title: "Longest Repeating Character Replacement"
-leetcodeId: 424
-url: https://leetcode.com/problems/longest-repeating-character-replacement/
-difficulty: medium
-patterns: [sliding-window]
-ladderOrder: 3
-recognitionPrompt: "With at most k character changes, find the longest substring made of one repeated letter."
-hint: "A window is valid while its length − its most frequent count ≤ k."

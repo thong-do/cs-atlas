@@ -1,0 +1,20 @@
+slug: algorithms
+title: Algorithms
+summary: "Recognise the pattern, apply the template, remember it for good."
+order: 1
+modules:
+  - slug: foundations
+    title: Foundations
+    lessons: [arrays-hashing, two-pointers, stack, sliding-window, binary-search, linked-list]
+  - slug: trees-heaps
+    title: Trees & Heaps
+    lessons: [trees, tries, heap]
+  - slug: search-greedy
+    title: Search & Greedy
+    lessons: [backtracking, intervals, greedy]
+  - slug: graphs-dp
+    title: Graphs & DP
+    lessons: [graphs, dp-1d, advanced-graphs, dp-2d]
+  - slug: math-bits
+    title: Math & Bits
+    lessons: [bit-manipulation, math-geometry]

@@ -2,40 +2,25 @@ export type Difficulty = 'easy' | 'medium' | 'hard'
 export type SolveRating = 'alone' | 'hint' | 'solution'
 export type ReviewRating = 'again' | 'hard' | 'good' | 'easy'
 
-export interface PatternMeta {
-  slug: string
-  title: string
-  prerequisites: string[]
-  confusedWith: string[]
-  triggers: string[]
-  complexity: string
-  summary: string
-  stub: boolean
+export type Level = 'beginner' | 'intermediate' | 'advanced'
+export interface ModuleMeta { slug: string; title: string; lessons: string[]; comingSoon: string[] }
+export interface TrackMeta { slug: string; title: string; summary: string; order: number; modules: ModuleMeta[] }
+export interface LessonMeta {
+  slug: string; track: string; title: string; summary: string; level: Level; authors: string[]
+  prerequisites: string[]; confusedWith: string[]; triggers: string[]; complexity?: string
 }
-
-export interface ProblemMeta {
-  slug: string
-  title: string
-  leetcodeId: number
-  url: string
-  difficulty: Difficulty
-  /** First entry is the primary pattern (ladder + trainer answer). */
-  patterns: string[]
-  ladderOrder: number
-  recognitionPrompt: string
-  hint: string
+export interface ExerciseMeta {
+  slug: string; type: 'external-problem'; title: string; leetcodeId: number; url: string; difficulty: Difficulty
+  /** First entry is the primary lesson (ladder placement + trainer answer). */
+  lessons: string[]; ladderOrder: number; recognitionPrompt: string; hint: string
 }
-
-/** Slim, serializable content passed from the server layout to client components. */
-export interface Catalog {
-  order: string[]
-  patterns: PatternMeta[]
-  problems: ProblemMeta[]
-}
+export interface Catalog { tracks: TrackMeta[]; lessons: LessonMeta[]; exercises: ExerciseMeta[] }
 
 /** A ts-fsrs Card with Date fields stored as ISO strings (IndexedDB- and JSON-safe). */
 export type StoredCard = { due: string; last_review?: string; state: number } & Record<string, unknown>
 
+// Storage types keep their v1 names (problemSlug, correctPattern…) so existing IndexedDB data
+// and backups stay valid. "Problem" here means "exercise"; "pattern" means "lesson".
 export interface ProblemProgress {
   slug: string
   status: 'unsolved' | 'solved'

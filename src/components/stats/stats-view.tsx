@@ -5,6 +5,7 @@ import { useCatalog } from '@/lib/content/catalog-context'
 import { formatDay } from '@/lib/format'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { addDays, currentStreak, heatmapDays, longestStreak, reviewForecast } from '@/lib/logic/dates'
+import { TRAINER_TRACK, trackMastery } from '@/lib/logic/lessons'
 import { recognitionAccuracy } from '@/lib/logic/mastery'
 import { useLive } from '@/lib/store/context'
 import { cn } from '@/lib/utils'
@@ -16,7 +17,7 @@ const level = (count: number) =>
   : 'bg-emerald-600 dark:bg-emerald-500'
 
 export function StatsView() {
-  const { patterns } = useCatalog()
+  const { lessons, tracks } = useCatalog()
   const masteries = useMasteries()
   const data = useLive(async (s) => ({
     activity: await s.listActivity(),
@@ -29,7 +30,8 @@ export function StatsView() {
   const days = heatmapDays(data.activity, today, 26)
   const forecast = reviewForecast(data.cards, today)
   const maxForecast = Math.max(1, ...forecast)
-  const accuracy = patterns
+  const accuracy = lessons
+    .filter((l) => l.track === TRAINER_TRACK)
     .map((p) => ({ p, acc: recognitionAccuracy(data.attempts, p.slug) }))
     .filter((x): x is { p: typeof x.p; acc: number } => x.acc !== undefined)
 
@@ -55,15 +57,20 @@ export function StatsView() {
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Mastery</h2>
-        <ul className="space-y-2">
-          {patterns.map((p) => (
-            <li key={p.slug} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-3 text-sm sm:grid-cols-[12rem_1fr_3rem]">
-              <span className="truncate">{p.title}</span>
-              <Progress value={masteries.get(p.slug) ?? 0} className="h-2" aria-label={`${p.title} mastery`} />
-              <span className="text-right tabular-nums">{masteries.get(p.slug) ?? 0}%</span>
-            </li>
-          ))}
-        </ul>
+        {tracks.map((t) => (
+          <div key={t.slug} className="space-y-2">
+            <h3 className="font-medium">{t.title} · {trackMastery(t, masteries)}%</h3>
+            <ul className="space-y-2">
+              {lessons.filter((l) => l.track === t.slug).map((p) => (
+                <li key={p.slug} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-3 text-sm sm:grid-cols-[12rem_1fr_3rem]">
+                  <span className="truncate">{p.title}</span>
+                  <Progress value={masteries.get(p.slug) ?? 0} className="h-2" aria-label={`${p.title} mastery`} />
+                  <span className="text-right tabular-nums">{masteries.get(p.slug) ?? 0}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </section>
 
       <section className="space-y-3">

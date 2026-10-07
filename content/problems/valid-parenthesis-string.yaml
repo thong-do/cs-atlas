@@ -1,9 +1,0 @@
-slug: valid-parenthesis-string
-title: "Valid Parenthesis String"
-leetcodeId: 678
-url: https://leetcode.com/problems/valid-parenthesis-string/
-difficulty: medium
-patterns: [greedy]
-ladderOrder: 8
-recognitionPrompt: "A string of brackets also contains wildcards that may act as either bracket or nothing; decide whether it can be balanced."
-hint: "Maintain a range of possible open-bracket counts instead of a single number."

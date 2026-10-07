@@ -1,0 +1,10 @@
+slug: koko-eating-bananas
+type: external-problem
+title: "Koko Eating Bananas"
+leetcodeId: 875
+url: https://leetcode.com/problems/koko-eating-bananas/
+difficulty: medium
+lessons: [binary-search]
+ladderOrder: 4
+recognitionPrompt: "Find the slowest eating speed that still finishes all piles within h hours."
+hint: "If speed k works, every faster speed works — search on the answer."

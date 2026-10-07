@@ -34,7 +34,7 @@ export function SettingsView() {
     try {
       const now = new Date()
       const file = await store.exportAll(now)
-      downloadText(JSON.stringify(file, null, 2), `leethub-backup-${localDate(now)}.json`)
+      downloadText(JSON.stringify(file, null, 2), `cs-atlas-backup-${localDate(now)}.json`)
       await store.markBackedUp(now).catch(() => undefined)
       toast.success('Backup downloaded')
     } catch (err) {
@@ -115,7 +115,7 @@ export function SettingsView() {
         {pending && (
           <div className="space-y-2 rounded-lg border p-3">
             <p className="text-sm">
-              Backup from {formatDateTime(pending.exportedAt)}: {pending.data.progress.filter((p) => p.status === 'solved').length} solved problems,{' '}
+              Backup from {formatDateTime(pending.exportedAt)}: {pending.data.progress.filter((p) => p.status === 'solved').length} solved exercises,{' '}
               {pending.data.notes.length} notes.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -134,7 +134,7 @@ export function SettingsView() {
           <Input id="retention" type="number" min={0.7} max={0.97} step={0.01} value={retention} onChange={(e) => setRetention(e.target.value)} className="w-28" />
           <Button variant="outline" onClick={saveRetention}>Save</Button>
         </div>
-        <p className="text-sm text-muted-foreground">Higher means more frequent reviews and fewer forgotten problems. 0.90 is a good default.</p>
+        <p className="text-sm text-muted-foreground">Higher means more frequent reviews and fewer forgotten exercises. 0.90 is a good default.</p>
       </section>
 
       <section className="space-y-2">

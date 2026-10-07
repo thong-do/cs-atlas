@@ -1,4 +1,5 @@
-import type { PatternMeta, ProblemMeta, TrainAttempt } from '@/lib/types'
+import type { LessonMeta, ExerciseMeta, TrainAttempt } from '@/lib/types'
+import { TRAINER_TRACK } from './lessons'
 import { recognitionAccuracy } from './mastery'
 import { shuffle, type Rng } from './rng'
 
@@ -9,28 +10,28 @@ export interface TrainQuestion {
   options: string[]
 }
 
-export function pickDistractors(correct: string, patterns: PatternMeta[], rng: Rng): string[] {
-  const pool = patterns.map((p) => p.slug).filter((slug) => slug !== correct)
-  const confused = [...new Set(patterns.find((p) => p.slug === correct)?.confusedWith ?? [])].filter((s) => pool.includes(s))
+export function pickDistractors(correct: string, lessons: LessonMeta[], rng: Rng): string[] {
+  const pool = lessons.map((l) => l.slug).filter((slug) => slug !== correct)
+  const confused = [...new Set(lessons.find((l) => l.slug === correct)?.confusedWith ?? [])].filter((s) => pool.includes(s))
   const rest = pool.filter((s) => !confused.includes(s))
   return [...shuffle(confused, rng), ...shuffle(rest, rng)].slice(0, 3)
 }
 
-export function buildQuestion(problem: ProblemMeta, patterns: PatternMeta[], rng: Rng): TrainQuestion {
-  const correct = problem.patterns[0]
+export function buildQuestion(exercise: ExerciseMeta, lessons: LessonMeta[], rng: Rng): TrainQuestion {
+  const correct = exercise.lessons[0]
   return {
-    problemSlug: problem.slug,
-    prompt: problem.recognitionPrompt,
+    problemSlug: exercise.slug,
+    prompt: exercise.recognitionPrompt,
     correct,
-    options: shuffle([correct, ...pickDistractors(correct, patterns, rng)], rng),
+    options: shuffle([correct, ...pickDistractors(correct, lessons, rng)], rng),
   }
 }
 
-export function pickTrainProblems(problems: ProblemMeta[], attempts: TrainAttempt[], count: number, rng: Rng): ProblemMeta[] {
-  const weighted = problems
+export function pickTrainExercises(exercises: ExerciseMeta[], attempts: TrainAttempt[], count: number, rng: Rng): ExerciseMeta[] {
+  const weighted = exercises
     .filter((p) => p.recognitionPrompt.trim().length > 0)
-    .map((p) => ({ p, w: 2 - (recognitionAccuracy(attempts, p.patterns[0]) ?? 0) }))
-  const picked: ProblemMeta[] = []
+    .map((p) => ({ p, w: 2 - (recognitionAccuracy(attempts, p.lessons[0]) ?? 0) }))
+  const picked: ExerciseMeta[] = []
   while (picked.length < count && weighted.length > 0) {
     let r = rng() * weighted.reduce((sum, x) => sum + x.w, 0)
     let i = 0
@@ -44,11 +45,14 @@ export function pickTrainProblems(problems: ProblemMeta[], attempts: TrainAttemp
 }
 
 export function buildRound(
-  problems: ProblemMeta[],
-  patterns: PatternMeta[],
+  exercises: ExerciseMeta[],
+  lessons: LessonMeta[],
   attempts: TrainAttempt[],
   count: number,
   rng: Rng,
 ): TrainQuestion[] {
-  return pickTrainProblems(problems, attempts, count, rng).map((p) => buildQuestion(p, patterns, rng))
+  const pool = lessons.filter((l) => l.track === TRAINER_TRACK)
+  const inPool = new Set(pool.map((l) => l.slug))
+  const eligible = exercises.filter((e) => inPool.has(e.lessons[0]))
+  return pickTrainExercises(eligible, attempts, count, rng).map((e) => buildQuestion(e, pool, rng))
 }

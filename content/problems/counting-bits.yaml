@@ -1,9 +1,0 @@
-slug: counting-bits
-title: "Counting Bits"
-leetcodeId: 338
-url: https://leetcode.com/problems/counting-bits/
-difficulty: easy
-patterns: [bit-manipulation]
-ladderOrder: 4
-recognitionPrompt: "For every integer from 0 to n, report how many set bits it has, in a single pass of work."
-hint: "Relate a number's count to that of a smaller number with one bit dropped."

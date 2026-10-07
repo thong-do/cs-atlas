@@ -33,22 +33,22 @@ describe('parseExport', () => {
     expect(parseExport('{nope')).toEqual({ ok: false, error: 'This file is not valid JSON.' })
   })
 
-  it('rejects files that are not LeetHub backups', () => {
+  it('rejects files that are not CS Atlas backups', () => {
     const r = parseExport(JSON.stringify({ app: 'other' }))
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toMatch(/^Not a LeetHub backup/)
+    if (!r.ok) expect(r.error).toMatch(/^Not a CS Atlas backup/)
   })
 
   it('rejects backups from a newer schema version', () => {
     const file = { ...buildExport(sample(), new Date(t(2))), schemaVersion: SCHEMA_VERSION + 1 }
     expect(parseExport(JSON.stringify(file))).toEqual({
-      ok: false, error: 'This backup was made by a newer version of LeetHub. Update the app first.',
+      ok: false, error: 'This backup was made by a newer version of CS Atlas. Update the app first.',
     })
   })
 
   it('gives a newer-version message even when the shape changed', () => {
     const r = parseExport(JSON.stringify({ app: 'leethub', schemaVersion: 99, data: { totally: 'different' } }))
-    expect(r).toEqual({ ok: false, error: 'This backup was made by a newer version of LeetHub. Update the app first.' })
+    expect(r).toEqual({ ok: false, error: 'This backup was made by a newer version of CS Atlas. Update the app first.' })
   })
 
   it('normalizes offset timestamps to canonical UTC strings', () => {

@@ -1,0 +1,10 @@
+slug: rotting-oranges
+type: external-problem
+title: "Rotting Oranges"
+leetcodeId: 994
+url: https://leetcode.com/problems/rotting-oranges/
+difficulty: medium
+lessons: [graphs]
+ladderOrder: 5
+recognitionPrompt: "In a grid of fresh and spoiled fruit where spoilage spreads to neighbors each minute, find when everything is spoiled or report it never will be."
+hint: "Spread from all starting sources simultaneously, one layer per minute."

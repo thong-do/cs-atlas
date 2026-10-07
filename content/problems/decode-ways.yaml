@@ -1,9 +1,0 @@
-slug: decode-ways
-title: "Decode Ways"
-leetcodeId: 91
-url: https://leetcode.com/problems/decode-ways/
-difficulty: medium
-patterns: [dp-1d]
-ladderOrder: 5
-recognitionPrompt: "Count how many ways a string of digits could be read as letters when A through Z map to 1 through 26."
-hint: "At each position you may consume one digit or two, if valid."

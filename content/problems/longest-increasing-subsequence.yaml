@@ -1,9 +1,0 @@
-slug: longest-increasing-subsequence
-title: "Longest Increasing Subsequence"
-leetcodeId: 300
-url: https://leetcode.com/problems/longest-increasing-subsequence/
-difficulty: medium
-patterns: [dp-1d]
-ladderOrder: 8
-recognitionPrompt: "Find the length of the longest strictly rising subsequence of an array, not necessarily contiguous."
-hint: "For each element, look at the best chain ending at any smaller earlier element."

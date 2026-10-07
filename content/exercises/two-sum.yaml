@@ -1,0 +1,10 @@
+slug: two-sum
+type: external-problem
+title: "Two Sum"
+leetcodeId: 1
+url: https://leetcode.com/problems/two-sum/
+difficulty: easy
+lessons: [arrays-hashing]
+ladderOrder: 3
+recognitionPrompt: "Unsorted numbers; return indices of two that add up to a target."
+hint: "For each number, what partner value do you need, and where could you have stored it?"

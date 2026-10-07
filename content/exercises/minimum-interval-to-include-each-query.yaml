@@ -1,0 +1,10 @@
+slug: minimum-interval-to-include-each-query
+type: external-problem
+title: "Minimum Interval to Include Each Query"
+leetcodeId: 1851
+url: https://leetcode.com/problems/minimum-interval-to-include-each-query/
+difficulty: hard
+lessons: [intervals, heap]
+ladderOrder: 7
+recognitionPrompt: "For each query point, find the size of the smallest range that contains it, or report none."
+hint: "Answer queries in increasing order while maintaining the currently relevant ranges, discarding those that ended."

@@ -1,0 +1,10 @@
+slug: house-robber
+type: external-problem
+title: "House Robber"
+leetcodeId: 198
+url: https://leetcode.com/problems/house-robber/
+difficulty: medium
+lessons: [dp-1d]
+ladderOrder: 3
+recognitionPrompt: "Along a row of houses with cash, choose which to rob for the most money without hitting two neighbors."
+hint: "For each house, compare skipping it against taking it plus the best from two houses back."

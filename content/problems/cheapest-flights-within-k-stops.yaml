@@ -1,9 +1,0 @@
-slug: cheapest-flights-within-k-stops
-title: "Cheapest Flights Within K Stops"
-leetcodeId: 787
-url: https://leetcode.com/problems/cheapest-flights-within-k-stops/
-difficulty: medium
-patterns: [advanced-graphs]
-ladderOrder: 3
-recognitionPrompt: "Find the cheapest route between two cities using at most k intermediate stops, given priced one-way flights."
-hint: "The number of edges used matters as well as the cost; relax in rounds."

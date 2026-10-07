@@ -1,0 +1,10 @@
+slug: sort-colors
+type: external-problem
+title: "Sort Colors"
+leetcodeId: 75
+url: https://leetcode.com/problems/sort-colors/
+difficulty: medium
+lessons: [two-pointers]
+ladderOrder: 5
+recognitionPrompt: "Sort an array containing only 0s, 1s and 2s in one pass and in place."
+hint: "Keep three regions with low, mid and high indices (Dutch national flag)."

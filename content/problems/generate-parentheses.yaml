@@ -1,9 +1,0 @@
-slug: generate-parentheses
-title: "Generate Parentheses"
-leetcodeId: 22
-url: https://leetcode.com/problems/generate-parentheses/
-difficulty: medium
-patterns: [stack, backtracking]
-ladderOrder: 4
-recognitionPrompt: "List every well-formed string made of n pairs of parentheses."
-hint: "Add “(” while opens < n; add “)” while closes < opens."

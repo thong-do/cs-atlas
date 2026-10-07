@@ -1,0 +1,10 @@
+slug: move-zeroes
+type: external-problem
+title: "Move Zeroes"
+leetcodeId: 283
+url: https://leetcode.com/problems/move-zeroes/
+difficulty: easy
+lessons: [two-pointers]
+ladderOrder: 3
+recognitionPrompt: "Shift all zeros to the end in place while keeping the order of the other values."
+hint: "Slow index = next slot for a non-zero; fast index scans."

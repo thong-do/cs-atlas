@@ -1,9 +1,0 @@
-slug: word-search-ii
-title: "Word Search II"
-leetcodeId: 212
-url: https://leetcode.com/problems/word-search-ii/
-difficulty: hard
-patterns: [tries, backtracking]
-ladderOrder: 6
-recognitionPrompt: "Given a letter grid and a list of words, find every word that can be traced through adjacent cells without reusing a cell."
-hint: "Searching one word at a time is too slow; search the grid once while following a shared prefix structure, pruning dead branches."

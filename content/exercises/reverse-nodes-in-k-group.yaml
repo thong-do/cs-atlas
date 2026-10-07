@@ -1,0 +1,10 @@
+slug: reverse-nodes-in-k-group
+type: external-problem
+title: "Reverse Nodes in k-Group"
+leetcodeId: 25
+url: https://leetcode.com/problems/reverse-nodes-in-k-group/
+difficulty: hard
+lessons: [linked-list]
+ladderOrder: 11
+recognitionPrompt: "Reverse a linked list k nodes at a time, leaving a short tail as it is."
+hint: "Check that k nodes exist, reverse that group, reconnect, repeat."

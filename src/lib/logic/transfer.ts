@@ -15,6 +15,7 @@ const iso = z.string()
 const finite = z.number().refine(Number.isFinite, 'must be a finite number')
 const count = z.number().int().min(0)
 
+// `app: 'leethub'` is the v1 backup marker; it stays so every existing backup keeps importing.
 const exportFileSchema = z.object({
   app: z.literal('leethub'),
   schemaVersion: z.number().int().positive(),
@@ -80,12 +81,12 @@ export function parseExport(text: string): { ok: true; file: ExportFile } | { ok
   }
   const header = versionHeaderSchema.safeParse(json)
   if (header.success && header.data.schemaVersion > SCHEMA_VERSION) {
-    return { ok: false, error: 'This backup was made by a newer version of LeetHub. Update the app first.' }
+    return { ok: false, error: 'This backup was made by a newer version of CS Atlas. Update the app first.' }
   }
   const result = exportFileSchema.safeParse(json)
   if (!result.success) {
     const issue = result.error.issues[0]
-    return { ok: false, error: `Not a LeetHub backup: ${issue.path.join('.') || 'file'} — ${issue.message}` }
+    return { ok: false, error: `Not a CS Atlas backup: ${issue.path.join('.') || 'file'} — ${issue.message}` }
   }
   return { ok: true, file: result.data as ExportFile }
 }

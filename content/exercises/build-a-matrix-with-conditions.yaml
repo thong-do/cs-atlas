@@ -1,0 +1,10 @@
+slug: build-a-matrix-with-conditions
+type: external-problem
+title: "Build a Matrix With Conditions"
+leetcodeId: 2392
+url: https://leetcode.com/problems/build-a-matrix-with-conditions/
+difficulty: hard
+lessons: [advanced-graphs, graphs]
+ladderOrder: 7
+recognitionPrompt: "Place the numbers 1..k in a square grid so that given pairs are ordered above/below and left/right of each other, or report that it is impossible."
+hint: "Rows and columns are independent ordering problems; each is a question of whether a valid ordering exists for a set of before-constraints."

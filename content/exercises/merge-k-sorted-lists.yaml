@@ -1,0 +1,10 @@
+slug: merge-k-sorted-lists
+type: external-problem
+title: "Merge k Sorted Lists"
+leetcodeId: 23
+url: https://leetcode.com/problems/merge-k-sorted-lists/
+difficulty: hard
+lessons: [linked-list, heap]
+ladderOrder: 10
+recognitionPrompt: "Merge k sorted linked lists into one sorted list."
+hint: "Repeatedly take the smallest head — use a min-heap, or merge in pairs."

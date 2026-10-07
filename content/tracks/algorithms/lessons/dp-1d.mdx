@@ -1,0 +1,112 @@
+---
+slug: dp-1d
+title: 1-D Dynamic Programming
+prerequisites: [backtracking]
+confusedWith: [greedy, backtracking]
+triggers: ["count the ways", "min/max over choices with overlapping subproblems", "answer for i depends on i-1, i-2", "can the string / amount be built from pieces?", "pick or skip each item with a constraint between neighbours"]
+complexity: "Usually O(n) time, O(n) or O(1) space"
+level: intermediate
+authors: [cs-atlas]
+summary: "Cache answers to subproblems indexed by one variable."
+---
+
+## Intuition
+
+Dynamic programming is **backtracking that remembers**. When the same subproblem shows up again and again in the recursion tree, solve it once, store the answer, and reuse it. Exponential time collapses to linear.
+
+Climbing stairs makes this concrete. The number of ways to reach step n is the ways to reach step n−1 (then take 1 step) plus the ways to reach n−2 (then take 2). Plain recursion recomputes `ways(3)` many times; DP computes each step once.
+
+Every DP solution answers four questions:
+
+1. **State** — what does `dp[i]` mean, in one sentence? ("the max money robbing houses 0..i")
+2. **Transition** — how is `dp[i]` built from smaller states? ("rob i and add dp[i−2], or skip i and keep dp[i−1]")
+3. **Base cases** — the smallest states you can answer directly.
+4. **Order** — fill states so everything a transition needs is already computed.
+
+Two ways to write it:
+
+- **Top-down (memoisation)**: write the recursion, add `@cache`. The easiest to get right first.
+- **Bottom-up (tabulation)**: fill an array from small to large. No recursion limit, and often reducible to O(1) space when `dp[i]` only needs the last one or two values.
+
+## Visual
+
+<Visualizer kind="house-robber" />
+
+```text
+House Robber on [2, 7, 9, 3, 1] — best[i] = max(skip i, rob i)
+                                          = max(best[i-1], best[i-2] + nums[i])
+
+i      0    1    2     3     4
+nums   2    7    9     3     1
+best   2    7    11    11    12
+            │    │     │     └ max(11, 11 + 1) = 12   rob house 4
+            │    │     └ max(11, 7 + 3)  = 11         skip house 3
+            │    └ max(7, 2 + 9) = 11                 rob house 2
+            └ max(2, 0 + 7) = 7                       rob house 1
+
+Only the last two values matter → keep two variables instead of an array.
+```
+
+## Template
+
+```python
+from functools import cache
+
+
+def climb_stairs(n: int) -> int:
+    a, b = 1, 1                       # ways to reach step 0 and step 1
+    for _ in range(n - 1):
+        a, b = b, a + b
+    return b
+
+
+def rob(nums: list[int]) -> int:
+    prev2 = prev1 = 0                 # best up to i-2 and i-1
+    for x in nums:
+        prev2, prev1 = prev1, max(prev1, prev2 + x)
+    return prev1
+
+
+def coin_change(coins: list[int], amount: int) -> int:
+    """Fewest coins to make amount; -1 if impossible. Bottom-up over amounts."""
+    INF = amount + 1
+    dp = [0] + [INF] * amount         # dp[a] = fewest coins to make a
+    for a in range(1, amount + 1):
+        for c in coins:
+            if c <= a:
+                dp[a] = min(dp[a], dp[a - c] + 1)
+    return dp[amount] if dp[amount] != INF else -1
+
+
+def word_break(s: str, words: list[str]) -> bool:
+    """Top-down: can s[i:] be split into dictionary words?"""
+    @cache
+    def can(i: int) -> bool:
+        if i == len(s):
+            return True
+        return any(s.startswith(w, i) and can(i + len(w)) for w in words)
+
+    return can(0)
+```
+
+## Complexity
+
+- Time = **number of states × work per transition**. Climbing Stairs and House Robber: O(n). Coin Change: O(amount × coins). Word Break: O(n × words × word length).
+- Space: **O(n)** for the table or memo, often **O(1)** when only the last few states are needed.
+- Longest Increasing Subsequence: O(n²) with the plain DP, O(n log n) with binary search over "smallest tail" values.
+
+## Pitfalls
+
+- An unclear state. If you can't say what `dp[i]` means in one sentence, the transition will be wrong.
+- Wrong base cases: Coin Change needs `dp[0] = 0` and "impossible" as a large sentinel, not 0.
+- Using greedy where DP is needed — Coin Change with coins `[1, 3, 4]` and amount 6 is the classic trap.
+- House Robber II (houses in a circle): the first and last houses can't both be robbed, so run the linear version twice — once without the first house, once without the last.
+- Decode Ways: `"0"` can't stand alone, and two-digit codes must be between 10 and 26.
+
+## Tips & tricks
+
+- Start from the brute-force recursion. If its arguments are a small set of integers, memoise it — that's your DP.
+- "Count the ways" → add the transitions. "Min/max" → take the min/max of them. "Is it possible" → OR them.
+- Min Cost Climbing Stairs: `dp[i] = cost[i] + min(dp[i-1], dp[i-2])`, answer `min(dp[-1], dp[-2])`.
+- Word Break bottom-up: `ok[i]` is True if some `ok[j]` is True and `s[j:i]` is a word.
+- When the state needs **two** indices (two strings, a grid, item × capacity), you've moved on to **2-D DP**.

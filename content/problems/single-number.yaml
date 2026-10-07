@@ -1,9 +1,0 @@
-slug: single-number
-title: "Single Number"
-leetcodeId: 136
-url: https://leetcode.com/problems/single-number/
-difficulty: easy
-patterns: [bit-manipulation]
-ladderOrder: 1
-recognitionPrompt: "Every value in an array appears twice except one; find the lone value using constant extra space."
-hint: "Combining a number with itself cancels it out."

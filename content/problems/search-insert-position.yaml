@@ -1,9 +1,0 @@
-slug: search-insert-position
-title: "Search Insert Position"
-leetcodeId: 35
-url: https://leetcode.com/problems/search-insert-position/
-difficulty: easy
-patterns: [binary-search]
-ladderOrder: 2
-recognitionPrompt: "In a sorted array, find a target’s index or the index where it would be inserted."
-hint: "Find the first index whose value is ≥ target (the lower bound)."

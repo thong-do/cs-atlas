@@ -1,9 +1,0 @@
-slug: permutations
-title: "Permutations"
-leetcodeId: 46
-url: https://leetcode.com/problems/permutations/
-difficulty: medium
-patterns: [backtracking]
-ladderOrder: 3
-recognitionPrompt: "List every distinct ordering of a set of distinct integers."
-hint: "Track which items are already used in the current arrangement."

@@ -1,0 +1,10 @@
+slug: valid-sudoku
+type: external-problem
+title: "Valid Sudoku"
+leetcodeId: 36
+url: https://leetcode.com/problems/valid-sudoku/
+difficulty: medium
+lessons: [arrays-hashing]
+ladderOrder: 8
+recognitionPrompt: "Check whether a partially filled 9×9 grid breaks any row, column or 3×3 box rule."
+hint: "Keep a seen-set per row, per column and per box; box id = (r // 3, c // 3)."

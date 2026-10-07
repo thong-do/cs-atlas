@@ -1,9 +1,0 @@
-slug: spiral-matrix
-title: "Spiral Matrix"
-leetcodeId: 54
-url: https://leetcode.com/problems/spiral-matrix/
-difficulty: medium
-patterns: [math-geometry]
-ladderOrder: 4
-recognitionPrompt: "Return all elements of a matrix in clockwise spiral order from the outside in."
-hint: "Shrink four boundaries as you finish each side."

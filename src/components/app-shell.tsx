@@ -1,9 +1,10 @@
 'use client'
 
-import { BarChart3, ListChecks, Map as MapIcon, Search, Settings, Sun, Target } from 'lucide-react'
+import { BarChart3, Library, ListChecks, Map as MapIcon, Search, Settings, Sun, Target } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useCatalog } from '@/lib/content/catalog-context'
 import { cn } from '@/lib/utils'
 import { CommandPalette, openCommandPalette } from './command-palette'
 import { MasteryCelebration } from './mastery-celebration'
@@ -11,8 +12,9 @@ import { StatusBanners } from './status-banners'
 
 const NAV = [
   { href: '/', label: 'Today', icon: Sun },
+  { href: '/tracks/', label: 'Tracks', icon: Library },
   { href: '/roadmap/', label: 'Roadmap', icon: MapIcon },
-  { href: '/problems/', label: 'Problems', icon: ListChecks },
+  { href: '/exercises/', label: 'Exercises', icon: ListChecks },
   { href: '/train/', label: 'Train', icon: Target },
   { href: '/stats/', label: 'Stats', icon: BarChart3 },
 ]
@@ -27,15 +29,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
     setMac(/mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? navigator.platform ?? ''))
   }, [])
+  const { tracks } = useCatalog()
+  const trackSlugs = new Set(tracks.map((t) => t.slug))
   const isActive = (href: string) => {
     const h = trim(href)
+    if (h === '/tracks' && trackSlugs.has(pathname.split('/')[1])) return true
     return h === '/' ? pathname === '/' : pathname === h || pathname.startsWith(`${h}/`)
   }
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[220px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col gap-1 border-r p-4 md:flex">
-        <Link href="/" className="mb-4 text-lg font-bold">LeetHub</Link>
+        <Link href="/" className="mb-4 text-lg font-bold">CS Atlas</Link>
         <button
           type="button"
           onClick={openCommandPalette}
@@ -67,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-col">
         <header className="flex h-12 items-center justify-between border-b px-4 md:hidden">
-          <Link href="/" className="font-bold">LeetHub</Link>
+          <Link href="/" className="font-bold">CS Atlas</Link>
           <div className="flex items-center gap-4">
             <button type="button" onClick={openCommandPalette} aria-label="Search"><Search className="size-5" /></button>
             <Link
@@ -84,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-10">{children}</main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-background md:hidden" aria-label="Main">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t bg-background md:hidden" aria-label="Main">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

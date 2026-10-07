@@ -1,0 +1,10 @@
+slug: kth-largest-element-in-a-stream
+type: external-problem
+title: "Kth Largest Element in a Stream"
+leetcodeId: 703
+url: https://leetcode.com/problems/kth-largest-element-in-a-stream/
+difficulty: easy
+lessons: [heap]
+ladderOrder: 1
+recognitionPrompt: "Keep receiving numbers and after each one report the kth largest value seen so far."
+hint: "You only ever need to remember k values, and only the smallest of them matters."

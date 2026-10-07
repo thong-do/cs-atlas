@@ -1,9 +1,0 @@
-slug: invert-binary-tree
-title: "Invert Binary Tree"
-leetcodeId: 226
-url: https://leetcode.com/problems/invert-binary-tree/
-difficulty: easy
-patterns: [trees]
-ladderOrder: 2
-recognitionPrompt: "Mirror a binary tree so that every node's left and right subtrees trade places."
-hint: "Handle one node, then trust the same operation on both children."

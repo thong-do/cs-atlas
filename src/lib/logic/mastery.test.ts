@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { ProblemMeta, ProblemProgress, ReviewCard, TrainAttempt } from '@/lib/types'
+import type { ExerciseMeta, LessonMeta, ProblemProgress, ReviewCard, TrainAttempt } from '@/lib/types'
 import { newCard, scheduleReview } from './fsrs'
-import { computeMasteries, newlyMastered, shouldCelebrate, patternMastery, recognitionAccuracy } from './mastery'
+import { computeMasteries, newlyMastered, shouldCelebrate, lessonMastery, recognitionAccuracy } from './mastery'
 
 const now = new Date('2026-10-03T09:00:00Z')
-const problem = (slug: string, patterns: string[]): ProblemMeta => ({
-  slug, title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',
-  patterns, ladderOrder: 1, recognitionPrompt: 'prompt text', hint: 'hint',
+const problem = (slug: string, lessons: string[]): ExerciseMeta => ({
+  slug, type: 'external-problem', title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',
+  lessons, ladderOrder: 1, recognitionPrompt: 'prompt text', hint: 'hint',
 })
 const solved = (slug: string, solveRating: ProblemProgress['solveRating']): ProblemProgress => ({
   slug, status: 'solved', solveRating, firstSolvedAt: now.toISOString(), needsResolve: false, updatedAt: now.toISOString(),
@@ -20,7 +20,10 @@ const attempt = (i: number, pattern: string, correct: boolean): TrainAttempt => 
   at: new Date(now.getTime() + i * 1000).toISOString(),
 })
 
-const base = { problems: [problem('p1', ['tp'])], progress: [], cards: [], attempts: [], now }
+const L = (slug: string, track = 'algorithms'): LessonMeta => ({
+  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith: [], triggers: [],
+})
+const base = { exercises: [problem('p1', ['tp'])], lessons: [L('tp'), L('other')], progress: [], cards: [], attempts: [], now }
 
 describe('recognitionAccuracy', () => {
   it('is undefined with no attempts for the pattern', () => {
@@ -36,48 +39,60 @@ describe('recognitionAccuracy', () => {
   })
 })
 
-describe('patternMastery', () => {
+describe('lessonMastery', () => {
   it('is 0 with nothing done', () => {
-    expect(patternMastery('tp', base)).toBe(0)
+    expect(lessonMastery(L('tp'), base)).toBe(0)
   })
 
   it('gives 70 for the whole ladder solved alone and fresh, with no recognition data', () => {
-    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] })).toBe(70)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] })).toBe(70)
   })
 
   it('weights hint and solution solves', () => {
-    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'hint')], cards: [freshCard('p1')] })).toBe(49)
-    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'solution')], cards: [freshCard('p1')] })).toBe(28)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'hint')], cards: [freshCard('p1')] })).toBe(49)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'solution')], cards: [freshCard('p1')] })).toBe(28)
   })
 
   it('treats a solved problem without a card as fully retrievable', () => {
-    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'alone')] })).toBe(70)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')] })).toBe(70)
   })
 
-  it('only counts problems whose primary pattern matches', () => {
-    const input = { ...base, problems: [problem('p1', ['tp']), problem('p2', ['other', 'tp'])], progress: [solved('p2', 'alone')] }
-    expect(patternMastery('tp', input)).toBe(0)
+  it('does not count a second lesson in the same track', () => {
+    const input = { ...base, exercises: [problem('p1', ['tp']), problem('p2', ['other', 'tp'])], progress: [solved('p2', 'alone')] }
+    expect(lessonMastery(L('tp'), input)).toBe(0)
+  })
+
+  it('counts a shared exercise for a lesson in another track, without recognition weight', () => {
+    const input = {
+      ...base,
+      lessons: [L('tp'), L('cache', 'system-design')],
+      exercises: [problem('p1', ['tp', 'cache'])],
+      progress: [solved('p1', 'alone')],
+      cards: [freshCard('p1')],
+    }
+    expect(lessonMastery(L('cache', 'system-design'), input)).toBe(100)
+    expect(lessonMastery(L('tp'), input)).toBe(70)
   })
 
   it('reaches 100 with full problems and perfect recognition', () => {
     const attempts = Array.from({ length: 20 }, (_, i) => attempt(i, 'tp', true))
-    expect(patternMastery('tp', { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')], attempts })).toBe(100)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')], attempts })).toBe(100)
   })
 
   it('falls back to recognition only when the ladder is empty (no NaN)', () => {
     const attempts = Array.from({ length: 4 }, (_, i) => attempt(i, 'empty', i % 2 === 0))
-    expect(patternMastery('empty', { ...base, attempts })).toBe(15)
+    expect(lessonMastery(L('empty'), { ...base, attempts })).toBe(15)
   })
 
   it('decays as retrievability drops', () => {
     const input = { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] }
-    expect(patternMastery('tp', { ...input, now: new Date(now.getTime() + 90 * 86_400_000) })).toBeLessThan(70)
+    expect(lessonMastery(L('tp'), { ...input, now: new Date(now.getTime() + 90 * 86_400_000) })).toBeLessThan(70)
   })
 })
 
 describe('computeMasteries / newlyMastered', () => {
   it('computes a value for every pattern', () => {
-    const map = computeMasteries([{ slug: 'tp' }, { slug: 'x' }] as never, base)
+    const map = computeMasteries([L('tp'), L('x')], base)
     expect([...map.keys()]).toEqual(['tp', 'x'])
   })
 

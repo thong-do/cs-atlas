@@ -1,9 +1,0 @@
-slug: remove-nth-node-from-end-of-list
-title: "Remove Nth Node From End of List"
-leetcodeId: 19
-url: https://leetcode.com/problems/remove-nth-node-from-end-of-list/
-difficulty: medium
-patterns: [linked-list, two-pointers]
-ladderOrder: 5
-recognitionPrompt: "Delete the n-th node counted from the end of a list in one pass."
-hint: "Start a second pointer n steps behind the first."

@@ -1,0 +1,128 @@
+---
+slug: caching
+title: Caching
+level: beginner
+authors: [cs-atlas]
+prerequisites: [arrays-hashing]
+summary: "Keep hot data close so most reads never touch the slow store."
+---
+
+## Intuition
+
+You keep the books you use every week on your desk, and the rest in the library down the street. Most of the time the book you need is on the desk — a **hit** — and you save the walk. When it isn't — a **miss** — you fetch it, and since the desk is small, you return the book you haven't touched for the longest time.
+
+That is a cache: a small, fast store in front of a large, slow one.
+
+| Read from | Rough latency |
+|---|---|
+| Memory (in-process map) | ~100 ns |
+| Redis on the same network | ~0.5 ms |
+| Database query from disk | 5–50 ms |
+| Another region | 50–150 ms |
+
+The number that matters is the **hit rate**. At a 95% hit rate with a 1 ms cache and a 20 ms database, the average read costs `0.95 × 1 + 0.05 × 20 = 1.95 ms` — ten times faster than no cache, and the database sees only 5% of the traffic.
+
+Every cache answers three questions:
+
+- **What goes in?** Usually whatever was just read (read-through / cache-aside).
+- **What comes out when it's full?** The **eviction policy** — most often *least recently used* (LRU).
+- **When is it wrong?** When the source changed and the copy didn't — the **invalidation** problem.
+
+## Visual
+
+<Visualizer kind="cache-lru" />
+
+```text
+Cache-aside read:
+
+  app ──get(k)──▶ cache ──hit──▶ return value
+                    │
+                   miss
+                    ▼
+                database ──value──▶ app ──set(k, value, ttl)──▶ cache
+```
+
+## Example
+
+An LRU cache is the **LRU Cache** exercise: a hash map gives O(1) lookup, and a doubly linked list keeps keys in recency order so the least recent one is always at the tail.
+
+```python
+class Node:
+    def __init__(self, key=0, val=0):
+        self.key, self.val = key, val
+        self.prev = self.next = None
+
+
+class LRUCache:
+    def __init__(self, capacity: int):
+        self.cap = capacity
+        self.map: dict[int, Node] = {}
+        self.head, self.tail = Node(), Node()          # sentinels: head.next is most recent
+        self.head.next, self.tail.prev = self.tail, self.head
+
+    def _remove(self, node: Node) -> None:
+        node.prev.next, node.next.prev = node.next, node.prev
+
+    def _push_front(self, node: Node) -> None:
+        node.prev, node.next = self.head, self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+
+    def get(self, key: int) -> int:
+        if key not in self.map:
+            return -1                                  # miss
+        node = self.map[key]
+        self._remove(node)
+        self._push_front(node)                         # hit: now the most recent
+        return node.val
+
+    def put(self, key: int, value: int) -> None:
+        if key in self.map:
+            self._remove(self.map[key])
+        node = Node(key, value)
+        self.map[key] = node
+        self._push_front(node)
+        if len(self.map) > self.cap:
+            lru = self.tail.prev                       # least recently used
+            self._remove(lru)
+            del self.map[lru.key]
+```
+
+The same idea in a service, with a shared cache such as Redis in front of a database:
+
+```python
+import random
+
+
+def get_user(user_id: str) -> dict:
+    key = f"user:{user_id}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached                                  # hit
+    user = db.fetch_user(user_id)                      # miss: go to the source
+    cache.set(key, user, ttl=300 + random.randint(0, 60))
+    return user
+
+
+def update_user(user_id: str, fields: dict) -> None:
+    db.update_user(user_id, fields)
+    cache.delete(f"user:{user_id}")                    # invalidate; the next read refills it
+```
+
+**Time Based Key-Value Store** is the other half of the story: a versioned store where reads ask for "the latest value at or before time t" — the same question a cache asks when it must not serve data newer than a snapshot.
+
+## Pitfalls
+
+- **Stale data.** Updating the database without deleting (or updating) the cached copy serves old values until the TTL runs out. Delete *after* the write commits.
+- **Thundering herd.** A hot key expires and a thousand requests miss at once, all hitting the database. Add jitter to TTLs, and let one request refill while the others wait (request coalescing).
+- **Caching failures.** Storing an error or an empty result with a normal TTL hides a recovery. Cache negative results only briefly, and never cache exceptions.
+- **Unbounded growth.** A cache with no size limit or eviction policy is a memory leak. Always set a capacity or a max memory with an eviction policy.
+- **Caching per-user data under a shared key** leaks one user's data to another. Put every input that changes the answer into the key.
+
+## Tips & tricks
+
+- **Write strategies:** *cache-aside* (the app reads and fills the cache — the default), *write-through* (writes go to cache and database together; reads are always warm), *write-back* (writes go to the cache and reach the database later; fast but can lose data).
+- **Eviction:** LRU suits most workloads; LFU keeps long-term favourites; a TTL alone is fine when data naturally expires.
+- **Measure** the hit rate, the p99 latency of hits and misses, and the eviction rate. A low hit rate means the wrong things are cached or the cache is too small.
+- **Cache close to the reader:** browser → CDN → service memory → shared cache → database. Each layer absorbs traffic before the next.
+- In interviews, say what you cache, the key, the TTL, how you invalidate, and what happens when the cache is down.

@@ -1,0 +1,10 @@
+slug: replace-words
+type: external-problem
+title: "Replace Words"
+leetcodeId: 648
+url: https://leetcode.com/problems/replace-words/
+difficulty: medium
+lessons: [tries]
+ladderOrder: 3
+recognitionPrompt: "Given a set of root fragments and a sentence, replace each word by its shortest fragment that starts it."
+hint: "Walk each word down your structure and stop at the first completed fragment."

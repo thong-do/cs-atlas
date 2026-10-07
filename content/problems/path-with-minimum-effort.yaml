@@ -1,9 +1,0 @@
-slug: path-with-minimum-effort
-title: "Path With Minimum Effort"
-leetcodeId: 1631
-url: https://leetcode.com/problems/path-with-minimum-effort/
-difficulty: medium
-patterns: [advanced-graphs]
-ladderOrder: 4
-recognitionPrompt: "Cross a height grid from top-left to bottom-right minimizing the largest height difference between consecutive cells on the way."
-hint: "Replace the usual sum of weights with a max along the path."

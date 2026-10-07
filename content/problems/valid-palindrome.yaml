@@ -1,9 +1,0 @@
-slug: valid-palindrome
-title: "Valid Palindrome"
-leetcodeId: 125
-url: https://leetcode.com/problems/valid-palindrome/
-difficulty: easy
-patterns: [two-pointers]
-ladderOrder: 1
-recognitionPrompt: "Ignoring case and non-alphanumeric characters, does a string read the same both ways?"
-hint: "Compare characters from both ends while moving inward."

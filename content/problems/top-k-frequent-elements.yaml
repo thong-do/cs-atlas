@@ -1,9 +1,0 @@
-slug: top-k-frequent-elements
-title: "Top K Frequent Elements"
-leetcodeId: 347
-url: https://leetcode.com/problems/top-k-frequent-elements/
-difficulty: medium
-patterns: [arrays-hashing, heap]
-ladderOrder: 6
-recognitionPrompt: "Return the k values that occur most often in an array, faster than sorting everything."
-hint: "Count first; frequencies are at most n, so buckets indexed by count work."

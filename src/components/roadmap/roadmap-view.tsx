@@ -3,57 +3,97 @@
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import { useCatalog } from '@/lib/content/catalog-context'
+import { lessonHref } from '@/lib/content/hrefs'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { MASTERED } from '@/lib/logic/mastery'
-import { recommendedPattern } from '@/lib/logic/recommend'
-import { layoutRoadmap } from '@/lib/logic/roadmap-layout'
+import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
+import { recommendedLesson } from '@/lib/logic/recommend'
+import { layoutBands } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
 
 const COL = 190
 const PAD = 30
 const ROW = 120
+const TITLE = 44
 const R = 26
 const CIRC = 2 * Math.PI * R
 
 export function RoadmapView() {
   const router = useRouter()
-  const { order, patterns, problems, patternBySlug } = useCatalog()
+  const { tracks, lessons, exercises, lessonBySlug } = useCatalog()
   const masteries = useMasteries()
   const progress = useLive((s) => s.listProgress())
-  const layout = useMemo(() => layoutRoadmap(order, patterns), [order, patterns])
+  const { bands, crossEdges, maxRow } = useMemo(
+    () => layoutBands([...tracks].sort((a, b) => a.order - b.order), lessons),
+    [tracks, lessons],
+  )
 
   const m = masteries ?? new Map<string, number>()
-  const recommended = masteries ? recommendedPattern(order, patterns, masteries) : null
   const solved = new Set((progress ?? []).filter((p) => p.status === 'solved').map((p) => p.slug))
+  const trackOf = trackLookup(lessons)
+  const recommended = masteries ? recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf)) : null
   const count = (slug: string) => {
-    const ladder = problems.filter((p) => p.patterns[0] === slug)
+    const ladder = lessonExercises(lessonBySlug.get(slug)!, exercises, trackOf)
     return `${ladder.filter((p) => solved.has(p.slug)).length}/${ladder.length}`
   }
 
-  const width = layout.maxRow * COL + PAD * 2
-  const height = layout.levels * ROW + 30
-  const pos = new Map(layout.nodes.map((n) => [n.slug, {
-    x: PAD + ((layout.maxRow - n.rowSize) * COL) / 2 + n.index * COL + COL / 2,
-    y: n.level * ROW + 40,
-  }]))
+  const heights = bands.map((b) => TITLE + b.layout.levels * ROW + 20)
+  const top = heights.map((_, i) => heights.slice(0, i).reduce((x, y) => x + y, 0))
+  const gutter = crossEdges.length ? 12 + 10 * crossEdges.length : 0
+  const width = maxRow * COL + PAD * 2 + gutter
+  const height = heights.reduce((x, y) => x + y, 0) + 10
+  const pos = new Map(bands.flatMap((band, i) => band.layout.nodes.map((n) => [n.slug, {
+    x: gutter + PAD + ((maxRow - n.rowSize) * COL) / 2 + n.index * COL + COL / 2,
+    y: top[i] + TITLE + n.level * ROW + 40,
+  }] as const)))
+  const nodes = bands.flatMap((band) => band.layout.nodes)
+  const edges = [
+    ...bands.flatMap((band) => band.layout.edges.map((e) => ({ ...e, lane: -1 }))),
+    ...crossEdges.map((e, i) => ({ ...e, lane: i })),
+  ]
 
   return (
     <div className="overflow-x-auto rounded-lg border p-2">
-      <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto h-auto w-full min-w-[720px] max-w-4xl" role="group" aria-label="Pattern roadmap">
-        {layout.edges.map((e) => {
-          const a = pos.get(e.from)!
-          const b = pos.get(e.to)!
+      <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto h-auto w-full min-w-[720px] max-w-4xl" role="group" aria-label="Roadmap">
+        {bands.map((band, i) => (
+          <g key={band.track}>
+            {i > 0 && <line x1={gutter + PAD} x2={width - PAD} y1={top[i] - 4} y2={top[i] - 4} className="stroke-border" strokeWidth={1} />}
+            <g transform={`translate(${gutter + PAD} ${top[i] + 24})`}>
+              <text className="fill-foreground text-[15px] font-semibold">{band.title}</text>
+            </g>
+          </g>
+        ))}
+        {edges.map((e) => {
+          const a = pos.get(e.from)
+          const b = pos.get(e.to)
+          if (!a || !b) return null
           const y1 = a.y + R + 40
           const y2 = b.y - R - 4
           const dy = (y2 - y1) / 2
-          return <path key={`${e.from}-${e.to}`} d={`M ${a.x} ${y1} C ${a.x} ${y1 + dy}, ${b.x} ${y2 - dy}, ${b.x} ${y2}`} fill="none" className="stroke-border" strokeWidth={2} />
+          const cross = e.lane >= 0
+          const laneX = 12 + 10 * e.lane
+          const yOut = a.y + R + 46
+          const yIn = b.y - R - 16
+          return (
+            <path
+              key={`${e.from}-${e.to}`}
+              data-from={e.from}
+              data-to={e.to}
+              d={cross ? `M ${a.x} ${yOut} H ${laneX} V ${yIn} H ${b.x} V ${y2}` : `M ${a.x} ${y1} C ${a.x} ${y1 + dy}, ${b.x} ${y2 - dy}, ${b.x} ${y2}`}
+              fill="none"
+              className="stroke-border"
+              strokeWidth={2}
+              strokeDasharray={cross ? '6 4' : undefined}
+            />
+          )
         })}
-        {layout.nodes.map((n) => {
+        {nodes.map((n) => {
           const p = pos.get(n.slug)!
           const value = m.get(n.slug) ?? 0
           const isNext = n.slug === recommended
-          const title = patternBySlug.get(n.slug)?.title ?? n.slug
-          const go = () => router.push(`/patterns/${n.slug}/`)
+          const lesson = lessonBySlug.get(n.slug)
+          const title = lesson?.title ?? n.slug
+          const go = () => router.push(lessonHref(lesson!))
           return (
             <g
               key={n.slug}

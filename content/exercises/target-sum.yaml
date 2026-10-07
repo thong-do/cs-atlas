@@ -1,0 +1,10 @@
+slug: target-sum
+type: external-problem
+title: "Target Sum"
+leetcodeId: 494
+url: https://leetcode.com/problems/target-sum/
+difficulty: medium
+lessons: [dp-2d]
+ladderOrder: 5
+recognitionPrompt: "Assign a plus or minus sign to each number of a list and count the assignments that produce a given total."
+hint: "Track the number of ways to reach each running total after each element."

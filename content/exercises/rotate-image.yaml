@@ -1,0 +1,10 @@
+slug: rotate-image
+type: external-problem
+title: "Rotate Image"
+leetcodeId: 48
+url: https://leetcode.com/problems/rotate-image/
+difficulty: medium
+lessons: [math-geometry]
+ladderOrder: 3
+recognitionPrompt: "Rotate a square matrix ninety degrees clockwise in place."
+hint: "A rotation can be built from two simpler reflections."

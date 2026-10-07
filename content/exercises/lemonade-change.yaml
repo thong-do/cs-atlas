@@ -1,0 +1,10 @@
+slug: lemonade-change
+type: external-problem
+title: "Lemonade Change"
+leetcodeId: 860
+url: https://leetcode.com/problems/lemonade-change/
+difficulty: easy
+lessons: [greedy]
+ladderOrder: 1
+recognitionPrompt: "Customers pay with bills of three denominations for a single item and you must always return exact change; decide if that is possible."
+hint: "When you have a choice of which bills to hand back, prefer the larger ones first."

@@ -1,0 +1,10 @@
+slug: longest-consecutive-sequence
+type: external-problem
+title: "Longest Consecutive Sequence"
+leetcodeId: 128
+url: https://leetcode.com/problems/longest-consecutive-sequence/
+difficulty: medium
+lessons: [arrays-hashing]
+ladderOrder: 10
+recognitionPrompt: "Find the length of the longest run of consecutive integers in an unsorted array in O(n)."
+hint: "Only start counting from numbers whose predecessor is missing."

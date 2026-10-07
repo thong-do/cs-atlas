@@ -1,0 +1,10 @@
+slug: subarray-sum-equals-k
+type: external-problem
+title: "Subarray Sum Equals K"
+leetcodeId: 560
+url: https://leetcode.com/problems/subarray-sum-equals-k/
+difficulty: medium
+lessons: [arrays-hashing]
+ladderOrder: 9
+recognitionPrompt: "Count the contiguous subarrays whose sum equals k; values may be negative."
+hint: "sum(i..j) = prefix[j] − prefix[i−1]; count earlier prefixes in a hash map."

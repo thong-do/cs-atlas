@@ -1,0 +1,10 @@
+slug: summary-ranges
+type: external-problem
+title: "Summary Ranges"
+leetcodeId: 228
+url: https://leetcode.com/problems/summary-ranges/
+difficulty: easy
+lessons: [intervals]
+ladderOrder: 1
+recognitionPrompt: "Given a sorted array of distinct integers, describe it as the fewest ranges that cover exactly the same numbers."
+hint: "Walk the array and note where a value fails to be exactly one more than its predecessor; those are the range boundaries."

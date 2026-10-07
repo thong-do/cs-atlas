@@ -8,7 +8,7 @@ test('solve → review when due → export → import into a fresh browser', asy
   // 1. Solve Two Sum on day 1.
   const day1 = await context.newPage()
   await day1.clock.install({ time: new Date('2026-10-03T09:00:00') })
-  await day1.goto('/problems/two-sum/')
+  await day1.goto('/exercises/two-sum/')
   await day1.getByRole('button', { name: 'Mark solved' }).click()
   await day1.getByRole('radio', { name: 'Solved it alone' }).click()
   await day1.getByLabel('Key insight').fill(INSIGHT)
@@ -42,7 +42,7 @@ test('solve → review when due → export → import into a fresh browser', asy
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Replace all data' }).click()
   await expect(page.getByText('Backup restored')).toBeVisible()
-  await page.goto('/problems/two-sum/')
+  await page.goto('/exercises/two-sum/')
   await expect(page.getByText(INSIGHT)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Log a re-solve' })).toBeVisible()
   await expect(page.getByText('Next review:')).toBeVisible()

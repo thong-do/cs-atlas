@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import type { PatternMeta, ProblemMeta, TrainAttempt } from '@/lib/types'
+import type { LessonMeta, ExerciseMeta, TrainAttempt } from '@/lib/types'
 import { mulberry32, shuffle } from './rng'
-import { buildQuestion, buildRound, pickDistractors, pickTrainProblems } from './trainer'
+import { buildQuestion, buildRound, pickDistractors, pickTrainExercises } from './trainer'
 
-const p = (slug: string, confusedWith: string[] = []): PatternMeta => ({
-  slug, title: slug, prerequisites: [], confusedWith, triggers: ['t'], complexity: '', summary: '', stub: false,
+const p = (slug: string, confusedWith: string[] = []): LessonMeta => ({
+  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith, triggers: ['t'], complexity: 'O(n)',
 })
-const prob = (slug: string, pattern: string, prompt = 'a prompt'): ProblemMeta => ({
-  slug, title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',
-  patterns: [pattern], ladderOrder: 1, recognitionPrompt: prompt, hint: 'h',
+const prob = (slug: string, pattern: string, prompt = 'a prompt'): ExerciseMeta => ({
+  slug, type: 'external-problem', title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',
+  lessons: [pattern], ladderOrder: 1, recognitionPrompt: prompt, hint: 'h',
 })
-const patterns = [p('tp', ['sw', 'bs']), p('sw'), p('bs'), p('stack'), p('heap'), p('dp')]
+const lessons = [p('tp', ['sw', 'bs']), p('sw'), p('bs'), p('stack'), p('heap'), p('dp')]
 
 describe('rng', () => {
   it('is deterministic per seed and shuffle keeps all items', () => {
@@ -22,7 +22,7 @@ describe('rng', () => {
 describe('pickDistractors', () => {
   it('returns 3 distinct non-correct patterns, preferring confusedWith', () => {
     for (let seed = 0; seed < 20; seed++) {
-      const d = pickDistractors('tp', patterns, mulberry32(seed))
+      const d = pickDistractors('tp', lessons, mulberry32(seed))
       expect(d).toHaveLength(3)
       expect(new Set(d).size).toBe(3)
       expect(d).not.toContain('tp')
@@ -50,7 +50,7 @@ describe('pickDistractors', () => {
 
 describe('buildQuestion', () => {
   it('includes the correct answer among shuffled distinct options', () => {
-    const q = buildQuestion(prob('two-sum-ii', 'tp', 'sorted pair'), patterns, mulberry32(3))
+    const q = buildQuestion(prob('two-sum-ii', 'tp', 'sorted pair'), lessons, mulberry32(3))
     expect(q).toMatchObject({ problemSlug: 'two-sum-ii', prompt: 'sorted pair', correct: 'tp' })
     expect(q.options).toHaveLength(4)
     expect(q.options).toContain('tp')
@@ -58,11 +58,11 @@ describe('buildQuestion', () => {
   })
 })
 
-describe('pickTrainProblems', () => {
-  const problems = [prob('a', 'tp'), prob('b', 'sw'), prob('c', 'bs'), prob('blank', 'tp', '  ')]
+describe('pickTrainExercises', () => {
+  const exercises = [prob('a', 'tp'), prob('b', 'sw'), prob('c', 'bs'), prob('blank', 'tp', '  ')]
 
   it('picks unique problems with prompts, capped by pool size', () => {
-    const picked = pickTrainProblems(problems, [], 10, mulberry32(1))
+    const picked = pickTrainExercises(exercises, [], 10, mulberry32(1))
     expect(picked.map((x) => x.slug).sort()).toEqual(['a', 'b', 'c'])
   })
 
@@ -73,7 +73,7 @@ describe('pickTrainProblems', () => {
     const pool = [prob('a', 'tp'), prob('b', 'sw')]
     let weakPicks = 0
     for (let seed = 0; seed < 300; seed++) {
-      if (pickTrainProblems(pool, strong, 1, mulberry32(seed))[0].slug === 'b') weakPicks++
+      if (pickTrainExercises(pool, strong, 1, mulberry32(seed))[0].slug === 'b') weakPicks++
     }
     // weights: tp = 2 - 1 = 1, sw = 2 - 0 = 2 → expect ~200/300
     expect(weakPicks).toBeGreaterThan(170)
@@ -83,6 +83,16 @@ describe('pickTrainProblems', () => {
 
 describe('buildRound', () => {
   it('builds up to count questions and is shorter for a small pool', () => {
-    expect(buildRound([prob('a', 'tp'), prob('b', 'sw')], patterns, [], 5, mulberry32(1))).toHaveLength(2)
+    expect(buildRound([prob('a', 'tp'), prob('b', 'sw')], lessons, [], 5, mulberry32(1))).toHaveLength(2)
+  })
+
+  it('only asks about algorithms exercises and offers algorithms lessons as answers', () => {
+    const ls = [...lessons, { ...p('cache'), track: 'system-design' }]
+    const exs = [prob('a', 'tp'), prob('lru', 'cache'), prob('b', 'sw')]
+    for (let seed = 1; seed <= 20; seed++) {
+      const round = buildRound(exs, ls, [], 5, mulberry32(seed))
+      expect(round.map((q) => q.problemSlug)).not.toContain('lru')
+      for (const q of round) expect(q.options).not.toContain('cache')
+    }
   })
 })

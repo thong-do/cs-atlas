@@ -1,0 +1,10 @@
+slug: maximum-depth-of-binary-tree
+type: external-problem
+title: "Maximum Depth of Binary Tree"
+leetcodeId: 104
+url: https://leetcode.com/problems/maximum-depth-of-binary-tree/
+difficulty: easy
+lessons: [trees]
+ladderOrder: 1
+recognitionPrompt: "Given the root of a binary tree, report how many nodes lie on its longest root-to-leaf route."
+hint: "A node's answer depends only on the answers of its two children."

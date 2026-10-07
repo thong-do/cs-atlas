@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ExerciseMeta } from '@/lib/types'
-import { validateContent, type ContentInput, type LessonInput, type TrackInput } from './validate'
+import { validateContent, type ContentInput, type ExerciseInput, type LessonInput, type TrackInput } from './validate'
 
 const ALGO_SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
 const OTHER_SECTIONS = ['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks']
@@ -8,12 +7,13 @@ const OTHER_SECTIONS = ['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tr
 const lesson = (slug: string, track = 'algorithms', o: Partial<LessonInput> = {}): LessonInput => ({
   slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith: [],
   triggers: track === 'algorithms' ? ['t'] : [], complexity: track === 'algorithms' ? 'O(n)' : undefined,
-  headings: track === 'algorithms' ? ALGO_SECTIONS : OTHER_SECTIONS, ...o,
+  headings: track === 'algorithms' ? ALGO_SECTIONS : OTHER_SECTIONS,
+  path: `tracks/${track}/lessons/${slug}`, raw: '', ...o,
 })
-const exercise = (slug: string, lessons: string[], o: Partial<ExerciseMeta> = {}): ExerciseMeta => ({
+const exercise = (slug: string, lessons: string[], o: Partial<ExerciseInput> = {}): ExerciseInput => ({
   slug, type: 'external-problem', title: slug, leetcodeId: slug.length * 100 + slug.charCodeAt(0),
   url: `https://leetcode.com/problems/${slug}/`, difficulty: 'easy', lessons, ladderOrder: 1,
-  recognitionPrompt: 'prompt text', hint: 'hint', ...o,
+  recognitionPrompt: 'prompt text', hint: 'hint', path: `exercises/${slug}`, ...o,
 })
 const track = (slug: string, order: number, modules: TrackInput['modules'], folder = slug): TrackInput => ({ slug, folder, order, modules })
 
@@ -46,16 +46,24 @@ describe('validateContent', () => {
     c.tracks[0] = track('algos', 1, c.tracks[0].modules, 'algorithms')
     c.tracks[1] = { ...c.tracks[1], order: 1 }
     c.tracks.push(track('stats', 3, [{ slug: 'm', lessons: [], comingSoon: ['x'] }]))
+    c.tracks.push(track('404', 4, [{ slug: 'm', lessons: [], comingSoon: ['x'] }]))
     const errors = validateContent(c)
     expect(errors).toContain('[V1] content/tracks/algorithms/track.yaml: slug "algos" must equal the folder name "algorithms"')
     expect(errors).toContain('[V1] content/tracks/system-design/track.yaml: order 1 is already used by another track')
     expect(errors).toContain('[V1] content/tracks/stats/track.yaml: slug "stats" is reserved for a site route')
+    expect(errors).toContain('[V1] content/tracks/404/track.yaml: slug "404" is reserved for a site route')
   })
 
   it('V2: lesson slugs are unique across tracks', () => {
     const c = valid()
     c.lessons.push(lesson('aaa', 'system-design'))
     expect(validateContent(c)).toContain('[V2] content/tracks/system-design/lessons/aaa.mdx: slug "aaa" is already used in track "algorithms"')
+  })
+
+  it('V2: lesson file name must equal its slug, and errors name the real file', () => {
+    const c = valid()
+    c.lessons[0] = lesson('aaa', 'algorithms', { path: 'tracks/algorithms/lessons/my-topic' })
+    expect(validateContent(c)).toContain('[V2] content/tracks/algorithms/lessons/my-topic.mdx: file name "my-topic" must equal slug "aaa"')
   })
 
   it('V3: every lesson sits in exactly one module of its own track', () => {
@@ -129,6 +137,14 @@ describe('validateContent', () => {
     expect(errors).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Example"')
   })
 
+  it('V9: <Visualizer kind> in the body must be a known kind', () => {
+    const c = valid()
+    c.lessons[0] = lesson('aaa', 'algorithms', { raw: 'ok <Visualizer kind="heap" />\n<Visualizer kind="nope" />' })
+    const errors = validateContent(c).filter((e) => e.startsWith('[V9]'))
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatch(/^\[V9\] content\/tracks\/algorithms\/lessons\/aaa\.mdx: unknown visualizer kind "nope" \(valid: .*two-pointers.*\)$/)
+  })
+
   it('V10: every lesson needs at least one exercise', () => {
     const c = valid()
     c.exercises = [exercise('p1', ['aaa'])]
@@ -145,5 +161,11 @@ describe('validateContent', () => {
     expect(errors).toContain('[V11] content/exercises/p1.yaml: duplicate exercise slug "p1"')
     expect(errors).toContain('[V11] content/exercises/p1.yaml: duplicate leetcodeId 2')
     expect(errors).toContain('[V11] content/exercises/p5.yaml: url must be on leetcode.com')
+  })
+
+  it('V11: exercise file name must equal its slug', () => {
+    const c = valid()
+    c.exercises[0] = exercise('p1', ['aaa'], { path: 'exercises/other' })
+    expect(validateContent(c)).toContain('[V11] content/exercises/other.yaml: file name "other" must equal slug "p1"')
   })
 })

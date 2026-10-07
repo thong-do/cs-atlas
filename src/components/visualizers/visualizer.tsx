@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { VISUALIZER_KINDS, type VisualizerKind } from '@/lib/visualizers/kinds'
 import { binarySearchSteps, gridBfsSteps, slidingWindowSteps, twoPointersSteps } from '@/lib/visualizers/steps'
 import { lruCacheSteps } from '@/lib/visualizers/cache-steps'
 import { heapSteps } from '@/lib/visualizers/heap-steps'
@@ -32,7 +33,9 @@ const ARRAY_EXAMPLES = {
   },
 } as const
 
-export type VisualizerKind = keyof typeof ARRAY_EXAMPLES | 'heap' | 'lcs-table' | 'house-robber' | 'subsets-tree' | 'cache-lru'
+export type { VisualizerKind }
+
+const isArrayKind = (kind: string): kind is keyof typeof ARRAY_EXAMPLES => Object.hasOwn(ARRAY_EXAMPLES, kind)
 
 function ArrayVisualizer({ kind }: { kind: keyof typeof ARRAY_EXAMPLES }) {
   const example = ARRAY_EXAMPLES[kind]
@@ -79,6 +82,7 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
     case 'cache-lru':
       return <CacheVisualizer />
     default:
-      return <ArrayVisualizer kind={kind} />
+      if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
+      throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)
   }
 }

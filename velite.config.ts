@@ -8,7 +8,7 @@ const tracks = defineCollection({
   pattern: 'tracks/*/track.yaml',
   schema: s
     .object({
-      slug: s.string(),
+      slug: s.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be lowercase words separated by dashes'),
       title: s.string(),
       summary: s.string(),
       order: s.number().int().positive(),
@@ -43,9 +43,11 @@ const lessons = defineCollection({
       complexity: s.string().optional(),
       path: s.path(),
       toc: s.toc(),
+      raw: s.raw(),
       body: s.mdx(),
     })
-    .transform(({ path, ...l }) => ({ ...l, track: path.split('/')[1] })),
+    .strict() // unknown frontmatter keys (e.g. a typo like `prerequisite`) fail the build
+    .transform(({ path, ...l }) => ({ ...l, path, track: path.split('/')[1] })),
 })
 
 const exercises = defineCollection({
@@ -64,6 +66,7 @@ const exercises = defineCollection({
       ladderOrder: s.number().int().positive(),
       recognitionPrompt: s.string().min(10),
       hint: s.string().min(5),
+      path: s.path(),
     })
     .strict(), // unknown fields (e.g. a pasted solution) fail the build
 })
@@ -95,5 +98,11 @@ export default defineConfig({
     if (errors.length > 0) {
       throw new Error(`Content validation failed:\n- ${errors.join('\n- ')}`)
     }
+    // path and raw exist only for validation; keep them out of the emitted data (and the client bundle).
+    for (const l of lessons) {
+      delete (l as { raw?: string }).raw
+      delete (l as { path?: string }).path
+    }
+    for (const e of exercises) delete (e as { path?: string }).path
   },
 })

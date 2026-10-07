@@ -57,16 +57,16 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | Rule | Checks |
 |---|---|
 | V1 | A track's `slug` equals its folder, isn't a reserved route name, and its `order` is unique |
-| V2 | Lesson slugs are unique across all tracks |
+| V2 | Lesson slugs are unique across all tracks, and the file name equals the slug |
 | V3 | Every lesson is listed exactly once in a module of its own track |
 | V4 | Each module has a lesson or a `comingSoon` title |
 | V5 | Prerequisites, `confusedWith` and exercise `lessons` point to real lessons |
 | V6 | Prerequisites have no cycles |
 | V7 | `ladderOrder` is unique within a primary lesson |
 | V8 | Algorithms lessons have `triggers` and `complexity` |
-| V9 | Required sections are present |
+| V9 | Required sections are present; every `<Visualizer kind>` is a known kind |
 | V10 | Every lesson has at least one exercise |
-| V11 | Exercise slugs and LeetCode ids are unique; URLs are on leetcode.com |
+| V11 | Exercise file name equals its slug; slugs and LeetCode ids are unique; URLs are on leetcode.com |
 
 ## Writing style
 

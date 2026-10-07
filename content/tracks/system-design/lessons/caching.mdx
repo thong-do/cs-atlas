@@ -91,6 +91,9 @@ class LRUCache:
 The same idea in a service, with a shared cache such as Redis in front of a database:
 
 ```python
+import random
+
+
 def get_user(user_id: str) -> dict:
     key = f"user:{user_id}"
     cached = cache.get(key)

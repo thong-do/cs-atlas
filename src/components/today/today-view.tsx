@@ -114,7 +114,7 @@ export function TodayView() {
       <section aria-labelledby="next-heading" className="space-y-3">
         <h2 id="next-heading" className="text-xl font-semibold">Next up</h2>
         {nextUp.length === 0 ? (
-          <p className="text-muted-foreground">You’ve solved every problem here. Keep reviewing!</p>
+          <p className="text-muted-foreground">You’ve solved every exercise here. Keep reviewing!</p>
         ) : (
           <ul className="divide-y rounded-lg border">
             {nextUp.map((p) => (

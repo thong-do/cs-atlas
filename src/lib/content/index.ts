@@ -34,6 +34,21 @@ function toLessonMeta(l: LessonMeta): LessonMeta {
   }
 }
 
+function toExerciseMeta(e: ExerciseMeta): ExerciseMeta {
+  return {
+    slug: e.slug,
+    type: e.type,
+    title: e.title,
+    leetcodeId: e.leetcodeId,
+    url: e.url,
+    difficulty: e.difficulty,
+    lessons: e.lessons,
+    ladderOrder: e.ladderOrder,
+    recognitionPrompt: e.recognitionPrompt,
+    hint: e.hint,
+  }
+}
+
 export function getCatalog(): Catalog {
   const sortedTracks = [...tracks].sort((a, b) => a.order - b.order).map(toTrackMeta)
   const order = sortedTracks.flatMap((t) => t.modules.flatMap((m) => m.lessons))
@@ -41,7 +56,7 @@ export function getCatalog(): Catalog {
   return {
     tracks: sortedTracks,
     lessons: order.map((slug) => toLessonMeta(lessons.find((l) => l.slug === slug)!)),
-    exercises: [...(exercises as ExerciseMeta[])].sort(
+    exercises: (exercises as ExerciseMeta[]).map(toExerciseMeta).sort(
       (a, b) => rank.get(a.lessons[0])! - rank.get(b.lessons[0])! || a.ladderOrder - b.ladderOrder,
     ),
   }
@@ -52,5 +67,6 @@ export function getLessonDoc(slug: string): LessonDoc | undefined {
 }
 
 export function getExercise(slug: string): ExerciseMeta | undefined {
-  return (exercises as ExerciseMeta[]).find((e) => e.slug === slug)
+  const e = (exercises as ExerciseMeta[]).find((x) => x.slug === slug)
+  return e && toExerciseMeta(e)
 }

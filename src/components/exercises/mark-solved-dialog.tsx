@@ -69,7 +69,7 @@ export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; o
         <form onSubmit={submit} className="space-y-5">
           <DialogHeader>
             <DialogTitle>How did it go?</DialogTitle>
-            <DialogDescription>Be honest — it decides when you’ll see this problem again.</DialogDescription>
+            <DialogDescription>Be honest — it decides when you’ll see this exercise again.</DialogDescription>
           </DialogHeader>
           <RadioGroup value={rating} onValueChange={(v) => setRating(v as SolveRating)}>
             {OPTIONS.map((o) => (

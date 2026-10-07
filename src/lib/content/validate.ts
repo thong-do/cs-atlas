@@ -1,7 +1,8 @@
 import type { ExerciseMeta, LessonMeta } from '@/lib/types'
+import { VISUALIZER_KINDS } from '@/lib/visualizers/kinds'
 
 /** Track slugs become top-level routes, so they must not shadow a page or a redirected v1 path. */
-export const RESERVED_TRACK_SLUGS = ['tracks', 'exercises', 'roadmap', 'train', 'stats', 'settings', 'patterns', 'problems', 'static']
+export const RESERVED_TRACK_SLUGS = ['tracks', 'exercises', 'roadmap', 'train', 'stats', 'settings', 'patterns', 'problems', 'static', '404']
 export const REQUIRED_SECTIONS = ['Intuition', 'Visual', 'Pitfalls', 'Tips & tricks']
 export const ALGORITHMS = 'algorithms'
 
@@ -12,17 +13,20 @@ export interface TrackInput {
   order: number
   modules: { slug: string; lessons: string[]; comingSoon: string[] }[]
 }
-/** A lesson plus its top-level (`##`) headings. */
-export type LessonInput = LessonMeta & { headings: string[] }
+/** A lesson plus its top-level (`##`) headings, its file path (relative to content/, no extension) and raw MDX source. */
+export type LessonInput = LessonMeta & { headings: string[]; path: string; raw: string }
+/** An exercise plus its file path (relative to content/, no extension). */
+export type ExerciseInput = ExerciseMeta & { path: string }
 export interface ContentInput {
   tracks: TrackInput[]
   lessons: LessonInput[]
-  exercises: ExerciseMeta[]
+  exercises: ExerciseInput[]
 }
 
 const trackFile = (folder: string) => `content/tracks/${folder}/track.yaml`
-const lessonFile = (l: { track: string; slug: string }) => `content/tracks/${l.track}/lessons/${l.slug}.mdx`
-const exerciseFile = (slug: string) => `content/exercises/${slug}.yaml`
+const lessonFile = (l: { path: string }) => `content/${l.path}.mdx`
+const exerciseFile = (e: { path: string }) => `content/${e.path}.yaml`
+const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
 /** Every message is "[rule] file: problem" so a contributor can fix it without reading code. */
 export function validateContent({ tracks, lessons, exercises }: ContentInput): string[] {
@@ -42,6 +46,7 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
   // V2 — lesson slugs unique across tracks
   const bySlug = new Map<string, LessonInput>()
   for (const l of lessons) {
+    if (baseName(l.path) !== l.slug) err('V2', lessonFile(l), `file name "${baseName(l.path)}" must equal slug "${l.slug}"`)
     const first = bySlug.get(l.slug)
     if (first) err('V2', lessonFile(l), `slug "${l.slug}" is already used in track "${first.track}"`)
     else bySlug.set(l.slug, l)
@@ -94,6 +99,11 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
     const required = [...REQUIRED_SECTIONS, l.track === ALGORITHMS ? 'Template' : 'Example']
     const missing = required.filter((h) => !l.headings.includes(h))
     if (missing.length > 0) err('V9', lessonFile(l), `missing section(s) ${missing.map((h) => `"## ${h}"`).join(', ')}`)
+    for (const m of l.raw.matchAll(/<Visualizer\s[^>]*?\bkind=["']([^"']*)["']/g)) {
+      if (!(VISUALIZER_KINDS as readonly string[]).includes(m[1])) {
+        err('V9', lessonFile(l), `unknown visualizer kind "${m[1]}" (valid: ${VISUALIZER_KINDS.join(', ')})`)
+      }
+    }
   }
 
   // V5/V7/V11 — exercises
@@ -102,7 +112,8 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
   const ladderKeys = new Set<string>()
   const practised = new Set<string>()
   for (const e of exercises) {
-    const file = exerciseFile(e.slug)
+    const file = exerciseFile(e)
+    if (baseName(e.path) !== e.slug) err('V11', file, `file name "${baseName(e.path)}" must equal slug "${e.slug}"`)
     if (exerciseSlugs.has(e.slug)) err('V11', file, `duplicate exercise slug "${e.slug}"`)
     exerciseSlugs.add(e.slug)
     if (ids.has(e.leetcodeId)) err('V11', file, `duplicate leetcodeId ${e.leetcodeId}`)

@@ -5,7 +5,7 @@ Thanks for helping people learn computer science in a way that lasts. You can fi
 ## Quick start
 
 ```bash
-git clone https://github.com/thong-do/leethub.git cs-atlas && cd cs-atlas
+git clone https://github.com/thong-do/cs-atlas.git && cd cs-atlas
 npm install
 npm run dev          # http://localhost:3000
 ```

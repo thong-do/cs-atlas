@@ -51,15 +51,25 @@ export function useLive<T>(query: (store: Store) => Promise<T>, deps: unknown[] 
   const store = useStore()
   const queryRef = useRef(query)
   queryRef.current = query
-  const [result, setResult] = useState<{ store: Store; value: T } | undefined>(undefined)
+  // Bumped during render whenever the store or deps change, so a stale result is never returned for new inputs.
+  const genRef = useRef(0)
+  const inputsRef = useRef<unknown[] | undefined>(undefined)
+  const inputs = [store, ...deps]
+  const prev = inputsRef.current
+  if (!prev || prev.length !== inputs.length || inputs.some((v, i) => !Object.is(v, prev[i]))) {
+    inputsRef.current = inputs
+    genRef.current++
+  }
+  const [result, setResult] = useState<{ gen: number; value: T } | undefined>(undefined)
 
   useEffect(() => {
+    const gen = genRef.current
     let alive = true
     let latest = 0
     const run = () => {
       const id = ++latest
       queryRef.current(store).then(
-        (value) => { if (alive && id === latest) setResult({ store, value }) },
+        (value) => { if (alive && id === latest) setResult({ gen, value }) },
         (err) => { if (alive && id === latest) console.error(err) },
       )
     }
@@ -69,5 +79,5 @@ export function useLive<T>(query: (store: Store) => Promise<T>, deps: unknown[] 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, ...deps])
 
-  return result && result.store === store ? result.value : undefined
+  return result && result.gen === genRef.current ? result.value : undefined
 }

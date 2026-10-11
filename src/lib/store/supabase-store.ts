@@ -27,8 +27,8 @@ function applyWriteSet(d: UserData, w: WriteSet): void {
   if (w.progress) upsert(d.progress, w.progress, (x) => x.slug)
   if (w.note) upsert(d.notes, w.note, (x) => x.slug)
   if (w.card) upsert(d.cards, w.card, (x) => x.slug)
-  if (w.log) d.reviewLogs.push(w.log)
-  if (w.attempt) d.trainAttempts.push(w.attempt)
+  if (w.log) upsert(d.reviewLogs, w.log, (x) => x.id)
+  if (w.attempt) upsert(d.trainAttempts, w.attempt, (x) => x.id)
   if (w.bump) {
     const { date } = w.bump
     upsert(d.activity, applyBump(d.activity.find((a) => a.date === date), w.bump), (x) => x.date)
@@ -50,9 +50,32 @@ function changesFromWriteSet(w: WriteSet): Changes {
   return c
 }
 
+type Apply = (d: UserData) => void
+
+interface PendingWrite {
+  id: number
+  apply: Apply
+  /** Set when the server accepted the write (confirmation order, compared with a refresh's start mark). */
+  confirmedAt?: number
+  /** Refresh starts seen when the write began; if this changes before confirmation, resync afterwards. */
+  refreshesAtStart: number
+}
+
 /** Store backed by a signed-in user's Supabase data: in-memory snapshot, optimistic writes, Realtime refresh. */
 export class SupabaseStore implements Store {
+  /** Last server-confirmed data (incl. meta.importId). */
+  private base: UserData
+  /** In-flight and not-yet-folded writes, in start order. */
+  private pending: PendingWrite[] = []
+  /** Writes folded into `base` since the latest refresh began; re-applied if that refresh's result lacks them. */
+  private folded: { confirmedAt: number; apply: Apply }[] = []
+  /** Visible snapshot: sortUserData(base + pending). */
   private data: UserData
+  private nextWriteId = 0
+  private confirmations = 0
+  private refreshStarts = 0
+  /** Seq of the refresh whose loadAll is in flight, if any. */
+  private loadingSeq: number | undefined
   private listeners = new Set<() => void>()
   private readonly offRemote: () => void
   private readonly onVisibility?: () => void
@@ -63,7 +86,8 @@ export class SupabaseStore implements Store {
 
   constructor(private readonly remote: RemoteApi, initial: UserData, opts?: { refreshDebounceMs?: number }) {
     // importId stays as given (normally undefined): the contract requires no import generation until an import/refresh.
-    this.data = sortUserData(clone(initial))
+    this.base = sortUserData(clone(initial))
+    this.data = this.base
     this.debounceMs = opts?.refreshDebounceMs ?? 300
     this.offRemote = remote.onRemoteChange(() => this.scheduleRefresh())
     if (typeof document !== 'undefined') {
@@ -159,8 +183,13 @@ export class SupabaseStore implements Store {
     }
     const next = sortUserData(clone(data))
     next.meta = { ...next.meta, schemaVersion: SCHEMA_VERSION, importId: crypto.randomUUID() }
-    this.data = next
-    this.emit()
+    this.refreshSeq++ // any in-flight refresh loaded pre-import data
+    this.loadingSeq = undefined
+    this.base = next
+    this.folded = []
+    this.pending = this.pending.filter((p) => p.confirmedAt === undefined)
+    this.recompute()
+    this.scheduleRefresh()
   }
 
   subscribe(onChange: () => void): () => void {
@@ -180,21 +209,45 @@ export class SupabaseStore implements Store {
     for (const cb of [...this.listeners]) cb()
   }
 
-  private async commit(writes: WriteSet | null, changes: Changes, patch?: (d: UserData) => void): Promise<void> {
-    const before = this.data
-    const next = clone(before)
-    if (writes) applyWriteSet(next, clone(writes))
-    patch?.(next)
-    this.data = next
+  /** base + pending, sorted into primary-key order like DexieStore; then notify. */
+  private recompute(): void {
+    const next = clone(this.base)
+    for (const p of this.pending) p.apply(next)
+    this.data = sortUserData(next)
     this.emit()
+  }
+
+  private async commit(writes: WriteSet | null, changes: Changes, patch?: Apply): Promise<void> {
+    const entry: PendingWrite = {
+      id: this.nextWriteId++,
+      apply: (d) => {
+        if (writes) applyWriteSet(d, clone(writes))
+        patch?.(d)
+      },
+      refreshesAtStart: this.refreshStarts,
+    }
+    this.pending.push(entry)
+    this.recompute()
     try {
       await this.remote.applyChanges(changes)
     } catch {
-      this.data = before
-      this.emit()
+      this.pending = this.pending.filter((p) => p.id !== entry.id)
+      this.recompute()
       this.scheduleRefresh() // other in-flight writes may have landed; resync
       throw saveError()
     }
+    if (!this.pending.includes(entry)) return // superseded by an import or a refresh that already contains it
+    entry.confirmedAt = ++this.confirmations
+    // Fold the confirmed prefix into base, in start order.
+    while (this.pending.length > 0 && this.pending[0].confirmedAt !== undefined) {
+      const done = this.pending.shift()!
+      done.apply(this.base)
+      this.base = sortUserData(this.base)
+      if (this.loadingSeq !== undefined) this.folded.push({ confirmedAt: done.confirmedAt!, apply: done.apply })
+    }
+    this.recompute()
+    // A refresh that started while this write was in flight may or may not contain it; resync to be exact.
+    if (entry.refreshesAtStart !== this.refreshStarts) this.scheduleRefresh()
   }
 
   /** Debounced: a burst of Realtime events (one per table per write) results in one loadAll. */
@@ -209,14 +262,26 @@ export class SupabaseStore implements Store {
 
   private async refresh(): Promise<void> {
     const seq = ++this.refreshSeq
+    this.loadingSeq = seq
+    this.refreshStarts++
+    const mark = this.confirmations // writes confirmed up to here are in the loaded data
+    this.folded = this.folded.filter((f) => f.confirmedAt > mark)
     try {
       const loaded = await this.remote.loadAll()
-      // Drop the result if disposed or a newer refresh has started meanwhile.
+      // Drop the result if disposed or a newer refresh (or an import) has started meanwhile.
       if (this.disposed || seq !== this.refreshSeq) return
-      this.data = { ...loaded, meta: { ...loaded.meta, importId: crypto.randomUUID() } }
-      this.emit()
+      const base: UserData = { ...loaded, meta: { ...loaded.meta, importId: crypto.randomUUID() } }
+      // Writes confirmed after loadAll began might be missing from it: re-apply them (idempotent except
+      // activity bumps; such writes schedule a follow-up refresh, which corrects any double count).
+      for (const f of this.folded) f.apply(base)
+      this.base = sortUserData(base)
+      this.folded = []
+      this.pending = this.pending.filter((p) => p.confirmedAt === undefined || p.confirmedAt > mark)
+      this.recompute()
     } catch (err) {
       console.warn('SupabaseStore: refresh failed; will retry on the next change', err)
+    } finally {
+      if (this.loadingSeq === seq) this.loadingSeq = undefined
     }
   }
 }

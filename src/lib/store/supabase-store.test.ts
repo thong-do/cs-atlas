@@ -164,3 +164,82 @@ describe('SupabaseStore robustness', () => {
     expect((await store.getMeta()).settings.theme).toBe('system')
   })
 })
+
+/** Holds every applyChanges call until the test settles it; `ok` applies it to the fake server first. */
+function deferApplies(remote: FakeRemoteApi) {
+  const real = remote.applyChanges.bind(remote)
+  const calls: { ok: () => Promise<void>; fail: (e: Error) => void }[] = []
+  vi.spyOn(remote, 'applyChanges').mockImplementation((c) => new Promise<void>((resolve, reject) => {
+    calls.push({ ok: async () => { await real(c); resolve() }, fail: reject })
+  }))
+  return calls
+}
+const tick = () => new Promise((r) => setTimeout(r, 5))
+
+describe('SupabaseStore overlapping writes (R8)', () => {
+  it('a. two overlapping writes failing in order offline roll back to the true state', async () => {
+    const remote = new FakeRemoteApi('user-1')
+    const calls = deferApplies(remote)
+    const store = make(remote)
+    vi.stubGlobal('navigator', { onLine: false })
+    const a = store.markSolved('a', 'alone', 'insight a', day(3))
+    const b = store.markSolved('b', 'alone', 'insight b', day(3))
+    expect((await store.listProgress()).map((p) => p.slug)).toEqual(['a', 'b'])
+    calls[0].fail(new Error('fetch failed'))
+    await expect(a).rejects.toThrow(OFFLINE_MESSAGE)
+    calls[1].fail(new Error('fetch failed'))
+    await expect(b).rejects.toThrow(OFFLINE_MESSAGE)
+    expect(await store.listProgress()).toEqual([])
+    expect(await store.listActivity()).toEqual([])
+  })
+
+  it('b. A fails and B succeeds: only B remains, its increment applied once', async () => {
+    const remote = new FakeRemoteApi('user-1')
+    const calls = deferApplies(remote)
+    const store = make(remote)
+    vi.stubGlobal('navigator', { onLine: true })
+    const a = store.markSolved('a', 'alone', 'insight a', day(3))
+    const b = store.markSolved('b', 'alone', 'insight b', day(3))
+    calls[0].fail(new Error('500'))
+    await expect(a).rejects.toThrow(SAVE_FAILED_MESSAGE)
+    await calls[1].ok()
+    await b
+    expect((await store.listProgress()).map((p) => p.slug)).toEqual(['b'])
+    expect(await store.listActivity()).toEqual([{ date: '2026-10-03', reviews: 0, solves: 1, trains: 0 }])
+    await tick()
+    expect((await store.listProgress()).map((p) => p.slug)).toEqual(['b'])
+    expect((await store.listActivity())[0].solves).toBe(1)
+  })
+
+  it('c. a refresh resolving while a write is pending keeps the pending write visible', async () => {
+    const remote = new FakeRemoteApi('user-1')
+    const calls = deferApplies(remote)
+    const store = make(remote)
+    const w = store.markSolved('a', 'alone', 'insight a', day(3))
+    remote.seed({ ...empty(), progress: [{ slug: 'z', status: 'unsolved', needsResolve: false, updatedAt: day(2).toISOString() }] })
+    remote.emitRemoteChange()
+    await vi.waitFor(async () => expect((await store.listProgress()).map((p) => p.slug)).toContain('z'))
+    expect((await store.listProgress()).map((p) => p.slug)).toEqual(['a', 'z'])
+    await calls[0].ok()
+    await w
+    await tick()
+    expect((await store.listProgress()).map((p) => p.slug)).toEqual(['a', 'z'])
+    expect(await store.listActivity()).toEqual([{ date: '2026-10-03', reviews: 0, solves: 1, trains: 0 }])
+  })
+
+  it('d. a failed write triggers a refresh', async () => {
+    const remote = new FakeRemoteApi('user-1')
+    const loadAll = vi.spyOn(remote, 'loadAll')
+    const store = make(remote)
+    remote.failNext(new Error('500'))
+    await expect(store.saveSettings({ desiredRetention: 0.8, theme: 'dark' })).rejects.toThrow()
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalled())
+  })
+
+  it('e. list order after writes is primary-key order', async () => {
+    const store = make()
+    await store.markSolved('b', 'alone', 'insight b', day(3))
+    await store.markSolved('a', 'alone', 'insight a', day(3))
+    expect((await store.listProgress()).map((p) => p.slug)).toEqual(['a', 'b'])
+  })
+})

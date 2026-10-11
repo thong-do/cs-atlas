@@ -2,7 +2,7 @@
 
 An open, community-built place to learn computer science — algorithms, system design and more — in a way that lasts.
 
-**Live:** https://leethub-nine.vercel.app · **Roadmap:** [docs/roadmap.md](docs/roadmap.md) · **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Live:** https://cs-atlas-hub.vercel.app · **Roadmap:** [docs/roadmap.md](docs/roadmap.md) · **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## What's inside
 

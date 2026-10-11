@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Usage: node scripts/check-deploy.mjs https://leethub-nine.vercel.app
+// Usage: node scripts/check-deploy.mjs https://cs-atlas-hub.vercel.app
 // Checks the v1 redirects (308 → new URL → 200) and that every lesson, track and exercise page returns 200.
 import { readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'

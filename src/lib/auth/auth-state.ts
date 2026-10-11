@@ -24,6 +24,13 @@ export function initialStatus(hasClient: boolean): AuthStatus {
 
 /** Only same-origin absolute paths are allowed as post-login redirects. */
 export function safeNextPath(next: string | null): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\')) return '/'
-  return next
+  if (!next || !next.startsWith('/')) return '/'
+  try {
+    // Parse like a browser (which strips tabs/newlines) and accept only results that stay on our origin.
+    const base = 'https://cs-atlas.invalid'
+    const url = new URL(next, base)
+    return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : '/'
+  } catch {
+    return '/'
+  }
 }

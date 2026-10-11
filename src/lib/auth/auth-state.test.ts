@@ -34,5 +34,7 @@ describe('safeNextPath', () => {
     expect(safeNextPath('https://evil.example')).toBe('/')
     expect(safeNextPath('//evil.example')).toBe('/')
     expect(safeNextPath('/\\evil')).toBe('/')
+    for (const bad of ['/\t/evil.example', '/\n/evil.example', '/\r/evil.example', '/\\evil.example']) expect(safeNextPath(bad)).toBe('/')
+    expect(safeNextPath('/algorithms/two-pointers/?x=1#h')).toBe('/algorithms/two-pointers/?x=1#h')
   })
 })

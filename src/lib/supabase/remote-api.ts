@@ -61,7 +61,7 @@ export function createRemoteApi(client: SupabaseClient, userId: string): RemoteA
       check((await client.rpc('delete_my_account')).error)
     },
     onRemoteChange(cb) {
-      const channel = client.channel(`user-${userId}`)
+      const channel = client.channel(`user-${userId}-${crypto.randomUUID()}`) // unique: realtime-js reuses a same-topic channel, and .on() after subscribe throws
       for (const table of TABLES) {
         channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `user_id=eq.${userId}` }, () => cb())
       }

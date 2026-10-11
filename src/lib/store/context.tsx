@@ -48,11 +48,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .then(() => moveGuestData(new DexieStore(db), remote))
         .catch(async (err) => {
           // IndexedDB unavailable: nothing local to move, start from the account.
-          if (!(err instanceof Error) || err.message !== MOVE_FAILED_MESSAGE) return { data: await remote.loadAll(), moved: 0 }
-          throw err
+          if (err instanceof Error && err.message === MOVE_FAILED_MESSAGE) throw err
+          if (cancelled) return null
+          return { data: await remote.loadAll(), moved: 0 }
         })
-        .then(({ data, moved }) => {
-          if (cancelled) return
+        .then((res) => {
+          if (cancelled || !res) return
+          const { data, moved } = res
           const store = new SupabaseStore(remote, data)
           dispose = () => store.dispose()
           setState({ store, ready: true, available: true })

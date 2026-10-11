@@ -48,7 +48,7 @@ describe('moveGuestData', () => {
     const guestLogs = (await local.getUserData()).reviewLogs.length
     const res = await moveGuestData(local, remote)
     expect(res.data.progress.map((p) => p.slug).sort()).toEqual(['a', 'b'])
-    expect((await new DexieStore(new LeetHubDB(`t-${crypto.randomUUID()}`)).getUserData()).progress).toEqual([])
+    expect(await local.hasData()).toBe(false)
     expect(res.data.notes.find((n) => n.slug === 'a')?.insight).toBe('guest a')
     expect(res.data.reviewLogs.length).toBe(accountLogs + guestLogs)
   })

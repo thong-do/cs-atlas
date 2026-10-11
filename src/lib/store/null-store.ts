@@ -37,4 +37,5 @@ export class NullStore implements Store {
   saveSettings = fail
   markBackedUp = fail
   importAll = fail
+  subscribe = (_onChange: () => void) => () => {}
 }

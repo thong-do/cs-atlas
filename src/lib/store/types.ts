@@ -32,4 +32,6 @@ export interface Store {
   getUserData(): Promise<UserData>
   exportAll(now: Date): Promise<ExportFile>
   importAll(file: ExportFile, mode: 'replace' | 'merge'): Promise<void>
+  /** Calls `onChange` after any change visible to this store (own writes, other tabs, other devices). Returns an unsubscribe function. */
+  subscribe(onChange: () => void): () => void
 }

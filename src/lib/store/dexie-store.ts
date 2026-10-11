@@ -1,15 +1,12 @@
-import { localDate } from '@/lib/logic/dates'
-import { initialReviewRating, newCard, scheduleReview } from '@/lib/logic/fsrs'
-import { validateInsight } from '@/lib/logic/insight'
+import Dexie from 'dexie'
 import { buildExport, mergeUserData, type ExportFile } from '@/lib/logic/transfer'
 import {
   DEFAULT_SETTINGS, SCHEMA_VERSION,
-  type Activity, type Meta, type Note, type ReviewRating, type Settings, type SolveRating, type TrainAttempt, type UserData,
+  type Meta, type Note, type ReviewRating, type Settings, type SolveRating, type TrainAttempt, type UserData,
 } from '@/lib/types'
 import type { LeetHubDB } from './db'
+import { applyBump, noteWrite, reviewWrites, solveWrites, sortUserData, trainWrites, type WriteSet } from './mutations'
 import type { MasteryInputs, Store } from './types'
-
-const emptyNote = (slug: string): Omit<Note, 'updatedAt'> => ({ slug, insight: '', approach: '', complexity: '', mistakes: '', code: '' })
 
 export class DexieStore implements Store {
   constructor(private readonly db: LeetHubDB) {}
@@ -31,54 +28,45 @@ export class DexieStore implements Store {
   }
 
   async markSolved(slug: string, solveRating: SolveRating, insight: string, now: Date): Promise<void> {
-    const valid = validateInsight(insight)
-    if (!valid.ok) throw new Error(valid.error)
     const { settings } = await this.getMeta()
     const { db } = this
     await db.transaction('rw', [db.progress, db.notes, db.cards, db.reviewLogs, db.activity], async () => {
-      const at = now.toISOString()
-      const existing = await db.progress.get(slug)
-      await db.progress.put({
-        slug, status: 'solved', solveRating, firstSolvedAt: existing?.firstSolvedAt ?? at, needsResolve: false, updatedAt: at,
-      })
-      const note = await db.notes.get(slug)
-      await db.notes.put({ ...(note ?? emptyNote(slug)), insight: valid.value, updatedAt: at })
-      const rating = initialReviewRating(solveRating)
-      const previous = (await db.cards.get(slug))?.card ?? newCard(now)
-      const card = scheduleReview(previous, rating, now, settings.desiredRetention)
-      await db.cards.put({ slug, card, due: card.due, updatedAt: at })
-      await db.reviewLogs.add({ id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'solve' })
-      await this.bump(now, 'solves')
+      const prev = { progress: await db.progress.get(slug), note: await db.notes.get(slug), card: await db.cards.get(slug) }
+      await this.apply(solveWrites(prev, slug, solveRating, insight, now, settings.desiredRetention))
     })
   }
 
   async saveNote(note: Omit<Note, 'updatedAt'>, now: Date): Promise<void> {
-    const valid = validateInsight(note.insight)
-    if (!valid.ok) throw new Error(valid.error)
-    await this.db.notes.put({ ...note, insight: valid.value, updatedAt: now.toISOString() })
+    await this.db.notes.put(noteWrite(note, now))
   }
 
   async recordReview(slug: string, rating: ReviewRating, now: Date): Promise<void> {
     const { settings } = await this.getMeta()
     const { db } = this
     await db.transaction('rw', [db.progress, db.cards, db.reviewLogs, db.activity], async () => {
-      const existing = await db.cards.get(slug)
-      if (!existing) throw new Error(`No review card for "${slug}"`)
-      const at = now.toISOString()
-      const card = scheduleReview(existing.card, rating, now, settings.desiredRetention)
-      await db.cards.put({ slug, card, due: card.due, updatedAt: at })
-      await db.reviewLogs.add({ id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'review' })
-      const progress = await db.progress.get(slug)
-      if (progress) await db.progress.put({ ...progress, needsResolve: rating === 'again', updatedAt: at })
-      await this.bump(now, 'reviews')
+      const prev = { progress: await db.progress.get(slug), card: await db.cards.get(slug) }
+      await this.apply(reviewWrites(prev, slug, rating, now, settings.desiredRetention))
     })
   }
 
   async recordTrainAttempt(attempt: Omit<TrainAttempt, 'id'>): Promise<void> {
     const { db } = this
     await db.transaction('rw', [db.trainAttempts, db.activity], async () => {
-      await db.trainAttempts.add({ ...attempt, id: crypto.randomUUID() })
-      await this.bump(new Date(attempt.at), 'trains')
+      await this.apply(trainWrites(attempt))
+    })
+  }
+
+  /** Calls `onChange` after any IndexedDB change, from this tab or another. */
+  subscribe(onChange: () => void): () => void {
+    const listener = () => onChange()
+    Dexie.on('storagemutated', listener)
+    return () => Dexie.on('storagemutated').unsubscribe(listener)
+  }
+
+  async clearAll(): Promise<void> {
+    const { db } = this
+    await db.transaction('rw', db.tables, async () => {
+      await Promise.all(db.tables.map((t) => t.clear()))
     })
   }
 
@@ -123,16 +111,7 @@ export class DexieStore implements Store {
       db.progress.toArray(), db.notes.toArray(), db.cards.toArray(), db.reviewLogs.toArray(),
       db.trainAttempts.toArray(), db.activity.toArray(), this.getMeta(),
     ])
-    const byKey = <T>(key: (x: T) => string) => (a: T, b: T) => key(a).localeCompare(key(b))
-    return {
-      progress: progress.sort(byKey((x) => x.slug)),
-      notes: notes.sort(byKey((x) => x.slug)),
-      cards: cards.sort(byKey((x) => x.slug)),
-      reviewLogs: reviewLogs.sort(byKey((x) => x.id)),
-      trainAttempts: trainAttempts.sort(byKey((x) => x.id)),
-      activity: activity.sort(byKey((x) => x.date)),
-      meta,
-    }
+    return sortUserData({ progress, notes, cards, reviewLogs, trainAttempts, activity, meta })
   }
 
   async exportAll(now: Date): Promise<ExportFile> {
@@ -154,9 +133,16 @@ export class DexieStore implements Store {
     })
   }
 
-  private async bump(now: Date, field: keyof Omit<Activity, 'date'>): Promise<void> {
-    const date = localDate(now)
-    const current = (await this.db.activity.get(date)) ?? { date, reviews: 0, solves: 0, trains: 0 }
-    await this.db.activity.put({ ...current, [field]: current[field] + 1 })
+  private async apply(w: WriteSet): Promise<void> {
+    const { db } = this
+    if (w.progress) await db.progress.put(w.progress)
+    if (w.note) await db.notes.put(w.note)
+    if (w.card) await db.cards.put(w.card)
+    if (w.log) await db.reviewLogs.add(w.log)
+    if (w.attempt) await db.trainAttempts.add(w.attempt)
+    if (w.bump) {
+      const current = await db.activity.get(w.bump.date)
+      await db.activity.put(applyBump(current, w.bump))
+    }
   }
 }

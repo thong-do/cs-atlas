@@ -279,7 +279,7 @@ It is linked from the sign-in dialog, the Settings Account section and the READM
 
 **E2E (guest-only, as in CI):**
 - All existing specs pass unchanged.
-- New: with auth disabled there is no Sign in button.
+- *Amended while planning:* the e2e build always uses dummy Supabase env vars, so it runs signed out with Sign in visible. The "no config → no Sign in" case is covered by unit tests (`auth-state.test.ts`) plus `AuthButton` rendering nothing when auth is `disabled`. This avoids a second production build in CI.
 - New: `/privacy` renders.
 - New: `/auth/callback/` with no code shows the error state and a link home.
 - To exercise the Sign in button and dialog without OAuth, the build is run with dummy Supabase environment variables and the test only asserts the dialog and its two buttons. It does not follow the redirect.

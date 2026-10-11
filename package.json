@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
-    "check:deploy": "node scripts/check-deploy.mjs"
+    "check:deploy": "node scripts/check-deploy.mjs",
+    "db:start": "supabase start -x studio,imgproxy,edge-runtime,logflare,vector,storage-api,mailpit,supavisor",
+    "db:test": "supabase test db"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -49,6 +51,7 @@
     "rehype-slug": "^6.0.0",
     "serve": "^14.2.6",
     "shiki": "^3.23.0",
+    "supabase": "^2.120.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "velite": "^0.2.4",

@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(24);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'ann@example.com', '{"full_name":"Ann","avatar_url":"https://a.example/ann.png"}'),
@@ -45,6 +45,28 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 insert into public.review_logs values ('11111111-1111-1111-1111-111111111111', 'log-a', 'two-sum', 'good', now(), 'review');
 delete from public.review_logs where id = 'log-a';
 select is((select count(*) from public.review_logs)::int, 1, 'clients cannot delete their own logs');
+update public.review_logs set rating = 'again' where id = 'log-a';
+select is((select rating from public.review_logs where id = 'log-a'), 'good', 'clients cannot update their own logs');
+
+-- Attempts are append-only too.
+insert into public.train_attempts values ('11111111-1111-1111-1111-111111111111', 'att-a', 'two-sum', 'tp', 'tp', true, now());
+update public.train_attempts set correct = false where id = 'att-a';
+select is((select correct from public.train_attempts where id = 'att-a'), true, 'clients cannot update their own attempts');
+delete from public.train_attempts where id = 'att-a';
+select is((select count(*) from public.train_attempts)::int, 1, 'clients cannot delete their own attempts');
+
+-- Ann cannot touch Bob's profile.
+update public.profiles set display_name = 'hacked' where user_id = '22222222-2222-2222-2222-222222222222';
+reset role;
+select is((select display_name from public.profiles where user_id = '22222222-2222-2222-2222-222222222222'), 'Bob', 'ann update of bob profile had no effect');
+
+-- Realtime publishes exactly these tables, and never deletes (DELETE events bypass RLS).
+select is(
+  (select array_agg(tablename::text order by tablename) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public'),
+  array['activity','cards','notes','profiles','progress','review_logs','train_attempts'],
+  'realtime publishes exactly the seven tables');
+select is((select pubdelete from pg_publication where pubname = 'supabase_realtime'), false, 'realtime does not publish deletes');
+select is(has_table_privilege('authenticated', 'public.progress', 'TRUNCATE'), false, 'authenticated cannot truncate');
 
 -- anon sees nothing and cannot call functions.
 reset role;

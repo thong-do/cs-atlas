@@ -115,6 +115,8 @@ create policy activity_update on public.activity for update to authenticated usi
 create policy activity_delete on public.activity for delete to authenticated using (user_id = (select auth.uid()));
 
 revoke all on public.profiles, public.progress, public.notes, public.cards, public.review_logs, public.train_attempts, public.activity from anon;
+-- RLS does not govern TRUNCATE (or the other table-level privileges below), so remove them from signed-in clients.
+revoke truncate, references, trigger on public.profiles, public.progress, public.notes, public.cards, public.review_logs, public.train_attempts, public.activity from authenticated;
 
 -- A profile row for every new user, filled from the OAuth metadata (GitHub: name/avatar_url, Google: full_name/picture).
 create function public.handle_new_user() returns trigger
@@ -132,6 +134,7 @@ end $$;
 
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 -- One user action = one transaction. Any user_id in the payload is ignored; rows always belong to the caller.
 create function public.apply_changes(payload jsonb) returns void
@@ -177,7 +180,7 @@ begin
   on conflict (user_id, id) do nothing;
 
   insert into public.activity (user_id, date, reviews, solves, trains)
-  select uid, r.date, coalesce(r.reviews, 0), coalesce(r.solves, 0), coalesce(r.trains, 0)
+  select uid, r.date, greatest(coalesce(r.reviews, 0), 0), greatest(coalesce(r.solves, 0), 0), greatest(coalesce(r.trains, 0), 0)
   from jsonb_to_recordset(coalesce(payload -> 'activity_increments', '[]'::jsonb))
     as r (date date, reviews int, solves int, trains int)
   on conflict (user_id, date) do update set
@@ -271,3 +274,8 @@ grant execute on function public.apply_changes(jsonb), public.replace_all(jsonb)
 
 alter publication supabase_realtime add table
   public.profiles, public.progress, public.notes, public.cards, public.review_logs, public.train_attempts, public.activity;
+
+-- Realtime Postgres Changes does not apply RLS to DELETE events and DELETEs cannot be filtered, so publishing them
+-- would leak other users' primary keys (user_id + slug/id/date) to every subscriber. Publish inserts and updates only;
+-- replace_all always upserts the caller's profile row, so other devices still get an event and refresh.
+alter publication supabase_realtime set (publish = 'insert, update');

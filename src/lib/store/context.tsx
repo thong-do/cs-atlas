@@ -1,9 +1,15 @@
 'use client'
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth/context'
+import { getSupabase } from '@/lib/supabase/client'
+import { createRemoteApi } from '@/lib/supabase/remote-api'
 import { LeetHubDB } from './db'
 import { DexieStore } from './dexie-store'
+import { MOVE_FAILED_MESSAGE, moveGuestData } from './first-sync'
 import { NullStore } from './null-store'
+import { SupabaseStore } from './supabase-store'
 import type { Store } from './types'
 
 interface StoreState {
@@ -16,23 +22,54 @@ const initialState: StoreState = { store: new NullStore(), ready: false, availab
 const StoreContext = createContext<StoreState>(initialState)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const { status, user } = useAuth()
+  const userId = user?.id
   const [state, setState] = useState<StoreState>(initialState)
 
   useEffect(() => {
+    if (status === 'loading') {
+      setState(initialState)
+      return
+    }
     let cancelled = false
+    let dispose: (() => void) | undefined
     const db = new LeetHubDB()
-    db.open()
-      .then(() => {
-        if (!cancelled) setState({ store: new DexieStore(db), ready: true, available: true })
-      })
-      .catch(() => {
-        if (!cancelled) setState({ store: new NullStore(), ready: true, available: false })
-      })
+    const startGuest = () =>
+      db.open()
+        .then(() => { if (!cancelled) setState({ store: new DexieStore(db), ready: true, available: true }) })
+        .catch(() => { if (!cancelled) setState({ store: new NullStore(), ready: true, available: false }) })
+
+    const client = getSupabase()
+    if (status !== 'signed-in' || !userId || !client) {
+      void startGuest()
+    } else {
+      const remote = createRemoteApi(client, userId)
+      db.open()
+        .then(() => moveGuestData(new DexieStore(db), remote))
+        .catch(async (err) => {
+          // IndexedDB unavailable: nothing local to move, start from the account.
+          if (!(err instanceof Error) || err.message !== MOVE_FAILED_MESSAGE) return { data: await remote.loadAll(), moved: 0 }
+          throw err
+        })
+        .then(({ data, moved }) => {
+          if (cancelled) return
+          const store = new SupabaseStore(remote, data)
+          dispose = () => store.dispose()
+          setState({ store, ready: true, available: true })
+          if (moved > 0) toast.success(`Moved ${moved} exercise${moved === 1 ? '' : 's'} from this device to your account`)
+        })
+        .catch((err) => {
+          if (cancelled) return
+          toast.error(err instanceof Error ? err.message : String(err))
+          void startGuest()
+        })
+    }
     return () => {
       cancelled = true
+      dispose?.()
       db.close()
     }
-  }, [])
+  }, [status, userId])
 
   return <StoreContext.Provider value={state}>{children}</StoreContext.Provider>
 }

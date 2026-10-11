@@ -19,6 +19,15 @@ npm run lint
 npm run e2e          # optional locally; CI runs it
 ```
 
+## Running with accounts (optional)
+
+The site works guest-only without any setup. To try sign-in and sync locally:
+
+1. Copy `.env.example` to `.env.local`.
+2. Run `npm run db:start` (requires Docker). It prints a local API URL (default `http://127.0.0.1:54321`) and an anon key; put them in `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+3. Sign-in needs a GitHub and a Google OAuth app, each with the callback `http://127.0.0.1:54321/auth/v1/callback`. Configure them in `supabase/config.toml` under `[auth.external.github]` and `[auth.external.google]`. Or skip this and work guest-only.
+4. `npm run db:test` runs the database tests.
+
 ## How content is organised
 
 ```

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
@@ -156,6 +157,10 @@ export function SettingsView() {
           <option value="dark">Dark</option>
         </select>
       </section>
+
+      <p className="text-sm text-muted-foreground">
+        <Link href="/privacy/" className="underline">Privacy</Link>
+      </p>
     </div>
   )
 }

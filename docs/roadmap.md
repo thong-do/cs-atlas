@@ -123,14 +123,14 @@ Oct      Nov      Dec      Jan      Feb      Mar      Apr      May
 **Epics**
 
 1. **Backend.**
-   - Add managed Postgres with auth. We recommend **Supabase**: Postgres, auth and row-level security in one place, and the v1 spec already planned a `SupabaseStore`.
-   - Drop `output: 'export'` in favour of hybrid Next.js on Vercel. Content pages stay static; only the app routes become dynamic.
-2. **Auth.** Sign in with GitHub and Google, plus email magic links.
+   - Supabase as the backend: Postgres, auth and row-level security in one place.
+   - **The site stays a static export**, with all Supabase calls made from the browser and protected by row-level security (decided 2026-10-11).
+2. **Auth.** Sign in with GitHub and Google (no email).
 3. **`SupabaseStore`.**
    - Implements the existing `Store` interface.
-   - Syncs with conflict resolution: per-record last-write-wins, with review logs merged as append-only.
-   - On first sign-in, local IndexedDB progress is imported using the existing backup schema.
-4. **Profile.** A public username, avatar and level, with optional public stats.
+   - Keeps an in-memory snapshot, writes through Postgres functions, and refreshes over Realtime.
+   - On first sign-in, guest progress is merged into the account and the local copy is cleared.
+4. **Profile.** A private profile (avatar and name, Account settings). Public profiles move to Phase 4.
 5. **Privacy.** Export all my data (already exists), delete my account, and a privacy policy page.
 
 **Exit criteria**

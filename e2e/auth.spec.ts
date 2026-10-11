@@ -3,6 +3,15 @@ import { expect, test } from '@playwright/test'
 test('signed out: Sign in opens the provider dialog', async ({ page }) => {
   const errors: Error[] = []
   page.on('pageerror', (e) => errors.push(e))
+  const consoleErrors: string[] = []
+  const badResponses: string[] = []
+  page.on('console', (m) => {
+    if (m.type() === 'error') consoleErrors.push(m.text())
+  })
+  page.on('response', (r) => {
+    const sameOrigin = new URL(r.url()).origin === new URL(page.url() === 'about:blank' ? r.url() : page.url()).origin
+    if (r.status() >= 400 && sameOrigin) badResponses.push(`${r.status()} ${r.url()}`)
+  })
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Sign in' }).first().click()
@@ -11,6 +20,8 @@ test('signed out: Sign in opens the provider dialog', async ({ page }) => {
   await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
   await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', /\/privacy\/$/)
   expect(errors.map((e) => e.message)).toEqual([])
+  expect(consoleErrors).toEqual([])
+  expect(badResponses).toEqual([])
 })
 
 test('Sign in is reachable on mobile', async ({ page }) => {

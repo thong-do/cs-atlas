@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from 'next-themes'
 import type { ReactNode } from 'react'
+import { ThemeSync } from '@/components/theme-sync'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/lib/auth/context'
 import { CatalogProvider } from '@/lib/content/catalog-context'
@@ -14,6 +15,7 @@ export function Providers({ catalog, children }: { catalog: Catalog; children: R
       <CatalogProvider catalog={catalog}>
         <AuthProvider>
           <StoreProvider>
+            <ThemeSync />
             {children}
             <Toaster richColors position="top-center" />
           </StoreProvider>

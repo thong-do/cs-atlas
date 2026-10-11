@@ -22,8 +22,13 @@ export function initialStatus(hasClient: boolean): AuthStatus {
   return hasClient ? 'loading' : 'disabled'
 }
 
-/** Only same-origin absolute paths are allowed as post-login redirects. */
-export function safeNextPath(next: string | null): string {
+const isCallbackPath = (pathname: string) => pathname === '/auth/callback' || pathname.startsWith('/auth/callback/')
+
+/**
+ * Only same-origin absolute paths are allowed as post-login redirects.
+ * The auth callback page itself maps to '/', so signing in from its error page doesn't land back on the error.
+ */
+export function safeNextPath(next: string | null, basePath?: string): string {
   if (!next || !next.startsWith('/')) return '/'
   try {
     // Parse like a browser (which strips tabs/newlines) and accept only results that stay on our origin.
@@ -31,6 +36,7 @@ export function safeNextPath(next: string | null): string {
     const url = new URL(next, base)
     // Dot-segment normalisation can yield a protocol-relative '//host' path; reject it.
     if (url.origin !== base || url.pathname.startsWith('//')) return '/'
+    if (isCallbackPath(stripBasePath(url.pathname, basePath))) return '/'
     return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return '/'

@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getSupabase } from '@/lib/supabase/client'
 import { createRemoteApi } from '@/lib/supabase/remote-api'
-import { initialStatus, userFromSession, type AuthStatus, type AuthUser } from './auth-state'
+import { initialStatus, safeNextPath, userFromSession, type AuthStatus, type AuthUser } from './auth-state'
 
 interface AuthValue {
   status: AuthStatus
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await client.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/auth/callback/?next=${encodeURIComponent(location.pathname)}`,
+        redirectTo: `${location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/auth/callback/?next=${encodeURIComponent(safeNextPath(location.pathname, process.env.NEXT_PUBLIC_BASE_PATH))}`,
       },
     })
     if (error) throw error
@@ -55,8 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = useCallback(async () => {
     if (!client || !user) return
     await createRemoteApi(client, user.id).deleteAccount()
-    await signOut()
-  }, [client, user, signOut])
+    // The account is gone either way: clear the local session even if the server sign-out call fails (e.g. offline).
+    await client.auth.signOut({ scope: 'local' }).catch(() => undefined)
+  }, [client, user])
 
   const value = useMemo(() => ({ status, user, signIn, signOut, deleteAccount }), [status, user, signIn, signOut, deleteAccount])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

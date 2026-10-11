@@ -2,6 +2,7 @@ import { mergeUserData } from '@/lib/logic/transfer'
 import type { RemoteApi } from '@/lib/supabase/remote-api'
 import { DEFAULT_SETTINGS, type UserData } from '@/lib/types'
 
+export const ACCOUNT_UNREACHABLE_MESSAGE = "Couldn't reach your account — changes are saved on this device for now."
 export const MOVE_FAILED_MESSAGE = "Couldn't move this device's progress — it's still saved here. Try signing in again."
 
 const isEmpty = (d: UserData) =>
@@ -14,10 +15,21 @@ export async function moveGuestData(
   local: { getUserData(): Promise<UserData>; clearAll(): Promise<void> },
   remote: RemoteApi,
 ): Promise<{ data: UserData; moved: number }> {
+  let guest: UserData
   try {
-    const guest = await local.getUserData()
+    guest = await local.getUserData()
+  } catch {
+    throw new Error(MOVE_FAILED_MESSAGE)
+  }
+  if (isEmpty(guest)) {
+    try {
+      return { data: await remote.loadAll(), moved: 0 }
+    } catch {
+      throw new Error(ACCOUNT_UNREACHABLE_MESSAGE)
+    }
+  }
+  try {
     const account = await remote.loadAll()
-    if (isEmpty(guest)) return { data: account, moved: 0 }
     const merged = mergeUserData(account, guest)
     merged.meta = {
       ...merged.meta,

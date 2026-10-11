@@ -40,7 +40,7 @@ export default function PrivacyPage() {
             <strong>Export</strong> everything as JSON from <Link href="/settings/" className="underline">Settings</Link>.
           </li>
           <li>
-            <strong>Delete your account</strong> in Settings → Account. This removes every row immediately.
+            <strong>Delete your account</strong> in Settings → Account. This removes every row immediately. Supabase may keep encrypted database backups for up to 7 days before they expire.
           </li>
           <li>
             <strong>Questions:</strong> <a href="mailto:thongdo.swe@gmail.com" className="underline">thongdo.swe@gmail.com</a>.

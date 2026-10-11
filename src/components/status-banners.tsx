@@ -1,15 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useAuth } from '@/lib/auth/context'
 import { needsBackupReminder } from '@/lib/logic/dates'
 import { useLive, useStoreStatus } from '@/lib/store/context'
 
 export function StatusBanners() {
-  const { ready, available } = useStoreStatus()
-  const { status } = useAuth()
+  const { ready, available, mode } = useStoreStatus()
   const backup = useLive(async (s) => ({ meta: await s.getMeta(), hasData: await s.hasData() }))
-  const showBackup = status !== 'signed-in' && backup && needsBackupReminder(backup.meta.lastBackupAt, backup.hasData, new Date())
+  const showBackup = mode === 'guest' && backup && needsBackupReminder(backup.meta.lastBackupAt, backup.hasData, new Date())
 
   return (
     <>

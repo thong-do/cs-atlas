@@ -57,3 +57,18 @@ describe('stripBasePath', () => {
     expect(stripBasePath('/other/', '/cs-atlas')).toBe('/other/')
   })
 })
+
+describe('safeNextPath never returns to the auth callback', () => {
+  it('maps the callback page to /', () => {
+    expect(safeNextPath('/auth/callback/')).toBe('/')
+    expect(safeNextPath('/auth/callback/?code=x')).toBe('/')
+    expect(safeNextPath('/auth/callback')).toBe('/')
+  })
+  it('maps the callback page under a basePath to /', () => {
+    expect(safeNextPath('/cs/auth/callback/', '/cs')).toBe('/')
+    expect(safeNextPath('/cs/settings/', '/cs')).toBe('/cs/settings/')
+  })
+  it('keeps unrelated paths', () => {
+    expect(safeNextPath('/auth/callbacks-guide/')).toBe('/auth/callbacks-guide/')
+  })
+})

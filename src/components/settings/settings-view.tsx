@@ -8,7 +8,6 @@ import { AccountSection } from './account-section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuth } from '@/lib/auth/context'
 import { downloadText } from '@/lib/download'
 import { formatDateTime } from '@/lib/format'
 import { localDate } from '@/lib/logic/dates'
@@ -21,7 +20,6 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 export function SettingsView() {
   const store = useStore()
   const status = useStoreStatus()
-  const { status: authStatus } = useAuth()
   const canTransfer = status.ready && status.available
   const { setTheme } = useTheme()
   const meta = useLive((s) => s.getMeta())
@@ -67,7 +65,7 @@ export function SettingsView() {
 
   async function doImport(mode: 'merge' | 'replace') {
     if (!pending) return
-    if (mode === 'replace' && !window.confirm(`Replace ALL progress in ${authStatus === 'signed-in' ? 'your account' : 'this browser'} with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.`)) return
+    if (mode === 'replace' && !window.confirm(`Replace ALL progress in ${status.mode === 'account' ? 'your account' : 'this browser'} with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.`)) return
     try {
       await store.importAll(pending, mode)
       if (mode === 'replace') setTheme(pending.data.meta.settings.theme)
@@ -106,8 +104,14 @@ export function SettingsView() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Backup</h2>
         <p className="text-sm text-muted-foreground">
-          Your progress lives only in this browser. Export a backup regularly
-          {meta?.lastBackupAt ? ` — last backup ${formatDateTime(meta.lastBackupAt)}.` : ' — you haven’t backed up yet.'}
+          {status.mode === 'account' ? (
+            'Your progress is saved to your account. You can still export a backup.'
+          ) : (
+            <>
+              Your progress lives only in this browser. Export a backup regularly
+              {meta?.lastBackupAt ? ` — last backup ${formatDateTime(meta.lastBackupAt)}.` : ' — you haven’t backed up yet.'}
+            </>
+          )}
         </p>
         {!canTransfer && status.ready && (
           <p role="status" className="text-sm text-destructive">Storage is unavailable in this browser, so backups can’t be exported or imported.</p>

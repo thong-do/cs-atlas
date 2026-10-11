@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { FakeRemoteApi } from '@/lib/supabase/fake-remote-api'
 import { LeetHubDB } from './db'
 import { DexieStore } from './dexie-store'
-import { MOVE_FAILED_MESSAGE, moveGuestData } from './first-sync'
+import { ACCOUNT_UNREACHABLE_MESSAGE, MOVE_FAILED_MESSAGE, moveGuestData } from './first-sync'
 
 const day = (d: number) => new Date(2026, 9, d, 9)
 const fresh = () => new DexieStore(new LeetHubDB(`test-${crypto.randomUUID()}`))
@@ -87,5 +87,24 @@ describe('moveGuestData', () => {
     remote.failNext(new Error('network'))
     await expect(moveGuestData(local, remote)).rejects.toThrow(MOVE_FAILED_MESSAGE)
     expect(await local.hasData()).toBe(true)
+  })
+
+  it('empty guest + load failure rejects with the account-unreachable message', async () => {
+    const local = fresh()
+    const remote = new FakeRemoteApi('u1')
+    remote.failNext(new Error('network'))
+    await expect(moveGuestData(local, remote)).rejects.toThrow(ACCOUNT_UNREACHABLE_MESSAGE)
+  })
+
+  it('reads the guest data before contacting the account', async () => {
+    const order: string[] = []
+    const local = fresh()
+    const getUserData = local.getUserData.bind(local)
+    local.getUserData = async () => { order.push('guest'); return getUserData() }
+    const remote = new FakeRemoteApi('u1')
+    const load = remote.loadAll.bind(remote)
+    remote.loadAll = async () => { order.push('account'); return load() }
+    await moveGuestData(local, remote)
+    expect(order).toEqual(['guest', 'account'])
   })
 })

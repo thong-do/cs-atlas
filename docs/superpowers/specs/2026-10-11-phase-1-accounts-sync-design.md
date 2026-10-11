@@ -234,7 +234,7 @@ It is linked from the sign-in dialog, the Settings Account section and the READM
 
 **Owner checklist** (also added to `CONTRIBUTING.md` under "Running with accounts"):
 
-1. Create a Supabase project (free tier) and note its URL and anon key.
+1. Create a Supabase project (free tier) in region **Singapore (ap-southeast-1)** and note its URL and anon key.
 2. Apply the migrations: `npx supabase link` then `npx supabase db push`, or paste them into the SQL editor in order.
 3. **GitHub:** create an OAuth app with callback `https://<project-ref>.supabase.co/auth/v1/callback`, then enter its client ID and secret in Supabase → Auth → Providers → GitHub.
 4. **Google:** create an OAuth client in Google Cloud (web application) with the same callback URL and a consent screen, then enter it in Supabase → Auth → Providers → Google.

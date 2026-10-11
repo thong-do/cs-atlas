@@ -3,9 +3,11 @@
 import { useTheme } from 'next-themes'
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
+import { AccountSection } from './account-section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useAuth } from '@/lib/auth/context'
 import { downloadText } from '@/lib/download'
 import { formatDateTime } from '@/lib/format'
 import { localDate } from '@/lib/logic/dates'
@@ -18,6 +20,7 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 export function SettingsView() {
   const store = useStore()
   const status = useStoreStatus()
+  const { status: authStatus } = useAuth()
   const canTransfer = status.ready && status.available
   const { setTheme } = useTheme()
   const meta = useLive((s) => s.getMeta())
@@ -63,7 +66,7 @@ export function SettingsView() {
 
   async function doImport(mode: 'merge' | 'replace') {
     if (!pending) return
-    if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.')) return
+    if (mode === 'replace' && !window.confirm(`Replace ALL progress in ${authStatus === 'signed-in' ? 'your account' : 'this browser'} with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.`)) return
     try {
       await store.importAll(pending, mode)
       if (mode === 'replace') setTheme(pending.data.meta.settings.theme)
@@ -96,6 +99,8 @@ export function SettingsView() {
   return (
     <div className="max-w-2xl space-y-10">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      <AccountSection />
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Backup</h2>

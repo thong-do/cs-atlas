@@ -36,3 +36,12 @@ export function safeNextPath(next: string | null): string {
     return '/'
   }
 }
+
+/** Drop a leading deploy basePath (Next's router adds it back). No-op when basePath is empty. */
+export function stripBasePath(path: string, basePath: string | undefined): string {
+  if (!basePath || !path.startsWith(basePath)) return path
+  const rest = path.slice(basePath.length)
+  if (rest === '') return '/'
+  if (rest.startsWith('/')) return rest
+  return rest.startsWith('?') || rest.startsWith('#') ? `/${rest}` : path
+}

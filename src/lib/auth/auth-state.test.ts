@@ -35,6 +35,8 @@ describe('safeNextPath', () => {
     expect(safeNextPath('//evil.example')).toBe('/')
     expect(safeNextPath('/\\evil')).toBe('/')
     for (const bad of ['/\t/evil.example', '/\n/evil.example', '/\r/evil.example', '/\\evil.example']) expect(safeNextPath(bad)).toBe('/')
+    for (const bad of ['/..//evil.example', '/.//evil', '/a/..//evil', '/x/../..//evil']) expect(safeNextPath(bad)).toBe('/')
+    expect(safeNextPath('/algorithms/../tracks/')).toBe('/tracks/')
     expect(safeNextPath('/algorithms/two-pointers/?x=1#h')).toBe('/algorithms/two-pointers/?x=1#h')
   })
 })

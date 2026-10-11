@@ -29,7 +29,9 @@ export function safeNextPath(next: string | null): string {
     // Parse like a browser (which strips tabs/newlines) and accept only results that stay on our origin.
     const base = 'https://cs-atlas.invalid'
     const url = new URL(next, base)
-    return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : '/'
+    // Dot-segment normalisation can yield a protocol-relative '//host' path; reject it.
+    if (url.origin !== base || url.pathname.startsWith('//')) return '/'
+    return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return '/'
   }

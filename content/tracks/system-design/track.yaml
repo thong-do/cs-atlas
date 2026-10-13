@@ -5,8 +5,8 @@ order: 2
 modules:
   - slug: foundations
     title: Foundations
-    lessons: [client-server-http, caching]
-    comingSoon: ["DNS & CDNs", "SQL vs NoSQL"]
+    lessons: [client-server-http, dns-cdn, caching]
+    comingSoon: ["SQL vs NoSQL"]
   - slug: scaling
     title: Scaling
     lessons: []

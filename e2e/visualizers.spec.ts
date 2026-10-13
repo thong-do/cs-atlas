@@ -5,6 +5,7 @@ const PAGES = [
   { path: '/algorithms/dp-2d/', final: 'LCS length = 3' },
   { path: '/algorithms/dp-1d/', final: 'Best total = 12' },
   { path: '/algorithms/backtracking/', final: 'All 8 subsets found' },
+  { path: '/system-design/dns-cdn/', final: 'Done: the first lookup took 75 ms, the cached one 5 ms' },
   { path: '/system-design/caching/', final: 'Done: 1 hit, 7 misses, 4 evictions' },
 ]
 const VIEWPORTS = [

@@ -1,4 +1,4 @@
-import type { Difficulty, ExerciseMeta, ProblemProgress } from '@/lib/types'
+import { isProblem, type Difficulty, type ExerciseType, type ExerciseMeta, type ProblemProgress } from '@/lib/types'
 
 export type ExerciseStatus = 'unsolved' | 'helped' | 'alone'
 
@@ -8,6 +8,7 @@ export interface ExerciseFilter {
   lesson: string
   difficulty: 'all' | Difficulty
   status: 'all' | ExerciseStatus | 'resolve'
+  type: 'all' | ExerciseType
 }
 
 export function exerciseStatus(p?: ProblemProgress): ExerciseStatus {
@@ -23,10 +24,11 @@ export function filterExercises(
   const q = f.q.trim().toLowerCase()
   return exercises.filter((p) => {
     const pr = progress.get(p.slug)
-    if (q && !p.title.toLowerCase().includes(q) && !String(p.leetcodeId).startsWith(q)) return false
+    if (q && !p.title.toLowerCase().includes(q) && !(isProblem(p) && String(p.leetcodeId).startsWith(q))) return false
     if (f.track !== 'all' && !p.lessons.some((l) => trackOf(l) === f.track)) return false
     if (f.lesson !== 'all' && !p.lessons.includes(f.lesson)) return false
-    if (f.difficulty !== 'all' && p.difficulty !== f.difficulty) return false
+    if (f.type !== 'all' && p.type !== f.type) return false
+    if (f.difficulty !== 'all' && !(isProblem(p) && p.difficulty === f.difficulty)) return false
     if (f.status === 'resolve') return !!pr?.needsResolve
     if (f.status !== 'all' && exerciseStatus(pr) !== f.status) return false
     return true

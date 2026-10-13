@@ -1,0 +1,56 @@
+slug: caching-quiz
+type: quiz
+title: "Caching — quiz"
+lessons: [caching]
+ladderOrder: 1
+questions:
+  - id: hit-rate-math
+    prompt: "A cache answers in 1 ms and the database in 20 ms. At a 95% hit rate, what is the average read time?"
+    choices: ["About 1.95 ms", "About 10.5 ms", "About 19 ms", "Exactly 1 ms"]
+    answer: 0
+    explanation: "0.95 × 1 ms + 0.05 × 20 ms = 0.95 + 1.0 = 1.95 ms — about ten times faster than no cache."
+  - id: eviction-choice
+    prompt: "The cache is full and must make room. Which key does an LRU policy evict?"
+    choices: ["The key that was used least often", "The oldest key ever written", "The key that was used least recently", "A random key"]
+    answer: 2
+    explanation: "LRU tracks recency of use, not frequency (that's LFU) or insertion time (that's FIFO)."
+  - id: invalidation-order
+    prompt: "With cache-aside, what should a write do to keep readers from seeing stale data?"
+    choices: ["Delete the cached key, then update the database", "Update the database, then delete the cached key", "Only update the cache", "Nothing — wait for the TTL"]
+    answer: 1
+    explanation: "Deleting after the write commits means the next read refills from fresh data. Deleting first lets a concurrent read refill the cache with the old value."
+  - id: thundering-herd
+    prompt: "A hot key expires and thousands of requests miss at once. Which change helps most?"
+    choices: ["Make the TTL shorter", "Disable the cache for that key", "Retry the database faster", "Add random jitter to TTLs and let one request refill while others wait"]
+    answer: 3
+    explanation: "Jitter spreads expiries apart, and request coalescing makes one request do the refill instead of all of them."
+  - id: write-strategies
+    prompt: "Which write strategy can lose data if the cache node crashes?"
+    choices: ["Write-through", "Write-back", "Cache-aside", "Read-through"]
+    answer: 1
+    explanation: "Write-back acknowledges the write once it's in the cache and writes to the database later, so a crash before the flush loses it."
+flashcards:
+  - id: hit
+    front: "Cache hit"
+    back: "The requested data was already in the cache, so the slow store wasn't touched."
+  - id: miss
+    front: "Cache miss"
+    back: "The data wasn't cached: read it from the source, then (usually) store it in the cache."
+  - id: ttl
+    front: "TTL (time to live)"
+    back: "How long a cached entry stays valid before it expires — a backstop against stale data."
+  - id: lru
+    front: "LRU eviction"
+    back: "When full, remove the entry used least recently. Hash map + doubly linked list gives O(1)."
+  - id: cache-aside
+    front: "Cache-aside"
+    back: "The app reads the cache, falls back to the database on a miss, and fills the cache itself."
+  - id: write-through
+    front: "Write-through"
+    back: "Writes go to the cache and the database together, so recently written data is already cached, but writes are slower."
+  - id: write-back
+    front: "Write-back"
+    back: "Writes land in the cache and reach the database later — fast, but data can be lost on a crash."
+  - id: stampede
+    front: "Cache stampede (thundering herd)"
+    back: "Many requests miss the same expired key at once and overload the source. Fix: TTL jitter and request coalescing."

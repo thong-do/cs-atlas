@@ -1,3 +1,4 @@
+import { flashcardKey } from '@/lib/content/review-keys'
 import Dexie from 'dexie'
 import { buildExport, mergeUserData, type ExportFile } from '@/lib/logic/transfer'
 import {
@@ -5,7 +6,9 @@ import {
   type Meta, type Note, type ReviewRating, type Settings, type SolveRating, type TrainAttempt, type UserData,
 } from '@/lib/types'
 import type { LeetHubDB } from './db'
-import { applyBump, noteWrite, reviewWrites, solveWrites, sortUserData, trainWrites, type WriteSet } from './mutations'
+import {
+  applyBump, designWrites, noteWrite, quizWrites, reviewWrites, solveWrites, sortUserData, trainWrites, type DesignAnswer, type WriteSet,
+} from './mutations'
 import type { MasteryInputs, Store } from './types'
 
 export class DexieStore implements Store {
@@ -33,6 +36,27 @@ export class DexieStore implements Store {
     await db.transaction('rw', [db.progress, db.notes, db.cards, db.reviewLogs, db.activity], async () => {
       const prev = { progress: await db.progress.get(slug), note: await db.notes.get(slug), card: await db.cards.get(slug) }
       await this.apply(solveWrites(prev, slug, solveRating, insight, now, settings.desiredRetention))
+    })
+  }
+
+  async completeQuiz(slug: string, flashcardIds: string[], result: { correct: number; total: number }, now: Date): Promise<void> {
+    const { settings } = await this.getMeta()
+    const { db } = this
+    await db.transaction('rw', [db.progress, db.cards, db.reviewLogs, db.activity], async () => {
+      const keys = flashcardIds.map((id) => flashcardKey(slug, id))
+      const found = await db.cards.bulkGet(keys)
+      const existingCardKeys = new Set(keys.filter((_, i) => found[i]))
+      const prev = { progress: await db.progress.get(slug), card: await db.cards.get(slug), existingCardKeys }
+      await this.apply(quizWrites(prev, slug, flashcardIds, result, now, settings.desiredRetention))
+    })
+  }
+
+  async completeDesign(slug: string, answer: DesignAnswer, now: Date): Promise<void> {
+    const { settings } = await this.getMeta()
+    const { db } = this
+    await db.transaction('rw', [db.progress, db.notes, db.cards, db.reviewLogs, db.activity], async () => {
+      const prev = { progress: await db.progress.get(slug), note: await db.notes.get(slug), card: await db.cards.get(slug) }
+      await this.apply(designWrites(prev, slug, answer, now, settings.desiredRetention))
     })
   }
 
@@ -137,7 +161,7 @@ export class DexieStore implements Store {
     const { db } = this
     if (w.progress) await db.progress.put(w.progress)
     if (w.note) await db.notes.put(w.note)
-    if (w.card) await db.cards.put(w.card)
+    if (w.cards?.length) await db.cards.bulkPut(w.cards)
     if (w.log) await db.reviewLogs.add(w.log)
     if (w.attempt) await db.trainAttempts.add(w.attempt)
     if (w.bump) {

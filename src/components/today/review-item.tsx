@@ -4,28 +4,21 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { RatingButtons } from './rating-buttons'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { exerciseHref } from '@/lib/content/hrefs'
-import type { ExerciseMeta, ReviewRating } from '@/lib/types'
-
-const RATINGS: { value: ReviewRating; label: string }[] = [
-  { value: 'again', label: 'Again' },
-  { value: 'hard', label: 'Hard' },
-  { value: 'good', label: 'Good' },
-  { value: 'easy', label: 'Easy' },
-]
+import type { ProblemExercise, ReviewRating } from '@/lib/types'
 
 export function ReviewItem({
   exercise, insight, needsResolve, onRate,
 }: {
-  exercise: ExerciseMeta
+  exercise: ProblemExercise
   insight?: string
   needsResolve: boolean
   onRate: (rating: ReviewRating) => Promise<void>
 }) {
   const { lessonBySlug } = useCatalog()
   const [revealed, setRevealed] = useState(false)
-  const [busy, setBusy] = useState(false)
 
   return (
     <article className="space-y-3 rounded-lg border p-4">
@@ -47,21 +40,7 @@ export function ReviewItem({
             {exercise.lessons.map((s) => <Badge key={s} variant="secondary">{lessonBySlug.get(s)?.title ?? s}</Badge>)}
           </div>
           <blockquote className="border-l-4 border-primary pl-3">{insight || 'No insight saved.'}</blockquote>
-          <div role="group" aria-label="How well did you remember?" className="grid grid-cols-4 gap-2">
-            {RATINGS.map((r) => (
-              <Button
-                key={r.value}
-                variant={r.value === 'again' ? 'destructive' : 'outline'}
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true)
-                  try { await onRate(r.value) } finally { setBusy(false) }
-                }}
-              >
-                {r.label}
-              </Button>
-            ))}
-          </div>
+          <RatingButtons onRate={onRate} />
           <p className="text-xs text-muted-foreground">Again = forgot it (you’ll be asked to re-solve on LeetCode).</p>
         </>
       )}

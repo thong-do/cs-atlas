@@ -162,5 +162,37 @@ export function runStoreContract(name: string, makeStore: () => Promise<Store>):
       expect(calls).toBeGreaterThan(0)
       off()
     })
+
+    it('completeQuiz creates the quiz card and missing flashcards, and retakes review', async () => {
+      await store.completeQuiz('q', ['a', 'b'], { correct: 5, total: 5 }, day(3))
+      expect(await store.getProgress('q')).toMatchObject({ status: 'solved', solveRating: 'alone' })
+      expect((await store.listCards()).map((c) => c.slug).sort()).toEqual(['q', 'q#a', 'q#b'])
+      const aDue = (await store.getCard('q#a'))!.due
+      await store.completeQuiz('q', ['a', 'b', 'c'], { correct: 2, total: 5 }, day(9))
+      expect((await store.listCards()).map((c) => c.slug).sort()).toEqual(['q', 'q#a', 'q#b', 'q#c'])
+      expect((await store.getCard('q#a'))!.due).toBe(aDue)
+      expect((await store.listReviewLogs('q')).map((l) => l.kind)).toEqual(['solve', 'review'])
+      expect((await store.getProgress('q'))?.solveRating).toBe('solution')
+      const activity = await store.listActivity()
+      expect(activity.find((a) => a.date === localDate(day(3)))?.solves).toBe(1)
+      expect(activity.find((a) => a.date === localDate(day(9)))?.reviews).toBe(1)
+    })
+
+    it('completeQuiz rejects an empty result without writing', async () => {
+      await expect(store.completeQuiz('q', ['a'], { correct: 0, total: 0 }, day(3))).rejects.toThrow('at least one question')
+      expect(await store.listCards()).toEqual([])
+    })
+
+    it('completeDesign saves the note and progress', async () => {
+      await store.completeDesign('d', { design: 'cache-aside, TTL 60s with jitter', insight: 'delete on write, TTL as backstop', covered: 4, total: 5 }, day(3))
+      expect(await store.getNote('d')).toMatchObject({ approach: 'cache-aside, TTL 60s with jitter', insight: 'delete on write, TTL as backstop' })
+      expect((await store.getProgress('d'))?.solveRating).toBe('alone')
+      expect(await store.getCard('d')).toBeDefined()
+    })
+
+    it('completeDesign rejects a multi-line insight without writing', async () => {
+      await expect(store.completeDesign('d', { design: 'x', insight: 'a\nb', covered: 1, total: 3 }, day(3))).rejects.toThrow('single line')
+      expect(await store.getProgress('d')).toBeUndefined()
+    })
   })
 }

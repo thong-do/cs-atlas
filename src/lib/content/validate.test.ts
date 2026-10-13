@@ -10,11 +10,20 @@ const lesson = (slug: string, track = 'algorithms', o: Partial<LessonInput> = {}
   headings: track === 'algorithms' ? ALGO_SECTIONS : OTHER_SECTIONS,
   path: `tracks/${track}/lessons/${slug}`, raw: '', ...o,
 })
-const exercise = (slug: string, lessons: string[], o: Partial<ExerciseInput> = {}): ExerciseInput => ({
+const exercise = (slug: string, lessons: string[], o: Record<string, unknown> = {}): ExerciseInput => ({
   slug, type: 'external-problem', title: slug, leetcodeId: slug.length * 100 + slug.charCodeAt(0),
   url: `https://leetcode.com/problems/${slug}/`, difficulty: 'easy', lessons, ladderOrder: 1,
   recognitionPrompt: 'prompt text', hint: 'hint', path: `exercises/${slug}`, ...o,
-})
+} as ExerciseInput)
+const quiz = (slug: string, lessons: string[], o: Record<string, unknown> = {}): ExerciseInput => ({
+  slug, type: 'quiz', title: slug, lessons, ladderOrder: 1, path: `exercises/${slug}`,
+  questions: ['q1', 'q2', 'q3'].map((id) => ({ id, prompt: 'p', choices: ['x', 'y'], answer: 0, explanation: 'e' })),
+  flashcards: [], ...o,
+} as ExerciseInput)
+const design = (slug: string, lessons: string[], o: Record<string, unknown> = {}): ExerciseInput => ({
+  slug, type: 'design-prompt', title: slug, lessons, ladderOrder: 1, path: `exercises/${slug}`,
+  prompt: 'p', reference: 'r', rubric: ['r1', 'r2', 'r3'].map((id) => ({ id, point: 'x' })), ...o,
+} as ExerciseInput)
 const track = (slug: string, order: number, modules: TrackInput['modules'], folder = slug): TrackInput => ({ slug, folder, order, modules })
 
 const valid = (): ContentInput => ({
@@ -167,5 +176,43 @@ describe('validateContent', () => {
     const c = valid()
     c.exercises[0] = exercise('p1', ['aaa'], { path: 'exercises/other' })
     expect(validateContent(c)).toContain('[V11] content/exercises/other.yaml: file name "other" must equal slug "p1"')
+  })
+  it('V11 applies to LeetCode problems only', () => {
+    const c = valid()
+    c.exercises.push(quiz('q1', ['aaa'], { ladderOrder: 7 }), design('d1', ['aaa'], { ladderOrder: 8 }))
+    expect(validateContent(c)).toEqual([])
+  })
+
+  it('V12: quiz ids are unique and answers point at a choice', () => {
+    const c = valid()
+    c.exercises.push(quiz('q1', ['aaa'], {
+      ladderOrder: 7,
+      questions: [
+        { id: 'a', prompt: 'p', choices: ['x', 'y'], answer: 2, explanation: 'e' },
+        { id: 'a', prompt: 'p', choices: ['x', 'y'], answer: 0, explanation: 'e' },
+        { id: 'b', prompt: 'p', choices: ['x', 'y'], answer: 1, explanation: 'e' },
+      ],
+      flashcards: [{ id: 'f', front: 'x', back: 'y' }, { id: 'f', front: 'x', back: 'y' }],
+    }))
+    const errors = validateContent(c)
+    expect(errors).toContain('[V12] content/exercises/q1.yaml: question "a" answer 2 is not one of its 2 choices')
+    expect(errors).toContain('[V12] content/exercises/q1.yaml: duplicate question id "a"')
+    expect(errors).toContain('[V12] content/exercises/q1.yaml: duplicate flashcard id "f"')
+  })
+
+  it('V13: design rubric ids are unique', () => {
+    const c = valid()
+    c.exercises.push(design('d1', ['aaa'], {
+      ladderOrder: 8,
+      rubric: [{ id: 'r', point: 'x' }, { id: 'r', point: 'y' }, { id: 's', point: 'z' }],
+    }))
+    expect(validateContent(c)).toContain('[V13] content/exercises/d1.yaml: duplicate rubric id "r"')
+  })
+
+  it('V10 is satisfied by a quiz', () => {
+    const c = valid()
+    c.exercises = c.exercises.filter((e) => !e.lessons.includes('ccc'))
+    c.exercises.push(quiz('q2', ['ccc'], { ladderOrder: 1 }))
+    expect(validateContent(c).filter((e) => e.startsWith('[V10]') && e.includes('/ccc.mdx'))).toEqual([])
   })
 })

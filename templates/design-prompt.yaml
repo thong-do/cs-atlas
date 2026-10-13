@@ -1,0 +1,17 @@
+slug: design-something
+type: design-prompt
+title: "Design: something"
+lessons: [lesson-slug]
+ladderOrder: 1
+prompt: |
+  The scenario, with concrete numbers (traffic, data size, freshness).
+rubric:                         # 3–8 points a good answer covers
+  - id: first-point
+    point: "One thing a strong design addresses."
+  - id: second-point
+    point: "A trade-off or failure mode a strong design names."
+  - id: third-point
+    point: "A number or constraint a strong design sizes against."
+reference: |
+  A reference answer in Markdown, about 200–300 words.
+hint: "Optional nudge."

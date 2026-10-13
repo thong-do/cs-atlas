@@ -9,12 +9,27 @@ export interface LessonMeta {
   slug: string; track: string; title: string; summary: string; level: Level; authors: string[]
   prerequisites: string[]; confusedWith: string[]; triggers: string[]; complexity?: string
 }
-export interface ExerciseMeta {
-  slug: string; type: 'external-problem'; title: string; leetcodeId: number; url: string; difficulty: Difficulty
+export type ExerciseType = 'external-problem' | 'quiz' | 'design-prompt'
+interface ExerciseBase {
+  slug: string; title: string
   /** First entry is the primary lesson (ladder placement + trainer answer). */
-  lessons: string[]; ladderOrder: number; recognitionPrompt: string; hint: string
+  lessons: string[]; ladderOrder: number
 }
-export interface Catalog { tracks: TrackMeta[]; lessons: LessonMeta[]; exercises: ExerciseMeta[] }
+export interface ProblemExercise extends ExerciseBase {
+  type: 'external-problem'; leetcodeId: number; url: string; difficulty: Difficulty; recognitionPrompt: string; hint: string
+}
+export interface QuizExercise extends ExerciseBase { type: 'quiz'; questionCount: number; flashcardIds: string[] }
+export interface DesignExercise extends ExerciseBase { type: 'design-prompt'; rubric: string[] } // rubric point texts, for Today's reveal
+export type ExerciseMeta = ProblemExercise | QuizExercise | DesignExercise
+export interface QuizQuestion { id: string; prompt: string; choices: string[]; answer: number; explanation: string }
+export interface Flashcard { id: string; front: string; back: string }
+export interface RubricPoint { id: string; point: string }
+export interface QuizDoc extends QuizExercise { questions: QuizQuestion[]; flashcards: Flashcard[] }
+export interface DesignDoc extends Omit<DesignExercise, 'rubric'> { prompt: string; rubricPoints: RubricPoint[]; rubric: string[]; reference: string; hint?: string }
+export type ExerciseDoc = ProblemExercise | QuizDoc | DesignDoc
+export interface FlashcardEntry { front: string; back: string; quiz: string; lesson: string }
+export interface Catalog { tracks: TrackMeta[]; lessons: LessonMeta[]; exercises: ExerciseMeta[]; flashcards: Record<string, FlashcardEntry> }
+export const isProblem = (e: ExerciseMeta | ExerciseDoc): e is ProblemExercise => e.type === 'external-problem'
 
 /** A ts-fsrs Card with Date fields stored as ISO strings (IndexedDB- and JSON-safe). */
 export type StoredCard = { due: string; last_review?: string; state: number } & Record<string, unknown>

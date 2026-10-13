@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { localDate } from '@/lib/logic/dates'
-import { applyBump, noteWrite, reviewWrites, solveWrites, sortUserData, trainWrites } from './mutations'
+import { flashcardKey } from '@/lib/content/review-keys'
+import {
+  applyBump, designWrites, noteWrite, quizWrites, reviewRatingFromScore, reviewWrites, solveRatingFromScore, solveWrites, sortUserData, trainWrites,
+} from './mutations'
 
 const now = new Date(2026, 9, 3, 9)
 
@@ -9,7 +12,7 @@ describe('mutations', () => {
     const w = solveWrites({}, 'two-sum', 'alone', '  map value to index  ', now, 0.9)
     expect(w.progress).toMatchObject({ slug: 'two-sum', status: 'solved', solveRating: 'alone', needsResolve: false, firstSolvedAt: now.toISOString(), updatedAt: now.toISOString() })
     expect(w.note).toMatchObject({ slug: 'two-sum', insight: 'map value to index', approach: '', updatedAt: now.toISOString() })
-    expect(Date.parse(w.card!.due)).toBeGreaterThan(now.getTime())
+    expect(Date.parse(w.cards![0].due)).toBeGreaterThan(now.getTime())
     expect(w.log).toMatchObject({ slug: 'two-sum', kind: 'solve', reviewedAt: now.toISOString() })
     expect(w.bump).toEqual({ date: localDate(now), field: 'solves' })
   })
@@ -32,7 +35,7 @@ describe('mutations', () => {
   it('reviewWrites reschedules, logs, flags needsResolve on again, and bumps reviews', () => {
     const solved = solveWrites({}, 's', 'alone', 'insight', now, 0.9)
     const later = new Date(2026, 9, 20, 9)
-    const w = reviewWrites({ progress: solved.progress, card: solved.card }, 's', 'again', later, 0.9)
+    const w = reviewWrites({ progress: solved.progress, card: solved.cards![0] }, 's', 'again', later, 0.9)
     expect(w.log).toMatchObject({ kind: 'review', rating: 'again' })
     expect(w.progress?.needsResolve).toBe(true)
     expect(w.bump).toEqual({ date: localDate(later), field: 'reviews' })
@@ -68,5 +71,67 @@ describe('mutations', () => {
     expect(sorted.progress.map((p) => p.slug)).toEqual(['a', 'b'])
     expect(sorted.reviewLogs.map((l) => l.id)).toEqual(['1', '2'])
     expect(sorted.activity.map((a) => a.date)).toEqual(['2026-10-01', '2026-10-02'])
+  })
+})
+
+describe('score mappings', () => {
+  it('maps to solve ratings with integer thresholds', () => {
+    expect(solveRatingFromScore(4, 5)).toBe('alone')
+    expect(solveRatingFromScore(79, 100)).toBe('hint')
+    expect(solveRatingFromScore(1, 2)).toBe('hint')
+    expect(solveRatingFromScore(49, 100)).toBe('solution')
+    expect(solveRatingFromScore(0, 3)).toBe('solution')
+  })
+  it('maps to review ratings', () => {
+    expect(reviewRatingFromScore(5, 5)).toBe('easy')
+    expect(reviewRatingFromScore(99, 100)).toBe('good')
+    expect(reviewRatingFromScore(4, 5)).toBe('good')
+    expect(reviewRatingFromScore(1, 2)).toBe('hard')
+    expect(reviewRatingFromScore(49, 100)).toBe('again')
+  })
+})
+
+describe('quizWrites', () => {
+  const empty = { existingCardKeys: new Set<string>() }
+  it('first completion: progress, quiz card, one card per flashcard, solve log and bump', () => {
+    const w = quizWrites(empty, 'caching-quiz', ['ttl', 'lru'], { correct: 5, total: 5 }, now, 0.9)
+    expect(w.progress).toMatchObject({ slug: 'caching-quiz', status: 'solved', solveRating: 'alone', needsResolve: false })
+    expect(w.cards!.map((c) => c.slug)).toEqual(['caching-quiz', flashcardKey('caching-quiz', 'ttl'), flashcardKey('caching-quiz', 'lru')])
+    expect(w.log).toMatchObject({ slug: 'caching-quiz', kind: 'solve' })
+    expect(w.bump).toEqual({ date: localDate(now), field: 'solves' })
+  })
+  it('retake: reviews the quiz card, never duplicates flashcards, bumps reviews', () => {
+    const first = quizWrites(empty, 'q', ['a', 'b'], { correct: 2, total: 5 }, now, 0.9)
+    const later = new Date(2026, 9, 20, 9)
+    const prev = { progress: first.progress, card: first.cards![0], existingCardKeys: new Set(['q#a', 'q#b']) }
+    const w = quizWrites(prev, 'q', ['a', 'b', 'c'], { correct: 5, total: 5 }, later, 0.9)
+    expect(w.cards!.map((c) => c.slug)).toEqual(['q', 'q#c'])
+    expect(w.log).toMatchObject({ kind: 'review', rating: 'easy' })
+    expect(w.progress?.firstSolvedAt).toBe(first.progress?.firstSolvedAt)
+    expect(w.bump?.field).toBe('reviews')
+  })
+  it('schedules new flashcards as again below 80% and good at 80%+', () => {
+    const low = quizWrites(empty, 'q', ['a'], { correct: 3, total: 5 }, now, 0.9).cards![1]
+    const high = quizWrites(empty, 'q', ['a'], { correct: 4, total: 5 }, now, 0.9).cards![1]
+    expect(Date.parse(high.due)).toBeGreaterThan(Date.parse(low.due))
+  })
+  it('rejects impossible results', () => {
+    expect(() => quizWrites(empty, 'q', [], { correct: 1, total: 0 }, now, 0.9)).toThrow('Quiz result must have at least one question.')
+    expect(() => quizWrites(empty, 'q', [], { correct: 6, total: 5 }, now, 0.9)).toThrow('Quiz result is out of range.')
+  })
+})
+
+describe('designWrites', () => {
+  it('saves the design as the note approach and scores the rubric', () => {
+    const prevNote = { slug: 'd', insight: 'old', approach: 'old', complexity: 'O(1)', mistakes: 'm', code: '', updatedAt: '2026-01-01T00:00:00.000Z' }
+    const w = designWrites({ note: prevNote }, 'd', { design: '  cache-aside with TTL  ', insight: ' TTL plus delete on write ', covered: 3, total: 5 }, now, 0.9)
+    expect(w.note).toMatchObject({ approach: 'cache-aside with TTL', insight: 'TTL plus delete on write', complexity: 'O(1)', mistakes: 'm' })
+    expect(w.progress?.solveRating).toBe('hint')
+    expect(w.cards!.map((c) => c.slug)).toEqual(['d'])
+    expect(w.log?.kind).toBe('solve')
+  })
+  it('validates the insight and the design', () => {
+    expect(() => designWrites({}, 'd', { design: 'x', insight: 'a\nb', covered: 1, total: 3 }, now, 0.9)).toThrow('single line')
+    expect(() => designWrites({}, 'd', { design: '   ', insight: 'ok insight', covered: 1, total: 3 }, now, 0.9)).toThrow('Write your design first.')
   })
 })

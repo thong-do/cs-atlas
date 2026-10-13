@@ -1,0 +1,43 @@
+slug: design-product-page-cache
+type: design-prompt
+title: "Design: cache a product-details API"
+lessons: [caching]
+ladderOrder: 2
+prompt: |
+  A product-details API serves **5,000 reads/s** and **50 writes/s** (price and stock updates).
+  The database handles the writes fine, but reads are slowing it down.
+
+  Add a cache in front of it. **Prices must never be more than 60 seconds stale.**
+  Describe what you cache and under which key, how entries expire and get invalidated,
+  what happens when a popular product's entry expires, and what you would measure.
+hint: "Start from cache-aside. Then ask: what can make a reader see an old price, and for how long?"
+rubric:
+  - id: key-and-value
+    point: "Caches the product-details response under a key that includes every input that changes it (e.g. product id, currency, locale)."
+  - id: ttl-jitter
+    point: "Sets a TTL comfortably below 60 s and adds random jitter so popular keys don't all expire together."
+  - id: invalidate-on-write
+    point: "Deletes (or updates) the cached entry after a price or stock write commits, so most reads see changes immediately; the TTL is only the backstop."
+  - id: stampede
+    point: "Protects hot keys from a stampede: one request refills while others wait or get the stale value briefly."
+  - id: measure
+    point: "Measures hit rate, read latency for hits and misses, and database load, and alerts when the hit rate drops."
+reference: |
+  **Pattern.** Use cache-aside with a shared cache such as Redis. On a read, look up
+  `product:{id}:{currency}:{locale}`. On a hit, return it; on a miss, read the database,
+  store the result, and return it.
+
+  **Freshness.** Give each entry a TTL of 45–55 s, chosen randomly per cache fill (jitter),
+  so the 60 s staleness limit holds even if an invalidation is missed. The TTL is a backstop,
+  not the main mechanism: after a price or stock update commits, the writer deletes every key
+  for that product, so the next read refills with the new data. At 50 writes/s that's cheap.
+
+  **Hot keys.** When a popular product's entry expires, thousands of requests could miss together.
+  Use request coalescing (a short lock per key so one request refills while others wait a few
+  milliseconds), or serve the expired value for a second while one request refreshes it in the background.
+
+  **Sizing.** 5,000 reads/s at a 95% hit rate leaves about 250 reads/s for the database — a 20×
+  reduction. Size memory for the hot set (often a few thousand products), with an LRU eviction policy.
+
+  **Measure.** Hit rate, p50/p99 latency for hits and misses, database read QPS, eviction rate,
+  and invalidation failures. Alert if the hit rate drops sharply — it usually means a bad key or a deploy that changed the key format.

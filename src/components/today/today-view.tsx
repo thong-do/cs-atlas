@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { ExerciseTypeBadge } from '@/components/exercises/exercise-type-badge'
 import { DifficultyBadge } from '@/components/difficulty-badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -13,7 +14,11 @@ import { currentStreak } from '@/lib/logic/dates'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
-import type { ReviewRating } from '@/lib/types'
+import { resolveDue } from '@/lib/logic/review-queue'
+import { isProblem, type ReviewRating } from '@/lib/types'
+import { DesignReviewItem } from './design-review-item'
+import { FlashcardReviewItem } from './flashcard-review-item'
+import { QuizReviewItem } from './quiz-review-item'
 import { ReviewItem } from './review-item'
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -27,24 +32,25 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function TodayView() {
   const store = useStore()
-  const { lessons, exercises, lessonBySlug, exerciseBySlug } = useCatalog()
+  const { lessons, exercises, lessonBySlug, exerciseBySlug, flashcards } = useCatalog()
   const masteries = useMasteries()
   const now = useNow()
   const data = useLive(async (s) => {
     const due = await s.dueCards(now)
-    const notes = await Promise.all(due.map((c) => s.getNote(c.slug)))
+    const items = resolveDue(due.map((c) => c.slug), exerciseBySlug, flashcards)
+    const notes = await Promise.all(items.map((it) => (it.kind === 'problem' || it.kind === 'design' ? s.getNote(it.key) : undefined)))
     return {
-      due: due.map((card, i) => ({ card, note: notes[i] })),
+      due: items.map((item, i) => ({ item, note: notes[i] })),
       progress: await s.listProgress(),
       activity: await s.listActivity(),
     }
-  }, [now])
+  }, [now, exerciseBySlug, flashcards])
 
   if (!data || !masteries) return <p className="text-muted-foreground">Loading…</p>
 
   const progressBySlug = new Map(data.progress.map((p) => [p.slug, p]))
   const solved = new Set(data.progress.filter((p) => p.status === 'solved').map((p) => p.slug))
-  const reviews = data.due.filter((d) => exerciseBySlug.has(d.card.slug))
+  const reviews = data.due
   const trackOf = trackLookup(lessons)
   const recommended = recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf))
   const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
@@ -97,14 +103,25 @@ export function TodayView() {
           <p className="rounded-lg border border-dashed p-6 text-center">All caught up 🎉</p>
         ) : (
           <ul className="space-y-3">
-            {reviews.map(({ card, note }) => (
-              <li key={card.slug}>
-                <ReviewItem
-                  exercise={exerciseBySlug.get(card.slug)!}
-                  insight={note?.insight}
-                  needsResolve={!!progressBySlug.get(card.slug)?.needsResolve}
-                  onRate={(rating) => rate(card.slug, rating)}
-                />
+            {reviews.map(({ item, note }) => (
+              <li key={item.key}>
+                {item.kind === 'problem' && (
+                  <ReviewItem
+                    exercise={item.exercise}
+                    insight={note?.insight}
+                    needsResolve={!!progressBySlug.get(item.key)?.needsResolve}
+                    onRate={(rating) => rate(item.key, rating)}
+                  />
+                )}
+                {item.kind === 'design' && (
+                  <DesignReviewItem exercise={item.exercise} insight={note?.insight} onRate={(rating) => rate(item.key, rating)} />
+                )}
+                {item.kind === 'quiz' && (
+                  <QuizReviewItem exercise={item.exercise} lessonTitle={lessonBySlug.get(item.exercise.lessons[0])?.title ?? item.exercise.lessons[0]} />
+                )}
+                {item.kind === 'flashcard' && (
+                  <FlashcardReviewItem card={item.card} lessonTitle={lessonBySlug.get(item.card.lesson)?.title ?? item.card.lesson} onRate={(rating) => rate(item.key, rating)} />
+                )}
               </li>
             ))}
           </ul>
@@ -120,7 +137,7 @@ export function TodayView() {
             {nextUp.map((p) => (
               <li key={p.slug} className="flex items-center gap-3 px-3 py-2">
                 <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
-                <DifficultyBadge difficulty={p.difficulty} />
+                {isProblem(p) ? <DifficultyBadge difficulty={p.difficulty} /> : <ExerciseTypeBadge type={p.type} />}
               </li>
             ))}
           </ul>

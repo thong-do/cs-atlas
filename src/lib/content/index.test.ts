@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { getCatalog, getExercise, getLessonDoc } from './index'
+import type { DesignDoc, DesignExercise, QuizDoc, QuizExercise } from '@/lib/types'
+import { isProblem } from '@/lib/types'
+import { getCatalog, getExercise, getExerciseDoc, getLessonDoc } from './index'
 
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
 const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
@@ -31,9 +33,31 @@ describe('content accessors', () => {
     expect(keys).toEqual([...keys].sort((a, b) => a[0] - b[0] || a[1] - b[1]))
   })
 
+  it('returns full quiz and design docs, and only the catalog fields in meta', () => {
+    const quiz = getExerciseDoc('caching-quiz') as QuizDoc
+    expect(quiz.type).toBe('quiz')
+    expect(quiz.questions).toHaveLength(5)
+    expect(quiz.questions[0]).toHaveProperty('choices')
+    expect(quiz.questions[0]).toHaveProperty('answer')
+    expect(getCatalog().exercises.find((e) => e.slug === 'caching-quiz')).toMatchObject({ questionCount: 5 })
+    const metaQuiz = getCatalog().exercises.find((e) => e.slug === 'caching-quiz')!
+    expect(metaQuiz).not.toHaveProperty('questions')
+    expect((metaQuiz as QuizExercise).flashcardIds).toHaveLength(8)
+
+    const design = getExerciseDoc('design-product-page-cache') as DesignDoc
+    expect(design).toHaveProperty('reference')
+    expect(design).toHaveProperty('hint')
+    expect(design.rubricPoints).toHaveLength(5)
+    const metaDesign = getCatalog().exercises.find((e) => e.slug === 'design-product-page-cache')!
+    expect((metaDesign as DesignExercise).rubric).toHaveLength(5)
+    expect(metaDesign).not.toHaveProperty('reference')
+  })
+
   it('finds a lesson doc with compiled body and an exercise by slug', () => {
     expect(getLessonDoc('two-pointers')?.body.length).toBeGreaterThan(0)
-    expect(getExercise('two-sum')?.leetcodeId).toBe(1)
+    expect(getExercise('two-sum')).toMatchObject({ leetcodeId: 1 })
+    expect(getExerciseDoc('two-sum')?.type).toBe('external-problem')
+    expect(getExerciseDoc('missing')).toBeUndefined()
     expect(getExercise('two-sum')?.type).toBe('external-problem')
     expect(getExercise('missing')).toBeUndefined()
   })
@@ -48,10 +72,11 @@ describe('content inventory', () => {
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['lru-cache', 'time-based-key-value-store'])
+    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['caching-quiz', 'design-product-page-cache', 'lru-cache', 'time-based-key-value-store'])
   })
 
-  const { lessons, exercises } = getCatalog()
+  const { lessons, exercises: allExercises } = getCatalog()
+  const exercises = allExercises.filter(isProblem)
   const algorithms = lessons.filter((l) => l.track === 'algorithms')
 
   it('has 18 algorithms lessons with the six standard sections in order', () => {
@@ -71,6 +96,12 @@ describe('content inventory', () => {
     for (const l of algorithms) {
       expect(exercises.filter((x) => x.lessons[0] === l.slug).length, l.slug).toBeGreaterThanOrEqual(5)
     }
+  })
+
+  it('maps every quiz flashcard to its quiz and lesson by review key', () => {
+    const { flashcards } = getCatalog()
+    expect(Object.keys(flashcards)).toHaveLength(8)
+    expect(flashcards['caching-quiz#ttl']).toMatchObject({ quiz: 'caching-quiz', lesson: 'caching' })
   })
 
   it('uses https leetcode problem URLs', () => {
@@ -93,4 +124,19 @@ it('ships contributor templates with the required sections and fields', () => {
   for (const f of ['slug', 'type', 'title', 'leetcodeId', 'url', 'difficulty', 'lessons', 'ladderOrder', 'recognitionPrompt', 'hint']) {
     expect(exercise).toMatch(new RegExp(`^${f}:`, 'm'))
   }
+  const required: Record<string, string[]> = {
+    'templates/quiz.yaml': ['slug', 'type', 'title', 'lessons', 'ladderOrder', 'questions', 'flashcards'],
+    'templates/design-prompt.yaml': ['slug', 'type', 'title', 'lessons', 'ladderOrder', 'prompt', 'rubric', 'reference'],
+  }
+  for (const [file, fields] of Object.entries(required)) {
+    const text = readFileSync(file, 'utf8')
+    for (const f of fields) expect(text, `${file} ${f}`).toMatch(new RegExp(`^${f}:`, 'm'))
+  }
+  const entries = (file: string, key: string) => {
+    const text = readFileSync(file, 'utf8')
+    const body = text.split(new RegExp(`^${key}:.*$`, 'm'))[1]?.split(/^\S/m)[0] ?? ''
+    return (body.match(/^\s+- id:/gm) ?? []).length
+  }
+  expect(entries('templates/quiz.yaml', 'questions')).toBeGreaterThanOrEqual(3)
+  expect(entries('templates/design-prompt.yaml', 'rubric')).toBeGreaterThanOrEqual(3)
 })

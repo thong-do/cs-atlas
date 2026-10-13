@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ExerciseWorkspace } from '@/components/exercises/exercise-workspace'
-import { getCatalog, getExercise } from '@/lib/content'
+import { getCatalog, getExercise, getExerciseDoc } from '@/lib/content'
 
 export const dynamicParams = false
 
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ExercisePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const exercise = getExercise(slug)
+  const exercise = getExerciseDoc(slug)
   if (!exercise) notFound()
   return <ExerciseWorkspace exercise={exercise} />
 }

@@ -1,3 +1,4 @@
+import { flashcardKey } from '@/lib/content/review-keys'
 import { buildExport, mergeUserData, type ExportFile } from '@/lib/logic/transfer'
 import type { RemoteApi } from '@/lib/supabase/remote-api'
 import type { Changes } from '@/lib/supabase/rows'
@@ -5,7 +6,9 @@ import {
   SCHEMA_VERSION,
   type Meta, type Note, type ReviewRating, type Settings, type SolveRating, type TrainAttempt, type UserData,
 } from '@/lib/types'
-import { applyBump, noteWrite, reviewWrites, solveWrites, sortUserData, trainWrites, type WriteSet } from './mutations'
+import {
+  applyBump, designWrites, noteWrite, quizWrites, reviewWrites, solveWrites, sortUserData, trainWrites, type DesignAnswer, type WriteSet,
+} from './mutations'
 import type { MasteryInputs, Store } from './types'
 
 export const OFFLINE_MESSAGE = "You're offline — this change wasn't saved."
@@ -26,7 +29,7 @@ function upsert<T>(list: T[], item: T, key: (x: T) => string): void {
 function applyWriteSet(d: UserData, w: WriteSet): void {
   if (w.progress) upsert(d.progress, w.progress, (x) => x.slug)
   if (w.note) upsert(d.notes, w.note, (x) => x.slug)
-  if (w.card) upsert(d.cards, w.card, (x) => x.slug)
+  for (const c of w.cards ?? []) upsert(d.cards, c, (x) => x.slug)
   if (w.log) upsert(d.reviewLogs, w.log, (x) => x.id)
   if (w.attempt) upsert(d.trainAttempts, w.attempt, (x) => x.id)
   if (w.bump) {
@@ -40,7 +43,7 @@ function changesFromWriteSet(w: WriteSet): Changes {
   const c: Changes = {}
   if (w.progress) c.progress = [w.progress]
   if (w.note) c.notes = [w.note]
-  if (w.card) c.cards = [w.card]
+  if (w.cards?.length) c.cards = w.cards
   if (w.log) c.reviewLogs = [w.log]
   if (w.attempt) c.trainAttempts = [w.attempt]
   if (w.bump) {
@@ -152,6 +155,21 @@ export class SupabaseStore implements Store {
     const d = this.data
     const prev = { progress: find(d.progress, slug), card: find(d.cards, slug) }
     const w = reviewWrites(prev, slug, rating, now, d.meta.settings.desiredRetention)
+    await this.commit(w, changesFromWriteSet(w))
+  }
+
+  async completeQuiz(slug: string, flashcardIds: string[], result: { correct: number; total: number }, now: Date): Promise<void> {
+    const d = this.data
+    const existingCardKeys = new Set(flashcardIds.map((id) => flashcardKey(slug, id)).filter((k) => find(d.cards, k)))
+    const prev = { progress: find(d.progress, slug), card: find(d.cards, slug), existingCardKeys }
+    const w = quizWrites(prev, slug, flashcardIds, result, now, d.meta.settings.desiredRetention)
+    await this.commit(w, changesFromWriteSet(w))
+  }
+
+  async completeDesign(slug: string, answer: DesignAnswer, now: Date): Promise<void> {
+    const d = this.data
+    const prev = { progress: find(d.progress, slug), note: find(d.notes, slug), card: find(d.cards, slug) }
+    const w = designWrites(prev, slug, answer, now, d.meta.settings.desiredRetention)
     await this.commit(w, changesFromWriteSet(w))
   }
 

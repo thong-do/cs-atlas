@@ -31,6 +31,8 @@ export class NullStore implements Store {
   })
   exportAll = async (_now: Date): Promise<ExportFile> => { throw new StoreUnavailableError() }
   markSolved = fail
+  completeQuiz = fail
+  completeDesign = fail
   saveNote = fail
   recordReview = fail
   recordTrainAttempt = fail

@@ -55,6 +55,17 @@ describe('SupabaseStore writes', () => {
     await store.markSolved('a', 'alone', 'insight a', day(3))
     expect(remote.data.activity.find((a) => a.date === '2026-10-03')?.solves).toBe(3)
   })
+
+  it('completeQuiz sends one apply_changes with every new card and one increment', async () => {
+    const remote = new FakeRemoteApi('user-1')
+    const spy = vi.spyOn(remote, 'applyChanges')
+    const store = make(remote)
+    await store.completeQuiz('q', ['a', 'b'], { correct: 4, total: 5 }, day(3))
+    expect(spy).toHaveBeenCalledTimes(1)
+    const changes = spy.mock.calls[0][0]
+    expect(changes.cards?.map((c) => c.slug)).toEqual(['q', 'q#a', 'q#b'])
+    expect(changes.activityIncrements).toHaveLength(1)
+  })
 })
 
 describe('SupabaseStore remote changes', () => {

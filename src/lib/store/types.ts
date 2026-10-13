@@ -1,4 +1,5 @@
 import type { ExportFile } from '@/lib/logic/transfer'
+import type { DesignAnswer } from './mutations'
 import type {
   Activity, Meta, Note, ProblemProgress, ReviewCard, ReviewLog, ReviewRating, Settings, SolveRating, TrainAttempt, UserData,
 } from '@/lib/types'
@@ -14,6 +15,8 @@ export interface Store {
   listProgress(): Promise<ProblemProgress[]>
   getProgress(slug: string): Promise<ProblemProgress | undefined>
   markSolved(slug: string, solveRating: SolveRating, insight: string, now: Date): Promise<void>
+  completeQuiz(slug: string, flashcardIds: string[], result: { correct: number; total: number }, now: Date): Promise<void>
+  completeDesign(slug: string, answer: DesignAnswer, now: Date): Promise<void>
   getNote(slug: string): Promise<Note | undefined>
   saveNote(note: Omit<Note, 'updatedAt'>, now: Date): Promise<void>
   getCard(slug: string): Promise<ReviewCard | undefined>

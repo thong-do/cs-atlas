@@ -19,6 +19,45 @@ npm run lint
 npm run e2e          # optional locally; CI runs it
 ```
 
+## Running with accounts (optional)
+
+The site works guest-only without any setup. To try sign-in and sync locally:
+
+1. Copy `.env.example` to `.env.local`.
+2. Run `npm run db:start` (requires Docker). It prints a local API URL (default `http://127.0.0.1:54321`) and an anon key; put them in `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+3. Sign-in needs a GitHub and a Google OAuth app, each with the callback `http://127.0.0.1:54321/auth/v1/callback`. Add these blocks to `supabase/config.toml` (next to the existing `[auth.external.apple]` block), then restart with `npx supabase stop` and `npm run db:start`:
+
+   ```toml
+   [auth.external.github]
+   enabled = true
+   client_id = "env(SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID)"
+   secret = "env(SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET)"
+   redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
+
+   [auth.external.google]
+   enabled = true
+   client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+   secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+   redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
+   skip_nonce_check = true
+   ```
+
+   Export `SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID`, `SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in your shell (or put them in `supabase/.env`, which is not committed). Never commit the secrets. `config.toml` already allows redirects back to `http://localhost:3000/**`, so open the app at `http://localhost:3000`. Or skip this step and work guest-only.
+4. `npm run db:test` runs the database tests.
+
+### Owner setup (production)
+
+The project owner does this once for the hosted site:
+
+1. Create a Supabase project (free tier) in region **Singapore (ap-southeast-1)** and note its URL and anon key.
+2. Apply the migrations: `npx supabase link` then `npx supabase db push`.
+3. **GitHub:** create an OAuth app with callback `https://<project-ref>.supabase.co/auth/v1/callback`, then enter its client ID and secret in Supabase → Auth → Providers → GitHub.
+4. **Google:** create an OAuth client in Google Cloud (web application) with the same callback URL and a consent screen, then enter it in Supabase → Auth → Providers → Google.
+5. **Redirect URLs.** In Supabase → Auth → URL configuration:
+   - Site URL: `https://cs-atlas-hub.vercel.app`
+   - Additional redirect URLs: `http://localhost:3000/**`, `https://cs-atlas-hub.vercel.app/**` and `https://*-thong-dos-projects.vercel.app/**` (previews)
+6. **Vercel.** Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for Production and Preview, then redeploy.
+
 ## How content is organised
 
 ```

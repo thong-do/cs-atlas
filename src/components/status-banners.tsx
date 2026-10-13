@@ -5,9 +5,9 @@ import { needsBackupReminder } from '@/lib/logic/dates'
 import { useLive, useStoreStatus } from '@/lib/store/context'
 
 export function StatusBanners() {
-  const { ready, available } = useStoreStatus()
+  const { ready, available, mode } = useStoreStatus()
   const backup = useLive(async (s) => ({ meta: await s.getMeta(), hasData: await s.hasData() }))
-  const showBackup = backup && needsBackupReminder(backup.meta.lastBackupAt, backup.hasData, new Date())
+  const showBackup = mode === 'guest' && backup && needsBackupReminder(backup.meta.lastBackupAt, backup.hasData, new Date())
 
   return (
     <>

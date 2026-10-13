@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
+import { AccountSection } from './account-section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -63,7 +65,7 @@ export function SettingsView() {
 
   async function doImport(mode: 'merge' | 'replace') {
     if (!pending) return
-    if (mode === 'replace' && !window.confirm('Replace ALL progress in this browser with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.')) return
+    if (mode === 'replace' && !window.confirm(`Replace ALL progress in ${status.mode === 'account' ? 'your account' : 'this browser'} with this backup? This cannot be undone. Tip: cancel and use “Export current data first” if you want a copy of what you have now.`)) return
     try {
       await store.importAll(pending, mode)
       if (mode === 'replace') setTheme(pending.data.meta.settings.theme)
@@ -97,11 +99,19 @@ export function SettingsView() {
     <div className="max-w-2xl space-y-10">
       <h1 className="text-2xl font-bold">Settings</h1>
 
+      <AccountSection />
+
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Backup</h2>
         <p className="text-sm text-muted-foreground">
-          Your progress lives only in this browser. Export a backup regularly
-          {meta?.lastBackupAt ? ` — last backup ${formatDateTime(meta.lastBackupAt)}.` : ' — you haven’t backed up yet.'}
+          {status.mode === 'account' ? (
+            'Your progress is saved to your account. You can still export a backup.'
+          ) : (
+            <>
+              Your progress lives only in this browser. Export a backup regularly
+              {meta?.lastBackupAt ? ` — last backup ${formatDateTime(meta.lastBackupAt)}.` : ' — you haven’t backed up yet.'}
+            </>
+          )}
         </p>
         {!canTransfer && status.ready && (
           <p role="status" className="text-sm text-destructive">Storage is unavailable in this browser, so backups can’t be exported or imported.</p>
@@ -151,6 +161,10 @@ export function SettingsView() {
           <option value="dark">Dark</option>
         </select>
       </section>
+
+      <p className="text-sm text-muted-foreground">
+        <Link href="/privacy/" className="underline">Privacy</Link>
+      </p>
     </div>
   )
 }

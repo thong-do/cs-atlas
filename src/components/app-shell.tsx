@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { cn } from '@/lib/utils'
+import { AuthButton } from './auth/auth-button'
 import { CommandPalette, openCommandPalette } from './command-palette'
 import { MasteryCelebration } from './mastery-celebration'
 import { StatusBanners } from './status-banners'
@@ -60,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
         <div className="mt-auto flex flex-col gap-1">
+          <AuthButton variant="sidebar" />
           <Link
             href="/settings/"
             aria-current={isActive('/settings/') ? 'page' : undefined}
@@ -74,6 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="flex h-12 items-center justify-between border-b px-4 md:hidden">
           <Link href="/" className="font-bold">CS Atlas</Link>
           <div className="flex items-center gap-4">
+            <AuthButton variant="header" />
             <button type="button" onClick={openCommandPalette} aria-label="Search"><Search className="size-5" /></button>
             <Link
               href="/settings/"

@@ -12,6 +12,7 @@ An open, community-built place to learn computer science — algorithms, system 
 - **Spaced repetition** (FSRS) on the Today page, so you review just before you'd forget
 - **Pattern-recognition trainer** for algorithms
 - **Cross-track roadmap** with your mastery on every lesson
+- **Accounts (optional)**: sign in with GitHub or Google to sync progress across devices — see [Privacy](https://cs-atlas-hub.vercel.app/privacy/)
 - Progress stays in your browser (IndexedDB); export a backup from Settings
 
 ## Develop

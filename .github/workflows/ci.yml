@@ -27,3 +27,13 @@ jobs:
       - run: npm run e2e
         env:
           CI: 'true'
+  db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,storage-api,mailpit,supavisor
+      - run: supabase test db

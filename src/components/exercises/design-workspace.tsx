@@ -24,16 +24,20 @@ export function DesignWorkspace({ design }: { design: DesignDoc }) {
   const [compared, setCompared] = useState(false)
   const [covered, setCovered] = useState<Set<string>>(new Set())
   const [saved, setSaved] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const solved = progress?.status === 'solved'
   const showReference = compared || !!note
 
   async function save() {
+    setBusy(true)
     try {
       await store.completeDesign(design.slug, { design: draft, insight, covered: covered.size, total: design.rubricPoints.length }, new Date())
       setSaved(`Saved — ${covered.size} of ${design.rubricPoints.length} rubric points`)
       toast.success('Saved to your progress')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -86,21 +90,27 @@ export function DesignWorkspace({ design }: { design: DesignDoc }) {
             <h2 id="reference-heading" className="text-xl font-semibold">Reference answer</h2>
             <Markdown>{design.reference}</Markdown>
           </section>
-          {compared && !saved && (
-            <section className="space-y-3" aria-labelledby="rubric-heading">
-              <h2 id="rubric-heading" className="text-xl font-semibold">Rubric</h2>
-              <fieldset className="space-y-2">
-                <legend className="text-sm text-muted-foreground">I covered this</legend>
-                {design.rubricPoints.map((r) => (
-                  <label key={r.id} className="flex cursor-pointer items-start gap-2 text-sm">
-                    <input type="checkbox" className="mt-1" checked={covered.has(r.id)} onChange={(e) => toggle(r.id, e.target.checked)} />
-                    <span className="min-w-0 break-words">{r.point}</span>
-                  </label>
-                ))}
-              </fieldset>
-              <Button onClick={save}>Save</Button>
-            </section>
-          )}
+          <section className="space-y-3" aria-labelledby="rubric-heading">
+            <h2 id="rubric-heading" className="text-xl font-semibold">Rubric</h2>
+            {compared && !saved ? (
+              <>
+                <fieldset className="space-y-2">
+                  <legend className="text-sm text-muted-foreground">I covered this</legend>
+                  {design.rubricPoints.map((r) => (
+                    <label key={r.id} className="flex cursor-pointer items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-1" checked={covered.has(r.id)} onChange={(e) => toggle(r.id, e.target.checked)} />
+                      <span className="min-w-0 break-words">{r.point}</span>
+                    </label>
+                  ))}
+                </fieldset>
+                <Button onClick={save} disabled={busy}>Save</Button>
+              </>
+            ) : (
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {design.rubricPoints.map((r) => <li key={r.id} className="break-words">{r.point}</li>)}
+              </ul>
+            )}
+          </section>
         </>
       )}
 

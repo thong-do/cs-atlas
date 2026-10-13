@@ -19,6 +19,7 @@ export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
   )
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [checked, setChecked] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [flipped, setFlipped] = useState<Set<string>>(new Set())
   const total = quiz.questions.length
   const allAnswered = quiz.questions.every((q) => answers[q.id] !== undefined)
@@ -26,12 +27,15 @@ export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
   const solved = progress?.status === 'solved'
 
   async function check() {
+    setBusy(true)
     try {
       await store.completeQuiz(quiz.slug, quiz.flashcards.map((f) => f.id), { correct, total }, new Date())
       setChecked(true)
       toast.success('Saved to your progress')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -90,7 +94,7 @@ export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
 
       <div className="flex flex-wrap items-center gap-3">
         {!checked ? (
-          <Button onClick={check} disabled={!allAnswered}>Check answers</Button>
+          <Button onClick={check} disabled={!allAnswered || busy}>Check answers</Button>
         ) : (
           <>
             <p role="status" className="font-medium">{correct} of {total} correct</p>

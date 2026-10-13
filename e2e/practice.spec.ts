@@ -74,7 +74,7 @@ test('the Caching ladder and the Exercises list show type badges and filter by t
   await expect(ladder.getByText('Design', { exact: true })).toBeVisible()
   await page.goto('/exercises/?type=quiz')
   await expect(page.getByLabel('Type')).toHaveValue('quiz')
-  await expect(page.getByText('4 of 145 exercises')).toBeVisible()
+  await expect(page.getByText('5 of 147 exercises')).toBeVisible()
 })
 
 const WRONG = ['About 19 ms', 'A random key', 'Only update the cache', 'Make the TTL shorter', 'Cache-aside']

@@ -68,7 +68,7 @@ describe('content inventory', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
-    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql'])
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing'])
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing', 'client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
@@ -82,6 +82,9 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'sql-vs-nosql')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('sql-vs-nosql')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('sql-vs-nosql')).map((e) => e.slug).sort()).toEqual(['design-orders-and-activity-storage', 'sql-vs-nosql-quiz'])
+    expect(lessons.find((l) => l.slug === 'load-balancing')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
+    expect(getLessonDoc('load-balancing')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('load-balancing')).map((e) => e.slug).sort()).toEqual(['design-checkout-load-balancing', 'load-balancing-quiz'])
   })
 
   const { lessons, exercises: allExercises } = getCatalog()
@@ -109,7 +112,7 @@ describe('content inventory', () => {
 
   it('maps every quiz flashcard to its quiz and lesson by review key', () => {
     const { flashcards } = getCatalog()
-    expect(Object.keys(flashcards)).toHaveLength(32)
+    expect(Object.keys(flashcards)).toHaveLength(40)
     expect(flashcards['client-server-http-quiz#idempotent']).toMatchObject({ quiz: 'client-server-http-quiz', lesson: 'client-server-http' })
     expect(flashcards['dns-cdn-quiz#dns-ttl']).toMatchObject({ quiz: 'dns-cdn-quiz', lesson: 'dns-cdn' })
     expect(flashcards['sql-vs-nosql-quiz#index']).toMatchObject({ quiz: 'sql-vs-nosql-quiz', lesson: 'sql-vs-nosql' })

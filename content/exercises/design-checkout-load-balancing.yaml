@@ -1,0 +1,49 @@
+slug: design-checkout-load-balancing
+type: design-prompt
+title: "Design: load balance a checkout service"
+lessons: [load-balancing]
+ladderOrder: 2
+prompt: |
+  A checkout service runs on **6 instances** and handles **3,000 requests/s** at peak. Each instance
+  stays healthy up to roughly **600 requests/s**. Instances are spread across **3 availability zones**.
+
+  Put load balancing in front of it. **A customer's cart must survive an instance dying, deploys must
+  not drop in-flight requests, and one whole availability zone may fail.**
+  Describe the balancer layer and algorithm, health checks, where cart state lives, how deploys
+  work, what happens when a zone fails (with numbers), and how the balancer itself stays available.
+hint: "Work out the per-instance load now, and again after a zone disappears. Does it still fit?"
+rubric:
+  - id: layer-algorithm
+    point: "Chooses a layer-7 balancer (or justifies layer 4) with round-robin or least-connections, and says why."
+  - id: stateless-carts
+    point: "Keeps carts out of instance memory (shared store or token), so no sticky sessions are needed and any instance can serve any request."
+  - id: health-drain
+    point: "Uses health checks to remove bad instances and connection draining on deploys, so in-flight requests finish."
+  - id: zone-capacity
+    point: "Does the capacity arithmetic for losing a zone and adds headroom or instances so the survivors stay under their limit."
+  - id: lb-redundancy
+    point: "Makes the balancer itself redundant, using a managed multi-zone balancer or a redundant pair, and enables cross-zone balancing."
+reference: |
+  **Layer and algorithm.** Use a managed layer-7 balancer across all three zones. Checkout is HTTP,
+  and layer 7 gives path routing, retries for safe requests and TLS termination. Use least-connections
+  (or round-robin if requests are uniform), with slow start for new instances.
+
+  **Carts.** Store them in a shared, replicated store such as Redis or the database, keyed by cart id,
+  or in a signed token. No sticky sessions: any instance can serve any request, so a dead instance
+  loses nothing. Make order placement idempotent with an idempotency key, so a retry cannot charge twice.
+
+  **Health and deploys.** Probe `/healthz` every few seconds and remove an instance after a few failures.
+  For deploys, roll one instance (or one zone) at a time: deregister it, let connections drain for 30–60 s,
+  replace it, wait until it passes health checks, then move on.
+
+  **Capacity.** Six instances share 3,000 requests/s at 500 each, which is 83% of the 600 limit. If a
+  zone with 2 instances fails, 4 remain and each carries 750 requests/s, which is over the limit.
+  Plan for it: with 9 instances (3 per zone), normal load is about 333 each, and after losing a zone
+  the remaining 6 carry 500 each. Autoscaling can add more, but it is too slow to rely on during the failure.
+
+  **Balancer availability.** A managed cloud balancer already runs across zones. Enable cross-zone
+  balancing so the instances share load evenly, and use a health-checked DNS name for the entry point.
+  With a self-run balancer, use a keepalived/VRRP pair on a virtual IP.
+
+  **Measure.** Per-instance request rate and p99 latency, healthy-host count per zone, 5xx rate,
+  and connection-draining timeouts.

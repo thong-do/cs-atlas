@@ -1,0 +1,56 @@
+slug: load-balancing-quiz
+type: quiz
+title: "Load balancing — quiz"
+lessons: [load-balancing]
+ladderOrder: 1
+questions:
+  - id: l4-vs-l7
+    prompt: "You want /api requests to go to one server pool and /images requests to another. What do you need?"
+    choices: ["A layer-4 balancer, because it is faster", "A layer-7 balancer that reads the HTTP request", "Round-robin across all servers", "A layer-4 balancer with a second IP address"]
+    answer: 1
+    explanation: "A layer-4 balancer sees only IPs and ports. Routing by URL path needs a layer-7 balancer that terminates HTTP and reads the request."
+  - id: varied-durations
+    prompt: "Requests vary from 10 ms to 5 s, and round-robin keeps overloading some servers. Which algorithm fits better?"
+    choices: ["Weighted round-robin with equal weights", "Hashing the client IP", "Least-connections", "Sending everything to one primary server"]
+    answer: 2
+    explanation: "Round-robin ignores how long requests last, so slow ones pile up. Least-connections sends new work to the server with the fewest active requests."
+  - id: sticky-sessions
+    prompt: "A service keeps carts in server memory and uses sticky sessions. What goes wrong when one server is removed?"
+    choices: ["The balancer stops working", "Users pinned to it lose their carts", "All servers restart", "TLS certificates expire"]
+    answer: 1
+    explanation: "State held in one server's memory dies with it. Keep sessions in a shared store such as Redis, so any server can serve any request."
+  - id: deploy-drop
+    prompt: "During a deploy, users see errors on requests that were in progress. What should you enable?"
+    choices: ["Connection draining, so in-flight requests can finish", "A shorter health check interval", "Sticky sessions to keep users on one server", "Least-response-time instead of round-robin"]
+    answer: 0
+    explanation: "Draining stops sending new requests to a server being removed but lets existing ones complete, up to a timeout."
+  - id: lb-spof
+    prompt: "Which design removes the load balancer as a single point of failure?"
+    choices: ["Adding more app servers behind it", "Using longer health check timeouts", "Terminating TLS on every app server", "Running a redundant pair or a managed multi-zone balancer"]
+    answer: 3
+    explanation: "Extra app servers do not help if the one balancer in front of them fails. It needs its own redundancy, such as a VRRP pair or a managed cloud balancer."
+flashcards:
+  - id: l4
+    front: "Layer-4 load balancer"
+    back: "Balances TCP/UDP connections using IPs and ports. Fast and simple, but cannot route on URL or headers."
+  - id: l7
+    front: "Layer-7 load balancer"
+    back: "Terminates HTTP, so it can route by path or header, retry and add headers. Costs more CPU per request."
+  - id: least-connections
+    front: "Least-connections"
+    back: "Send each new request to the server with the fewest active requests. Good when request durations vary."
+  - id: power-of-two
+    front: "Power of two choices"
+    back: "Pick two servers at random and use the less loaded one. Cheap, and avoids most of the worst imbalance."
+  - id: health-checks
+    front: "Active vs passive health checks"
+    back: "Active: the balancer probes a health endpoint on a timer. Passive: it marks a server down after real requests fail."
+  - id: draining
+    front: "Connection draining"
+    back: "Stop sending new requests to a server, let in-flight ones finish up to a timeout, then remove it."
+  - id: sticky
+    front: "Sticky session"
+    back: "Pins a user to one server. Skews load and loses state if that server dies, so prefer a shared session store."
+  - id: slow-start
+    front: "Slow start"
+    back: "Ramp a new server's share of traffic up gradually so a cold server isn't flooded."

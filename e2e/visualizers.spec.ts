@@ -7,6 +7,7 @@ const PAGES = [
   { path: '/algorithms/backtracking/', final: 'All 8 subsets found' },
   { path: '/system-design/dns-cdn/', final: 'Done: the first lookup took 75 ms, the cached one 5 ms' },
   { path: '/system-design/caching/', final: 'Done: 1 hit, 7 misses, 4 evictions' },
+  { path: '/system-design/load-balancing/', final: 'Done: peak load 2 with round-robin vs 1 with least-connections' },
 ]
 const VIEWPORTS = [
   { width: 375, height: 812 },

@@ -1,0 +1,56 @@
+slug: sql-vs-nosql-quiz
+type: quiz
+title: "SQL vs NoSQL — quiz"
+lessons: [sql-vs-nosql]
+ladderOrder: 1
+questions:
+  - id: atomicity
+    prompt: "A transfer debits one account and credits another. The credit fails. Which ACID property makes the debit disappear too?"
+    choices: ["Durability", "Isolation", "Atomicity", "Consistency"]
+    answer: 2
+    explanation: "Atomicity means all the changes in a transaction apply or none do. Isolation is about concurrent transactions, and durability is about surviving a crash."
+  - id: nosql-consistency
+    prompt: "A teammate says all NoSQL databases are eventually consistent only. What is the best reply?"
+    choices: ["True, that is what defines NoSQL", "NoSQL is a family; some stores offer strongly consistent reads or tunable consistency, so check the product", "True, but only for key-value stores", "False, every NoSQL database is fully ACID across all data"]
+    answer: 1
+    explanation: "The label covers very different systems. For example, Cassandra has tunable consistency and DynamoDB offers strongly consistent reads, each with caveats."
+  - id: pick-orders
+    prompt: "You store orders, payments and stock. Orders touch several entities, money must not be half-applied, and new report questions keep appearing. What is the pragmatic default?"
+    choices: ["A key-value store", "A graph database", "A wide-column store", "A relational database such as Postgres"]
+    answer: 3
+    explanation: "Relationships, constraints, multi-row transactions and ad-hoc queries are what relational databases are built for."
+  - id: pick-feed
+    prompt: "A product-view stream takes 20,000 writes/s and is only read as 'latest 50 events for one user'. Which design fits that access pattern best?"
+    choices: ["A wide-column table with partition key user_id and rows sorted newest first", "One normalized table joined to users on every read", "A graph database", "One document holding every event a user ever had"]
+    answer: 0
+    explanation: "Partitioning by user spreads writes, and the sort order makes 'latest 50' a single ordered read of one partition. One growing document gets huge and is rewritten on every event."
+  - id: scale-sql
+    prompt: "Reads on a Postgres primary are overloading it. Which step comes before sharding?"
+    choices: ["Migrate to a document store", "Add an index or caching, then read replicas", "Remove the foreign keys", "Disable transactions"]
+    answer: 1
+    explanation: "Tune queries and indexes, cache, and add read replicas first. They are cheaper than partitioning, though replicas can lag behind the primary."
+flashcards:
+  - id: schema
+    front: "Schema"
+    back: "The declared structure of the data: tables, columns and types. 'Schemaless' stores just move this contract into application code."
+  - id: join
+    front: "Join"
+    back: "Combine rows from tables by matching keys at query time, so shared data is stored once. Fast with a good index."
+  - id: atomicity
+    front: "Atomicity"
+    back: "All changes in a transaction apply, or none do. It is about all-or-nothing, not about concurrent access."
+  - id: isolation
+    front: "Isolation level"
+    back: "How much concurrent transactions can see of each other's work. Levels differ, and Postgres defaults to Read Committed."
+  - id: index
+    front: "Index"
+    back: "A sorted lookup structure, often a B-tree, that avoids scanning every row. It speeds reads and slows writes slightly."
+  - id: wide-column
+    front: "Wide-column store"
+    back: "Rows grouped by partition key and sorted inside it, such as Cassandra. Great for heavy writes and reads of a known range."
+  - id: denormalize
+    front: "Denormalization"
+    back: "Copy data into several places so one read gets everything. Reads get simpler; updates must touch every copy."
+  - id: read-replica
+    front: "Read replica"
+    back: "A copy of the database that serves reads. It spreads read load but can lag, so a fresh write may not show up yet."

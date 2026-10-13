@@ -1,0 +1,146 @@
+---
+slug: sql-vs-nosql
+title: SQL vs NoSQL
+level: beginner
+authors: [cs-atlas]
+prerequisites: [client-server-http]
+summary: "Pick a database for a workload by its relationships, transactions and access patterns, not by fashion."
+---
+
+## Intuition
+
+A **relational database** is a set of spreadsheets that point at each other. Customers live on one sheet, orders on another, and each order carries a customer number instead of a copy of the customer. Change a customer's address once and every order sees it.
+
+A **document store** is a filing cabinet of folders. Each folder holds everything about one order, ready to pull out in one grab. Fast to read, but if the same address sits in a thousand folders, you must update a thousand folders.
+
+"NoSQL" is not one technology. It is a label for several families that gave up some relational features to make specific access patterns cheap.
+
+**Relational (SQL) databases** such as Postgres and MySQL give you:
+
+- **A schema.** Tables with typed columns, enforced by the database.
+- **Joins.** Combine tables at query time, so data is stored once.
+- **Transactions.** Several changes succeed or fail together.
+- **Indexes.** Extra lookup structures so a query avoids scanning the whole table.
+
+The four ACID letters say what a transaction protects:
+
+| Letter | Means | Example |
+|---|---|---|
+| **A**tomicity | All the changes in a transaction happen, or none do | Debit and credit both apply, or neither |
+| **C**onsistency | A transaction moves the data from one valid state to another, under your constraints | A foreign key can't point at a missing row |
+| **I**solation | Concurrent transactions don't see each other's half-finished work, to a degree set by the **isolation level** | Two buyers can't both take the last item |
+| **D**urability | Once committed, a change survives a crash | A confirmed payment is on disk |
+
+Atomicity is all-or-nothing, not locking; isolation is what handles concurrency. Isolation comes in levels, and the default varies: Postgres uses Read Committed, and stronger levels such as Serializable cost more and can abort transactions you must retry.
+
+An **index** works like the index of a book: a sorted structure (usually a B-tree) that jumps to matching rows. It speeds reads and slows writes a little, since each write updates it too. Index the columns you filter and join on.
+
+## Visual
+
+The same order, stored two ways.
+
+```text
+Relational: data stored once, linked by keys
+
+  customers            orders                     order_items
+  id │ name            id │ customer_id │ status  order_id │ sku  │ qty │ price_cents
+  ───┼─────            ───┼─────────────┼──────   ─────────┼──────┼─────┼────────────
+   7 │ Ada             42 │      7      │ paid       42    │ A-1  │  2  │   1500
+                                  ▲                   42    │ B-9  │  1  │   4000
+                                  └── foreign key     └── foreign key to orders.id
+
+Document: everything for one order in one place
+
+  orders/42 → { "customer": {"id": 7, "name": "Ada"},
+                "status": "paid",
+                "items": [ {"sku": "A-1", "qty": 2, "price_cents": 1500},
+                           {"sku": "B-9", "qty": 1, "price_cents": 4000} ] }
+```
+
+The main NoSQL families:
+
+| Family | Data model | Good at | Example products |
+|---|---|---|---|
+| Key-value | `key → opaque value` | Lookup by key, sessions, counters | Redis, DynamoDB |
+| Document | `key → JSON-like document` | Reading or writing one aggregate at once | MongoDB |
+| Wide-column | Partition key, then sorted rows within it | Huge write volume, range reads inside a partition | Cassandra |
+| Graph | Nodes and edges | Multi-hop relationship queries | Neo4j |
+
+Wide-column stores (Cassandra) are not the same thing as columnar analytics engines (such as ClickHouse); the names sound alike but the use cases differ.
+
+## Example
+
+Model an order both ways. The relational schema:
+
+```sql
+CREATE TABLE orders (
+  id          BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id),
+  status      TEXT   NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE order_items (
+  order_id    BIGINT NOT NULL REFERENCES orders(id),
+  sku         TEXT   NOT NULL,
+  qty         INT    NOT NULL CHECK (qty > 0),
+  price_cents INT    NOT NULL
+);
+CREATE INDEX ON orders (customer_id, created_at DESC);
+```
+
+A question that crosses tables, and the index above keeps the lookup cheap:
+
+```sql
+SELECT o.id, SUM(i.qty * i.price_cents) AS total_cents
+FROM orders o JOIN order_items i ON i.order_id = o.id
+WHERE o.customer_id = 7
+GROUP BY o.id
+ORDER BY o.id DESC LIMIT 10;
+```
+
+Placing an order must be atomic: reserve stock and create the order together.
+
+```python
+with db.transaction():                                # BEGIN ... COMMIT, or ROLLBACK on error
+    ok = db.execute("UPDATE stock SET qty = qty - %s WHERE sku = %s AND qty >= %s", (n, sku, n))
+    if ok.rowcount == 0:
+        raise OutOfStock(sku)                         # nothing was changed
+    order_id = db.insert_order(customer_id, sku, n)
+```
+
+The document shape is the JSON in the Visual section. Its access pattern is "fetch order 42 by id", one read with no join. The price is that the customer's name is copied into each order, and a question like "total sold per SKU across all orders" has to scan documents or needs another index or view.
+
+Which would you pick for orders and payments? **SQL.** Orders touch several entities, money must not be half-applied, and you will ask questions nobody planned for.
+
+Now an activity feed read as "last 50 events for user u". That is one known query. A wide-column or key-value design fits it directly:
+
+```text
+partition key: user_id        sort key: event_time (newest first)
+(u:7, 2026-10-14T09:00:03Z) → {"type": "view", "sku": "A-1"}
+(u:7, 2026-10-14T09:00:01Z) → {"type": "view", "sku": "B-9"}
+```
+
+"Last 50 for user 7" reads one partition, in order. Writes spread across many partitions. You chose the table around the query, and you lose cheap ad-hoc questions. Relational can serve this too at moderate rates; the case for a wide-column store grows with write volume.
+
+## Pitfalls
+
+- **"NoSQL scales, SQL doesn't."** Both scale. SQL systems scale reads with replicas, and writes by sharding (tools like Citus or Vitess) or with distributed SQL (CockroachDB, Spanner). Sharding is a later lesson. What differs is how much work the database does for you.
+- **"NoSQL means no consistency."** It varies by product. Cassandra has tunable consistency per query. DynamoDB and MongoDB offer strongly consistent reads and transactions, with caveats such as extra cost or limits on scope. Read the guarantees of the exact setting you will use.
+- **"Schemaless means no schema."** The schema moves into your code. Every reader assumes fields and types, so old documents and new code can disagree. Version your documents and validate on write.
+- **"Joins are slow."** A join with a good index is fast. Slow joins usually mean a missing index or a huge scan. Denormalize only after measuring.
+- **Choosing by buzzword.** Picking a store for a scale you do not have trades real features (constraints, transactions, ad-hoc queries) for imaginary headroom.
+- **Ignoring the isolation level.** Assuming a transaction means "perfectly serial" invites races, such as two requests both reading stock as 1. Use a conditional update, a lock, or a stronger level.
+
+## Tips & tricks
+
+- **Default to Postgres.** One well-understood database handles relationships, transactions, JSON columns and plenty of scale. Move off it for a specific, measured reason.
+- **Decision checklist:**
+  - Relationships between entities, constraints and multi-row transactions: SQL.
+  - Very high write volume with simple, known access patterns (such as "last N per user"): wide-column or key-value.
+  - Lookup by one key at low latency, maybe as a cache or session store: key-value.
+  - One self-contained aggregate read and written together: document.
+  - Questions that follow many hops of relationships: graph.
+- **Scale in this order:** a bigger machine, then indexes and query tuning, then caching, then read replicas, then partitioning. Replicas can lag, so a read right after a write may be stale.
+- **Design NoSQL from the queries.** List the reads first, then shape the data. Adding a new query later often means a new table or an index.
+- **Mixing is normal.** A relational core for orders plus a key-value store for sessions plus a search index is common.
+- In interviews, state the access patterns, the consistency you need, and the write rate. Then say why one database satisfies them, and when you would add another.

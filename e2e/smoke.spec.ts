@@ -35,5 +35,5 @@ test('body font resolves to Geist', async ({ page }) => {
 test('exercises can be filtered by track from the URL', async ({ page }) => {
   await page.goto('/exercises/?track=system-design')
   await expect(page.getByLabel('Track')).toHaveValue('system-design')
-  await expect(page.getByText('4 of 140 exercises')).toBeVisible()
+  await expect(page.getByText('5 of 141 exercises')).toBeVisible()
 })

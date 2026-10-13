@@ -1,0 +1,189 @@
+---
+slug: client-server-http
+title: Client–server & HTTP
+level: beginner
+authors: [cs-atlas]
+prerequisites: []
+summary: "Read an HTTP exchange line by line and design a small REST API with the right methods and status codes."
+---
+
+## Intuition
+
+Think of a restaurant. You (the **client**) read the menu and place an order. The kitchen (the **server**) cooks and sends the dish back. The waiter carries messages in a fixed format, and does not remember you between visits — each order must say everything the kitchen needs.
+
+That is the web. A client (browser, phone app, another service) sends a **request**; a server sends a **response**. **HTTP** is the agreed format for both.
+
+HTTP is **stateless**: the server treats every request on its own and keeps nothing about the previous one. That sounds limiting, but it is what lets you run ten identical servers behind a load balancer — any of them can answer any request.
+
+A URL names the thing you want:
+
+```text
+https://api.example.com:443/v1/notes/42?fields=title#top
+└─┬──┘   └──────┬──────┘└┬─┘└────┬────┘└─────┬─────┘└┬─┘
+scheme        host     port    path        query  fragment
+```
+
+The fragment (`#top`) stays in the browser and is never sent to the server. The port is usually left out: 443 is the default for `https`, 80 for `http`.
+
+**Methods** say what you want to do. Two properties matter:
+
+- **Safe** means it does not change anything on the server (GET, HEAD).
+- **Idempotent** means doing it once or ten times leaves the same final state (GET, PUT, DELETE, HEAD).
+
+| Method | Typical use | Idempotent? |
+|---|---|---|
+| GET | Read a resource | Yes |
+| POST | Create something, or run an action | No |
+| PUT | Replace a resource completely | Yes |
+| PATCH | Change some fields | Not guaranteed |
+| DELETE | Remove a resource | Yes |
+
+Idempotency tells a client what is safe to **retry** after a timeout. Retrying a PUT is fine. Retrying a POST may create a duplicate, unless the API supports an idempotency key.
+
+**Status codes** come in classes: 1xx informational, 2xx success, 3xx redirect, 4xx *your* mistake, 5xx *our* mistake.
+
+| Code | Meaning |
+|---|---|
+| 200 OK | Success, body included |
+| 201 Created | New resource made; `Location` header points to it |
+| 204 No Content | Success, nothing to return |
+| 301 / 302 | Moved permanently / temporarily |
+| 304 Not Modified | Your cached copy is still good |
+| 400 Bad Request | Malformed or invalid input |
+| 401 Unauthorized | Not authenticated (no or bad credentials) |
+| 403 Forbidden | Authenticated, but not allowed |
+| 404 Not Found | No such resource |
+| 409 Conflict | Clashes with current state (duplicate, stale version) |
+| 429 Too Many Requests | Rate limited; see `Retry-After` |
+| 500 Internal Server Error | Unexpected bug on the server |
+| 502 / 503 / 504 | Bad gateway / unavailable / gateway timeout |
+
+**Headers** are key–value metadata. Three to know: `Content-Type` (the format of the body, such as `application/json`), `Cache-Control` (how long a response may be reused, such as `max-age=60`), and `Authorization` (credentials, such as `Bearer <token>`).
+
+Because the server is stateless, "who are you?" travels with every request. A **cookie** is stored by the browser and sent back automatically; a server-side session keeps the data and the cookie holds only an id. A **token** (often a JWT) is sent in the `Authorization` header, usually by app or API clients. Cookies suit browsers; tokens suit APIs. Mark session cookies `HttpOnly`, `Secure` and `SameSite`.
+
+Versions of HTTP, one line each:
+
+- **HTTP/1.1** — text-based; connections stay open (**keep-alive**) for reuse, but one request is in flight at a time per connection.
+- **HTTP/2** — binary; many requests are **multiplexed** over one TCP connection, and headers are compressed.
+- **HTTP/3** — the same ideas over **QUIC**, which runs on UDP, so one lost packet stalls only its own stream.
+
+## Visual
+
+One exchange. The client sends the first block, the server the second:
+
+```text
+GET /v1/notes/42 HTTP/1.1
+Host: api.example.com
+Accept: application/json
+Authorization: Bearer eyJhbGciOi...
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: max-age=60
+ETag: "v7"
+
+{"id": 42, "title": "Buy milk", "done": false}
+```
+
+Where the time goes on a first visit (illustrative, with a 50 ms round trip):
+
+```text
+DNS lookup      ░░░░                    ~20 ms  (skipped if cached)
+TCP handshake   ░░░░░░░░░░              1 round trip   ~50 ms
+TLS handshake   ░░░░░░░░░░              1 round trip   ~50 ms  (TLS 1.3)
+Request→resp.   ░░░░░░░░░░              1 round trip   ~50 ms
+Server work     ░░░░░░                  ~30 ms
+                                        ≈ 200 ms total
+```
+
+A second request on the same open connection pays only the last two lines. That is why keep-alive matters, and why a CDN close to the user helps.
+
+## Example
+
+A small **notes** API. Nouns in the URL, verbs in the method. Collections are plural: `/notes`.
+
+**Create** — the server assigns the id, so use POST to the collection:
+
+```text
+POST /v1/notes
+Content-Type: application/json
+
+{"title": "Buy milk"}
+
+→ 201 Created
+Location: /v1/notes/42
+{"id": 42, "title": "Buy milk", "done": false}
+```
+
+201 (not 200) says "something new exists", and `Location` tells the client where. An empty `title` would get **400**.
+
+**List with pagination** — never return an unbounded list:
+
+```text
+GET /v1/notes?limit=2&after=40
+
+→ 200 OK
+{"items": [{"id": 41, ...}, {"id": 42, ...}], "next": "42"}
+```
+
+`after` is a **cursor**: "give me notes after id 40". Cursors stay correct when rows are added meanwhile; `?page=3` can skip or repeat rows.
+
+**Update** — PATCH changes one field:
+
+```text
+PATCH /v1/notes/42
+{"done": true}
+
+→ 200 OK
+{"id": 42, "title": "Buy milk", "done": true}
+```
+
+Use PUT instead when the client sends the whole note; repeating it gives the same result. If someone else changed the note since you read it, reject the write with **409 Conflict**. (When the client sends `If-Match: "v7"` and the version no longer matches, the standard answer is 412 Precondition Failed.)
+
+**Delete**:
+
+```text
+DELETE /v1/notes/42
+
+→ 204 No Content
+```
+
+A second DELETE may return 404 or 204. The *state* is the same either way, which is what idempotent means. Other outcomes: **401** with no token, **403** for someone else's note, **404** for an unknown id, **429** over the rate limit.
+
+The same call in Python:
+
+```python
+import requests
+
+r = requests.post("https://api.example.com/v1/notes",
+                  json={"title": "Buy milk"},
+                  headers={"Authorization": f"Bearer {token}"},
+                  timeout=5)
+if r.status_code == 201:
+    note_id = r.json()["id"]
+elif r.status_code == 429:
+    wait = int(r.headers.get("Retry-After", "1"))   # back off, then retry
+else:
+    r.raise_for_status()
+```
+
+## Pitfalls
+
+- **Using 200 for everything**, with `{"error": ...}` in the body. Clients, caches and monitoring read the status code. Return the true class, and put details in the body.
+- **Confusing 401 and 403.** 401 means "I don't know who you are"; 403 means "I know, and the answer is no". Pick by whether authentication failed.
+- **Verbs in URLs** such as `/getNote` or `/deleteNote?id=42`. The method is already the verb. Use `GET /notes/42` and `DELETE /notes/42`.
+- **Changing state with GET.** Crawlers, prefetchers and caches assume GET is safe. Use POST, PUT or DELETE for changes.
+- **Blindly retrying POST** after a timeout, creating duplicates. Retry only idempotent methods, or send an idempotency key.
+- **Returning 500 for bad input.** A client mistake is a 4xx. Reserve 5xx for faults the client cannot fix, so alerts mean something.
+- **Putting secrets in the URL.** URLs land in logs, history and referrers. Send credentials in headers.
+- **No timeouts.** A client waiting forever on a slow server ties up its own resources. Always set one.
+
+## Tips & tricks
+
+- **Name resources as nouns**, plural, nested only as far as needed: `/users/7/notes`, not five levels deep. Version the API (`/v1/`).
+- **Make writes retry-safe:** prefer PUT and DELETE semantics, and give POSTs an idempotency key where duplicates would hurt (payments).
+- **Use conditional requests:** send an `ETag`; when the client asks with `If-None-Match`, answer `304` with no body.
+- **Gateway errors:** 502 means a proxy got a bad answer from upstream; 504 means upstream timed out; 503 means "overloaded or down, try later". Add `Retry-After` when you can.
+- **Measure** latency per phase (DNS, connect, TLS, time to first byte), the error rate per status class, and p99 rather than the average.
+- In interviews, state the resources, the methods, the status codes, how you paginate, and how a client safely retries.

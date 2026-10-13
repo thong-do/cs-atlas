@@ -5,10 +5,10 @@ lessons: [client-server-http]
 ladderOrder: 1
 questions:
   - id: statelessness
-    prompt: "What does it mean that HTTP is stateless, and why does it help scaling?"
-    choices: ["Servers cannot store any data, so they never need a database", "Each request carries everything needed, so any server can answer any request", "Clients must keep one connection to one server", "Responses are never cached"]
+    prompt: "HTTP is stateless. What does that mean for scaling?"
+    choices: ["Servers cannot store any data, so they never need a database", "Each request carries what is needed, so servers are interchangeable if shared state lives outside their memory", "Clients must keep one connection to one server", "Responses are never cached"]
     answer: 1
-    explanation: "The server keeps no memory of earlier requests, so identical servers behind a load balancer are interchangeable."
+    explanation: "HTTP itself carries no memory between requests; apps keep state in a shared store or token rather than one server's memory, so any server can answer."
   - id: retry-safety
     prompt: "A client times out waiting for a reply. Which request is safest to retry automatically?"
     choices: ["PUT /notes/42 with the full note", "POST /payments to charge a card", "POST /notes to create a note", "Any request, since the timeout means it failed"]
@@ -32,7 +32,7 @@ questions:
 flashcards:
   - id: stateless
     front: "Stateless"
-    back: "The server remembers nothing between requests; each request carries all it needs, so any server can answer."
+    back: "HTTP keeps no memory between requests; each carries what it needs. Keep app state in a shared store or token, not one server."
   - id: idempotent
     front: "Idempotent method"
     back: "Doing it once or many times leaves the same state. GET, PUT and DELETE are; POST is not. Safe to retry."
@@ -50,7 +50,7 @@ flashcards:
     back: "A version tag for a response. The client sends it back; if unchanged, the server replies 304 with no body."
   - id: http-versions
     front: "HTTP/2 vs HTTP/3"
-    back: "HTTP/2 multiplexes requests over one TCP connection. HTTP/3 runs over QUIC on UDP."
+    back: "HTTP/2 multiplexes streams on one TCP connection, so a lost packet stalls all. HTTP/3 uses QUIC on UDP: only that stream stalls."
   - id: cursor-pagination
     front: "Cursor pagination"
     back: "Ask for items after a given id or token. It stays correct when rows are added, unlike page numbers."

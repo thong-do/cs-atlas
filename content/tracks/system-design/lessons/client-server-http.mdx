@@ -13,14 +13,16 @@ Think of a restaurant. You (the **client**) read the menu and place an order. Th
 
 That is the web. A client (browser, phone app, another service) sends a **request**; a server sends a **response**. **HTTP** is the agreed format for both.
 
-HTTP is **stateless**: the server treats every request on its own and keeps nothing about the previous one. That sounds limiting, but it is what lets you run ten identical servers behind a load balancer — any of them can answer any request.
+HTTP itself is **stateless**: each request carries everything needed to understand it, and the protocol keeps no memory of earlier ones. Applications still have state (sessions, shopping carts). Servers are interchangeable behind a load balancer only when that state lives in a shared store (a database, Redis) or inside the token the client sends — not in one server's memory. Then any server can answer any request.
 
 A URL names the thing you want:
 
 ```text
 https://api.example.com:443/v1/notes/42?fields=title#top
-└─┬──┘   └──────┬──────┘└┬─┘└────┬────┘└─────┬─────┘└┬─┘
-scheme        host     port    path        query  fragment
+^^^^^   ~~~~~~~~~~~~~~~ ^^^~~~~~~~~~~~~^^^^^^^^^^^^^~~~~
+scheme  |               |  |           query        |
+        host            |  path                     fragment
+                        port
 ```
 
 The fragment (`#top`) stays in the browser and is never sent to the server. The port is usually left out: 443 is the default for `https`, 80 for `http`.
@@ -64,9 +66,9 @@ Because the server is stateless, "who are you?" travels with every request. A **
 
 Versions of HTTP, one line each:
 
-- **HTTP/1.1** — text-based; connections stay open (**keep-alive**) for reuse, but one request is in flight at a time per connection.
-- **HTTP/2** — binary; many requests are **multiplexed** over one TCP connection, and headers are compressed.
-- **HTTP/3** — the same ideas over **QUIC**, which runs on UDP, so one lost packet stalls only its own stream.
+- **HTTP/1.1** — text-based; connections stay open (**keep-alive**) for reuse, but in practice one request is in flight at a time per connection (pipelining exists but is effectively unused).
+- **HTTP/2** — binary; many requests are **multiplexed** over one TCP connection, and headers are compressed. Because it is still one TCP connection, one lost packet stalls every stream (TCP-level head-of-line blocking).
+- **HTTP/3** — the same ideas over **QUIC**, which runs on UDP, so one lost packet stalls only its own stream — fixing that TCP-level blocking.
 
 ## Visual
 
@@ -139,7 +141,7 @@ PATCH /v1/notes/42
 {"id": 42, "title": "Buy milk", "done": true}
 ```
 
-Use PUT instead when the client sends the whole note; repeating it gives the same result. If someone else changed the note since you read it, reject the write with **409 Conflict**. (When the client sends `If-Match: "v7"` and the version no longer matches, the standard answer is 412 Precondition Failed.)
+Use PUT instead when the client sends the whole note; repeating it gives the same result. If someone else changed the note since you read it, reject the write with **409 Conflict**: the client sends the `version` it read, and if the stored version is newer, the server refuses.  (When the client sends `If-Match: "v7"` and the version no longer matches, the standard answer is 412 Precondition Failed.)
 
 **Delete**:
 
@@ -154,6 +156,8 @@ A second DELETE may return 404 or 204. The *state* is the same either way, which
 The same call in Python:
 
 ```python
+import time
+
 import requests
 
 r = requests.post("https://api.example.com/v1/notes",
@@ -163,7 +167,9 @@ r = requests.post("https://api.example.com/v1/notes",
 if r.status_code == 201:
     note_id = r.json()["id"]
 elif r.status_code == 429:
-    wait = int(r.headers.get("Retry-After", "1"))   # back off, then retry
+    ra = r.headers.get("Retry-After", "1")
+    wait = int(ra) if ra.isdigit() else 1   # seconds; it can also be an HTTP date
+    time.sleep(wait)                        # back off, then retry the request
 else:
     r.raise_for_status()
 ```
@@ -183,7 +189,7 @@ else:
 
 - **Name resources as nouns**, plural, nested only as far as needed: `/users/7/notes`, not five levels deep. Version the API (`/v1/`).
 - **Make writes retry-safe:** prefer PUT and DELETE semantics, and give POSTs an idempotency key where duplicates would hurt (payments).
-- **Use conditional requests:** send an `ETag`; when the client asks with `If-None-Match`, answer `304` with no body.
+- **Use conditional requests:** send an `ETag`; when the client asks with `If-None-Match`, answer `304` with no body if the tag still matches; otherwise `200` with the new body.
 - **Gateway errors:** 502 means a proxy got a bad answer from upstream; 504 means upstream timed out; 503 means "overloaded or down, try later". Add `Retry-After` when you can.
 - **Measure** latency per phase (DNS, connect, TLS, time to first byte), the error rate per status class, and p99 rather than the average.
 - In interviews, state the resources, the methods, the status codes, how you paginate, and how a client safely retries.

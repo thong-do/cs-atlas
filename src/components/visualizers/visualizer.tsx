@@ -7,7 +7,11 @@ import { lruCacheSteps } from '@/lib/visualizers/cache-steps'
 import { heapSteps } from '@/lib/visualizers/heap-steps'
 import { houseRobberSteps, lcsTableSteps } from '@/lib/visualizers/table-steps'
 import { subsetsTreeSteps } from '@/lib/visualizers/tree-steps'
+import { dnsResolutionSteps } from '@/lib/visualizers/dns-steps'
+import { loadBalancerSteps } from '@/lib/visualizers/lb-steps'
 import { CacheView } from './cache-view'
+import { DnsView } from './dns-view'
+import { LbView } from './lb-view'
 import { HeapView } from './heap-view'
 import { TableView } from './table-view'
 import { TreeView } from './tree-view'
@@ -69,6 +73,16 @@ function CacheVisualizer() {
   return <StepPlayer steps={steps} title="LRU cache with room for 3: read A B C A D B E A" render={(s) => <CacheView step={s} />} />
 }
 
+function DnsVisualizer() {
+  const steps = useMemo(() => dnsResolutionSteps(), [])
+  return <StepPlayer steps={steps} title="Resolving www.example.com — first cold, then from the resolver's cache" render={(s) => <DnsView step={s} />} />
+}
+
+function LoadBalancerVisualizer() {
+  const steps = useMemo(() => loadBalancerSteps(), [])
+  return <StepPlayer steps={steps} title="8 requests, 3 servers: round-robin vs least-connections" render={(s) => <LbView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -81,6 +95,10 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <SubsetsVisualizer />
     case 'cache-lru':
       return <CacheVisualizer />
+    case 'dns-resolution':
+      return <DnsVisualizer />
+    case 'load-balancer':
+      return <LoadBalancerVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

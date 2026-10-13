@@ -41,7 +41,7 @@ function Player<S extends PlayerStep>({ steps, title, render }: StepPlayerProps<
     <figure className="not-prose my-6 space-y-3 rounded-lg border p-4">
       <figcaption className="text-sm font-medium">{title}</figcaption>
       {render(step)}
-      <p aria-live="polite" className={cn('min-h-12 text-sm', step.done && 'font-medium')}>{step.caption}</p>
+      <p aria-live="polite" className={cn('min-h-[3.75rem] text-sm', step.done && 'font-medium')}>{step.caption}</p>
       <div className="flex items-center gap-1">
         <Button size="icon" variant="outline" aria-label="Previous step" onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0}><SkipBack /></Button>
         <Button size="icon" variant="outline" aria-label={playing ? 'Pause' : 'Play'} onClick={() => setPlaying((p) => !p)} disabled={i === last}>{playing ? <Pause /> : <Play />}</Button>

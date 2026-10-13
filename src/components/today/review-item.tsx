@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { exerciseHref } from '@/lib/content/hrefs'
-import type { ExerciseMeta, ReviewRating } from '@/lib/types'
+import type { ProblemExercise, ReviewRating } from '@/lib/types'
 
 const RATINGS: { value: ReviewRating; label: string }[] = [
   { value: 'again', label: 'Again' },
@@ -18,7 +18,7 @@ const RATINGS: { value: ReviewRating; label: string }[] = [
 export function ReviewItem({
   exercise, insight, needsResolve, onRate,
 }: {
-  exercise: ExerciseMeta
+  exercise: ProblemExercise
   insight?: string
   needsResolve: boolean
   onRate: (rating: ReviewRating) => Promise<void>

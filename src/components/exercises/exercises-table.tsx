@@ -11,6 +11,7 @@ import { exerciseStatus, filterExercises, type ExerciseFilter } from '@/lib/logi
 import { exerciseHref } from '@/lib/content/hrefs'
 import { trackLookup } from '@/lib/logic/lessons'
 import { useLive } from '@/lib/store/context'
+import { isProblem } from '@/lib/types'
 
 const selectClass = 'h-9 rounded-md border bg-background px-2 text-sm'
 
@@ -74,13 +75,17 @@ export function ExercisesTable() {
           <li key={p.slug} className="flex items-center gap-3 px-3 py-2">
             <StatusIcon status={exerciseStatus(progress.get(p.slug))} />
             <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">
-              <span className="text-muted-foreground">{p.leetcodeId}.</span> {p.title}
+              {isProblem(p) && <span className="text-muted-foreground">{p.leetcodeId}. </span>}{p.title}
             </Link>
             <span className="hidden text-xs text-muted-foreground sm:inline">
               {p.lessons.map((s) => lessonBySlug.get(s)?.title ?? s).join(', ')}
             </span>
-            <DifficultyBadge difficulty={p.difficulty} />
-            <a href={p.url} target="_blank" rel="noreferrer" className="text-sm text-muted-foreground hover:text-foreground" aria-label={`Open ${p.title} on LeetCode`}>↗</a>
+            {isProblem(p) && (
+              <>
+                <DifficultyBadge difficulty={p.difficulty} />
+                <a href={p.url} target="_blank" rel="noreferrer" className="text-sm text-muted-foreground hover:text-foreground" aria-label={`Open ${p.title} on LeetCode`}>↗</a>
+              </>
+            )}
           </li>
         ))}
         {rows.length === 0 && <li className="px-3 py-6 text-center text-muted-foreground">No exercises match these filters.</li>}

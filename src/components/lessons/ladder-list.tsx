@@ -7,7 +7,7 @@ import { StatusIcon } from '@/components/status-icon'
 import { exerciseStatus } from '@/lib/logic/filter'
 import { exerciseHref } from '@/lib/content/hrefs'
 import { useLive } from '@/lib/store/context'
-import type { ExerciseMeta } from '@/lib/types'
+import { isProblem, type ExerciseMeta } from '@/lib/types'
 
 export function LadderList({ exercises }: { exercises: ExerciseMeta[] }) {
   const list = useLive((s) => s.listProgress())
@@ -20,8 +20,12 @@ export function LadderList({ exercises }: { exercises: ExerciseMeta[] }) {
           <span className="w-5 text-right text-xs text-muted-foreground">{i + 1}</span>
           <StatusIcon status={exerciseStatus(progress.get(p.slug))} />
           <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
-          <DifficultyBadge difficulty={p.difficulty} />
-          <a href={p.url} target="_blank" rel="noreferrer" aria-label={`Open ${p.title} on LeetCode`} className="text-sm text-muted-foreground hover:text-foreground">↗</a>
+          {isProblem(p) && (
+            <>
+              <DifficultyBadge difficulty={p.difficulty} />
+              <a href={p.url} target="_blank" rel="noreferrer" aria-label={`Open ${p.title} on LeetCode`} className="text-sm text-muted-foreground hover:text-foreground">↗</a>
+            </>
+          )}
         </li>
       ))}
     </ol>

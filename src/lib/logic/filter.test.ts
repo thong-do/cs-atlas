@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { ExerciseMeta, ProblemProgress } from '@/lib/types'
+import type { ExerciseMeta, ProblemExercise, ProblemProgress } from '@/lib/types'
 import { filterExercises, exerciseStatus, type ExerciseFilter } from './filter'
 
-const prob = (slug: string, title: string, id: number, lessons: string[], difficulty: ExerciseMeta['difficulty']): ExerciseMeta => ({
+const prob = (slug: string, title: string, id: number, lessons: string[], difficulty: ProblemExercise['difficulty']): ExerciseMeta => ({
   slug, type: 'external-problem', title, leetcodeId: id, url: 'https://leetcode.com/problems/x/', difficulty, lessons, ladderOrder: 1, recognitionPrompt: 'prompt', hint: 'h',
 })
 const exercises = [

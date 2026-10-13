@@ -79,9 +79,9 @@ content/
 
 ## Add an exercise
 
-1. Copy `templates/exercise.yaml` to `content/exercises/<slug>.yaml`. The slug must match the LeetCode URL.
+1. Copy a template to `content/exercises/<slug>.yaml`: `templates/exercise.yaml` for a LeetCode problem (the slug must match the LeetCode URL), `templates/quiz.yaml` for a quiz with flashcards, or `templates/design-prompt.yaml` for a design prompt.
 2. Set `ladderOrder` to the next free number in the primary lesson's ladder.
-3. Write `recognitionPrompt` and `hint` **in your own words**. Never paste a problem statement or a solution.
+3. Write the text **in your own words** (for a LeetCode problem: `recognitionPrompt` and `hint`). Never paste a problem statement or a solution.
 
 ## The quality bar (checked by the build)
 
@@ -105,7 +105,9 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V8 | Algorithms lessons have `triggers` and `complexity` |
 | V9 | Required sections are present; every `<Visualizer kind>` is a known kind |
 | V10 | Every lesson has at least one exercise |
-| V11 | Exercise file name equals its slug; slugs and LeetCode ids are unique; URLs are on leetcode.com |
+| V11 | LeetCode exercises: unique slugs, LeetCode ids and leetcode.com URLs (every exercise's file name equals its slug) |
+| V12 | Quiz: unique question and flashcard ids; each answer is one of its choices |
+| V13 | Design prompt: unique rubric ids |
 
 ## Writing style
 

@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/command'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { exerciseHref, lessonHref } from '@/lib/content/hrefs'
+import { isProblem } from '@/lib/types'
 
 const OPEN_EVENT = 'csatlas:open-palette'
 
@@ -70,8 +71,8 @@ export function CommandPalette() {
         ))}
         <CommandGroup heading="Exercises">
           {exercises.map((p) => (
-            <CommandItem key={p.slug} value={`exercise ${p.leetcodeId} ${p.title}`} onSelect={() => go(exerciseHref(p.slug))}>
-              <span className="text-muted-foreground">{p.leetcodeId}.</span> {p.title}
+            <CommandItem key={p.slug} value={`exercise ${isProblem(p) ? p.leetcodeId : ''} ${p.title}`} onSelect={() => go(exerciseHref(p.slug))}>
+              {isProblem(p) && <span className="text-muted-foreground">{p.leetcodeId}. </span>}{p.title}
             </CommandItem>
           ))}
         </CommandGroup>

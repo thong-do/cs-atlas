@@ -1,4 +1,4 @@
-import type { ExerciseMeta, LessonMeta } from '@/lib/types'
+import type { Flashcard, LessonMeta, ProblemExercise, QuizQuestion, RubricPoint } from '@/lib/types'
 import { VISUALIZER_KINDS } from '@/lib/visualizers/kinds'
 
 /** Track slugs become top-level routes, so they must not shadow a page or a redirected v1 path. */
@@ -15,8 +15,14 @@ export interface TrackInput {
 }
 /** A lesson plus its top-level (`##`) headings, its file path (relative to content/, no extension) and raw MDX source. */
 export type LessonInput = LessonMeta & { headings: string[]; path: string; raw: string }
+type ExerciseCommon = { slug: string; title: string; lessons: string[]; ladderOrder: number }
+/** The raw Velite exercise shape, one member per exercise type. */
+export type ExerciseInputDoc =
+  | ProblemExercise
+  | (ExerciseCommon & { type: 'quiz'; questions: QuizQuestion[]; flashcards: Flashcard[] })
+  | (ExerciseCommon & { type: 'design-prompt'; prompt: string; rubric: RubricPoint[]; reference: string; hint?: string })
 /** An exercise plus its file path (relative to content/, no extension). */
-export type ExerciseInput = ExerciseMeta & { path: string }
+export type ExerciseInput = ExerciseInputDoc & { path: string }
 export interface ContentInput {
   tracks: TrackInput[]
   lessons: LessonInput[]
@@ -106,7 +112,7 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
     }
   }
 
-  // V5/V7/V11 — exercises
+  // V5/V7/V11/V12/V13 — exercises
   const exerciseSlugs = new Set<string>()
   const ids = new Set<number>()
   const ladderKeys = new Set<string>()
@@ -116,9 +122,31 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
     if (baseName(e.path) !== e.slug) err('V11', file, `file name "${baseName(e.path)}" must equal slug "${e.slug}"`)
     if (exerciseSlugs.has(e.slug)) err('V11', file, `duplicate exercise slug "${e.slug}"`)
     exerciseSlugs.add(e.slug)
-    if (ids.has(e.leetcodeId)) err('V11', file, `duplicate leetcodeId ${e.leetcodeId}`)
-    ids.add(e.leetcodeId)
-    if (!/^https:\/\/leetcode\.com\//.test(e.url)) err('V11', file, 'url must be on leetcode.com')
+    if (e.type === 'external-problem') {
+      if (ids.has(e.leetcodeId)) err('V11', file, `duplicate leetcodeId ${e.leetcodeId}`)
+      ids.add(e.leetcodeId)
+      if (!/^https:\/\/leetcode\.com\//.test(e.url)) err('V11', file, 'url must be on leetcode.com')
+    } else if (e.type === 'quiz') {
+      const qids = new Set<string>()
+      for (const q of e.questions) {
+        if (qids.has(q.id)) err('V12', file, `duplicate question id "${q.id}"`)
+        qids.add(q.id)
+        if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer >= q.choices.length) {
+          err('V12', file, `question "${q.id}" answer ${q.answer} is not one of its ${q.choices.length} choices`)
+        }
+      }
+      const fids = new Set<string>()
+      for (const f of e.flashcards) {
+        if (fids.has(f.id)) err('V12', file, `duplicate flashcard id "${f.id}"`)
+        fids.add(f.id)
+      }
+    } else {
+      const rids = new Set<string>()
+      for (const r of e.rubric) {
+        if (rids.has(r.id)) err('V13', file, `duplicate rubric id "${r.id}"`)
+        rids.add(r.id)
+      }
+    }
     if (e.lessons.length === 0) {
       err('V5', file, 'lists no lessons')
       continue

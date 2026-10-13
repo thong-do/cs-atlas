@@ -50,25 +50,53 @@ const lessons = defineCollection({
     .transform(({ path, ...l }) => ({ ...l, path, track: path.split('/')[1] })),
 })
 
+const id = s.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'ids are lowercase-with-dashes')
+const base = {
+  slug: s.slug('exercises'),
+  title: s.string(),
+  lessons: s.array(s.string()).min(1),
+  ladderOrder: s.number().int().positive(),
+  path: s.path(),
+}
+
 const exercises = defineCollection({
   name: 'Exercise',
   pattern: 'exercises/*.yaml',
-  schema: s
-    .object({
-      slug: s.slug('exercises'),
-      // Phase 2 turns this into a discriminated union when quiz and flashcard exercises arrive.
+  schema: s.discriminatedUnion('type', [
+    s.object({
+      ...base,
       type: s.literal('external-problem'),
-      title: s.string(),
       leetcodeId: s.number().int().positive(),
       url: s.string().url(),
       difficulty: s.enum(['easy', 'medium', 'hard']),
-      lessons: s.array(s.string()).min(1),
-      ladderOrder: s.number().int().positive(),
       recognitionPrompt: s.string().min(10),
       hint: s.string().min(5),
-      path: s.path(),
-    })
-    .strict(), // unknown fields (e.g. a pasted solution) fail the build
+    }).strict(),
+    s.object({
+      ...base,
+      type: s.literal('quiz'),
+      questions: s.array(s.object({
+        id,
+        prompt: s.string().min(1),
+        choices: s.array(s.string().min(1)).min(2).max(5),
+        answer: s.number().int().min(0),
+        explanation: s.string().min(1),
+      }).strict()).min(3).max(8),
+      flashcards: s.array(s.object({
+        id,
+        front: s.string().min(1).max(200),
+        back: s.string().min(1).max(200),
+      }).strict()).max(20).default([]),
+    }).strict(),
+    s.object({
+      ...base,
+      type: s.literal('design-prompt'),
+      prompt: s.string().min(1),
+      rubric: s.array(s.object({ id, point: s.string().min(1) }).strict()).min(3).max(8),
+      reference: s.string().min(1),
+      hint: s.string().min(1).optional(),
+    }).strict(),
+  ]), // unknown fields (e.g. a pasted solution) fail the build
 })
 
 export default defineConfig({

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { LessonMeta, ExerciseMeta, TrainAttempt } from '@/lib/types'
+import type { LessonMeta, ProblemExercise, TrainAttempt } from '@/lib/types'
 import { mulberry32, shuffle } from './rng'
 import { buildQuestion, buildRound, pickDistractors, pickTrainExercises } from './trainer'
 
 const p = (slug: string, confusedWith: string[] = []): LessonMeta => ({
   slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith, triggers: ['t'], complexity: 'O(n)',
 })
-const prob = (slug: string, pattern: string, prompt = 'a prompt'): ExerciseMeta => ({
+const prob = (slug: string, pattern: string, prompt = 'a prompt'): ProblemExercise => ({
   slug, type: 'external-problem', title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',
   lessons: [pattern], ladderOrder: 1, recognitionPrompt: prompt, hint: 'h',
 })

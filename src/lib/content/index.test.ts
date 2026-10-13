@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { getCatalog, getExercise, getLessonDoc } from './index'
+import { isProblem } from '@/lib/types'
+import { getCatalog, getExercise, getExerciseDoc, getLessonDoc } from './index'
 
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
 const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
@@ -33,7 +34,9 @@ describe('content accessors', () => {
 
   it('finds a lesson doc with compiled body and an exercise by slug', () => {
     expect(getLessonDoc('two-pointers')?.body.length).toBeGreaterThan(0)
-    expect(getExercise('two-sum')?.leetcodeId).toBe(1)
+    expect(getExercise('two-sum')).toMatchObject({ leetcodeId: 1 })
+    expect(getExerciseDoc('two-sum')?.type).toBe('external-problem')
+    expect(getExerciseDoc('missing')).toBeUndefined()
     expect(getExercise('two-sum')?.type).toBe('external-problem')
     expect(getExercise('missing')).toBeUndefined()
   })
@@ -51,7 +54,8 @@ describe('content inventory', () => {
     expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['lru-cache', 'time-based-key-value-store'])
   })
 
-  const { lessons, exercises } = getCatalog()
+  const { lessons, exercises: allExercises } = getCatalog()
+  const exercises = allExercises.filter(isProblem)
   const algorithms = lessons.filter((l) => l.track === 'algorithms')
 
   it('has 18 algorithms lessons with the six standard sections in order', () => {
@@ -73,6 +77,10 @@ describe('content inventory', () => {
     }
   })
 
+  it('has no flashcards while no quiz exists', () => {
+    expect(getCatalog().flashcards).toEqual({})
+  })
+
   it('uses https leetcode problem URLs', () => {
     for (const e of exercises) expect(e.url, e.slug).toMatch(/^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/)
   })
@@ -92,5 +100,13 @@ it('ships contributor templates with the required sections and fields', () => {
   const exercise = readFileSync('templates/exercise.yaml', 'utf8')
   for (const f of ['slug', 'type', 'title', 'leetcodeId', 'url', 'difficulty', 'lessons', 'ladderOrder', 'recognitionPrompt', 'hint']) {
     expect(exercise).toMatch(new RegExp(`^${f}:`, 'm'))
+  }
+  const required: Record<string, string[]> = {
+    'templates/quiz.yaml': ['slug', 'type', 'title', 'lessons', 'ladderOrder', 'questions', 'flashcards'],
+    'templates/design-prompt.yaml': ['slug', 'type', 'title', 'lessons', 'ladderOrder', 'prompt', 'rubric', 'reference'],
+  }
+  for (const [file, fields] of Object.entries(required)) {
+    const text = readFileSync(file, 'utf8')
+    for (const f of fields) expect(text, `${file} ${f}`).toMatch(new RegExp(`^${f}:`, 'm'))
   }
 })

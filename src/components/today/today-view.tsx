@@ -13,7 +13,7 @@ import { currentStreak } from '@/lib/logic/dates'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
-import type { ReviewRating } from '@/lib/types'
+import { isProblem, type ProblemExercise, type ReviewRating } from '@/lib/types'
 import { ReviewItem } from './review-item'
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -44,7 +44,8 @@ export function TodayView() {
 
   const progressBySlug = new Map(data.progress.map((p) => [p.slug, p]))
   const solved = new Set(data.progress.filter((p) => p.status === 'solved').map((p) => p.slug))
-  const reviews = data.due.filter((d) => exerciseBySlug.has(d.card.slug))
+  // Quiz and design due cards arrive in Task 6; until then only problems are reviewed here.
+  const reviews = data.due.filter((d) => { const e = exerciseBySlug.get(d.card.slug); return !!e && isProblem(e) })
   const trackOf = trackLookup(lessons)
   const recommended = recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf))
   const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
@@ -100,7 +101,7 @@ export function TodayView() {
             {reviews.map(({ card, note }) => (
               <li key={card.slug}>
                 <ReviewItem
-                  exercise={exerciseBySlug.get(card.slug)!}
+                  exercise={exerciseBySlug.get(card.slug) as ProblemExercise}
                   insight={note?.insight}
                   needsResolve={!!progressBySlug.get(card.slug)?.needsResolve}
                   onRate={(rating) => rate(card.slug, rating)}
@@ -120,7 +121,7 @@ export function TodayView() {
             {nextUp.map((p) => (
               <li key={p.slug} className="flex items-center gap-3 px-3 py-2">
                 <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
-                <DifficultyBadge difficulty={p.difficulty} />
+                {isProblem(p) && <DifficultyBadge difficulty={p.difficulty} />}
               </li>
             ))}
           </ul>

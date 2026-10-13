@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import type { DesignDoc, DesignExercise, QuizDoc, QuizExercise } from '@/lib/types'
 import { isProblem } from '@/lib/types'
 import { getCatalog, getExercise, getExerciseDoc, getLessonDoc } from './index'
 
@@ -32,6 +33,26 @@ describe('content accessors', () => {
     expect(keys).toEqual([...keys].sort((a, b) => a[0] - b[0] || a[1] - b[1]))
   })
 
+  it('returns full quiz and design docs, and only the catalog fields in meta', () => {
+    const quiz = getExerciseDoc('caching-quiz') as QuizDoc
+    expect(quiz.type).toBe('quiz')
+    expect(quiz.questions).toHaveLength(5)
+    expect(quiz.questions[0]).toHaveProperty('choices')
+    expect(quiz.questions[0]).toHaveProperty('answer')
+    expect(getCatalog().exercises.find((e) => e.slug === 'caching-quiz')).toMatchObject({ questionCount: 5 })
+    const metaQuiz = getCatalog().exercises.find((e) => e.slug === 'caching-quiz')!
+    expect(metaQuiz).not.toHaveProperty('questions')
+    expect((metaQuiz as QuizExercise).flashcardIds).toHaveLength(8)
+
+    const design = getExerciseDoc('design-product-page-cache') as DesignDoc
+    expect(design).toHaveProperty('reference')
+    expect(design).toHaveProperty('hint')
+    expect(design.rubricPoints).toHaveLength(5)
+    const metaDesign = getCatalog().exercises.find((e) => e.slug === 'design-product-page-cache')!
+    expect((metaDesign as DesignExercise).rubric).toHaveLength(5)
+    expect(metaDesign).not.toHaveProperty('reference')
+  })
+
   it('finds a lesson doc with compiled body and an exercise by slug', () => {
     expect(getLessonDoc('two-pointers')?.body.length).toBeGreaterThan(0)
     expect(getExercise('two-sum')).toMatchObject({ leetcodeId: 1 })
@@ -51,7 +72,7 @@ describe('content inventory', () => {
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['lru-cache', 'time-based-key-value-store'])
+    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['caching-quiz', 'design-product-page-cache', 'lru-cache', 'time-based-key-value-store'])
   })
 
   const { lessons, exercises: allExercises } = getCatalog()
@@ -77,8 +98,10 @@ describe('content inventory', () => {
     }
   })
 
-  it('has no flashcards while no quiz exists', () => {
-    expect(getCatalog().flashcards).toEqual({})
+  it('maps every quiz flashcard to its quiz and lesson by review key', () => {
+    const { flashcards } = getCatalog()
+    expect(Object.keys(flashcards)).toHaveLength(8)
+    expect(flashcards['caching-quiz#ttl']).toMatchObject({ quiz: 'caching-quiz', lesson: 'caching' })
   })
 
   it('uses https leetcode problem URLs', () => {

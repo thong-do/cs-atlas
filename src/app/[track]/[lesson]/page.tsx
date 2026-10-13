@@ -76,7 +76,11 @@ export default async function LessonPage({ params }: { params: Promise<{ track: 
 
         <section id="practice-ladder" className="scroll-mt-20 space-y-3">
           <h2 className="text-2xl font-semibold">Practice ladder</h2>
-          <p className="text-sm text-muted-foreground">Easy to hard. Solve them in order — each one adds a twist.</p>
+          <p className="text-sm text-muted-foreground">
+            {ladder.every((e) => e.type === 'external-problem')
+              ? 'Easy to hard. Solve them in order — each one adds a twist.'
+              : 'Practice in order — each one builds on the last.'}
+          </p>
           <LadderList exercises={ladder} />
         </section>
       </article>

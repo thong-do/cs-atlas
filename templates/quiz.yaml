@@ -4,10 +4,21 @@ title: "Lesson Title — quiz"
 lessons: [lesson-slug]
 ladderOrder: 1                  # next free number in the lesson's ladder
 questions:                      # 3–8 questions, one correct answer each
+  # The quiz shows choices in this order — vary the correct position.
   - id: first-question
     prompt: "A question that checks understanding, not trivia."
     choices: ["Right answer", "Plausible wrong answer", "Another plausible wrong answer"]
     answer: 0                   # index of the correct choice (0-based)
+    explanation: "Why the right answer is right, in one or two sentences."
+  - id: second-question
+    prompt: "A question about when or why, not just what."
+    choices: ["Plausible wrong answer", "Another plausible wrong answer", "Right answer"]
+    answer: 2
+    explanation: "Why the right answer is right, in one or two sentences."
+  - id: third-question
+    prompt: "A question that applies the idea to a small case."
+    choices: ["Plausible wrong answer", "Right answer", "Another plausible wrong answer"]
+    answer: 1
     explanation: "Why the right answer is right, in one or two sentences."
 flashcards:                     # 0–20 cards; each side at most 200 characters
   - id: key-term

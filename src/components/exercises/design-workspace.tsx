@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { exerciseStatus } from '@/lib/logic/filter'
+import { INSIGHT_MAX, validateInsight } from '@/lib/logic/insight'
+import { cn } from '@/lib/utils'
 import { useLive, useStore } from '@/lib/store/context'
 import type { DesignDoc } from '@/lib/types'
 import { LessonBadges } from './lesson-badges'
@@ -26,6 +28,7 @@ export function DesignWorkspace({ design }: { design: DesignDoc }) {
   const [saved, setSaved] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const solved = progress?.status === 'solved'
+  const insightCheck = validateInsight(insight)
   const showReference = compared || !!note
 
   async function save() {
@@ -78,9 +81,27 @@ export function DesignWorkspace({ design }: { design: DesignDoc }) {
           </div>
           <div className="space-y-1">
             <Label htmlFor="design-insight">Key insight</Label>
-            <Input id="design-insight" value={insight} onChange={(e) => setInsight(e.target.value)} />
+            <Input
+              id="design-insight"
+              value={insight}
+              onChange={(e) => setInsight(e.target.value)}
+              aria-invalid={insight.trim() !== '' && !insightCheck.ok}
+              aria-describedby="design-insight-help"
+            />
+            <p id="design-insight-help" className={cn('text-xs', insight.trim() !== '' && !insightCheck.ok ? 'text-destructive' : 'text-muted-foreground')}>
+              {insight.trim() !== '' && !insightCheck.ok ? insightCheck.error : `${insight.trim().length}/${INSIGHT_MAX}`}
+            </p>
           </div>
-          <Button onClick={() => setCompared(true)} disabled={!draft.trim() || !insight.trim()}>Compare with reference</Button>
+          <Button onClick={() => setCompared(true)} disabled={!draft.trim() || !insightCheck.ok}>Compare with reference</Button>
+        </section>
+      )}
+
+      {compared && !saved && !note && (
+        <section className="space-y-3" aria-labelledby="your-design-heading">
+          <h2 id="your-design-heading" className="text-xl font-semibold">Your design</h2>
+          <p className="whitespace-pre-wrap break-words rounded-lg border p-4 text-sm">{draft}</p>
+          <p className="break-words text-sm"><span className="font-medium">Key insight:</span> {insight.trim()}</p>
+          <Button variant="outline" onClick={() => setCompared(false)}>Edit</Button>
         </section>
       )}
 

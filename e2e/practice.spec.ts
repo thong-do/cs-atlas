@@ -49,6 +49,24 @@ test('completing the design prompt saves the design as a note', async ({ page })
   await expect(page.getByText(/Protects hot keys from a stampede/)).toBeVisible()
 })
 
+test('design prompt validates the insight and lets the learner edit after comparing', async ({ page }) => {
+  await page.goto('/exercises/design-product-page-cache/')
+  const design = 'Line one of my design.\nLine two.'
+  await page.getByLabel('Your design').fill(design)
+  await page.getByLabel('Key insight').fill('x'.repeat(150))
+  await expect(page.getByRole('button', { name: 'Compare with reference' })).toBeDisabled()
+  await expect(page.getByText(/Keep it under 140 characters \(150\)/)).toBeVisible()
+  await page.getByLabel('Key insight').fill('Short insight')
+  await expect(page.getByText('13/140')).toBeVisible()
+  await page.getByRole('button', { name: 'Compare with reference' }).click()
+  await expect(page.getByRole('heading', { name: 'Your design' })).toBeVisible()
+  await expect(page.getByText('Line one of my design.')).toBeVisible()
+  await expect(page.getByText('Short insight')).toBeVisible()
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await expect(page.getByLabel('Your design')).toHaveValue(design)
+  await expect(page.getByLabel('Key insight')).toHaveValue('Short insight')
+})
+
 test('the Caching ladder and the Exercises list show type badges and filter by type', async ({ page }) => {
   await page.goto('/system-design/caching/')
   const ladder = page.locator('#practice-ladder')

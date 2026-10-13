@@ -76,7 +76,7 @@ Add the practice types that the new tracks need, so lessons without good LeetCod
 - **Catalog contents.** The catalog serialised into every page stays slim:
   - Problems: their current fields.
   - Quizzes: `questionCount` and `flashcardIds`.
-  - Design prompts: nothing extra.
+  - Design prompts: `rubric` (the point texts, which Today's Reveal needs).
 - **Flashcard map.** `Catalog.flashcards` is a `Record<string, { front, back, quiz, lesson }>` keyed by `"<quiz-slug>#<card-id>"`. Today needs it.
 - **Exercise page.** Questions, rubric, reference and hint load only on the exercise's own page, via `getExercise(slug)` on the server.
 - **Helper.** `flashcardKey(quizSlug, cardId)` builds the key, and `parseReviewKey(key)` returns `{ kind: 'exercise', slug } | { kind: 'flashcard', quiz, card }`.
@@ -86,6 +86,8 @@ Add the practice types that the new tracks need, so lessons without good LeetCod
 ### 4.1 Exercise page `/exercises/[slug]/`, by type
 
 **`external-problem`:** unchanged.
+
+**Note:** Grading happens in the browser, so quiz answers, explanations and the reference answer are part of the page's data before submitting (not shown on screen or to assistive tech until then).
 
 **`quiz` (`QuizWorkspace`):**
 - **Questions:** each is a `fieldset` of radio buttons, all shown at once.

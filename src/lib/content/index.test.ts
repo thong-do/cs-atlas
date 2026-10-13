@@ -132,4 +132,11 @@ it('ships contributor templates with the required sections and fields', () => {
     const text = readFileSync(file, 'utf8')
     for (const f of fields) expect(text, `${file} ${f}`).toMatch(new RegExp(`^${f}:`, 'm'))
   }
+  const entries = (file: string, key: string) => {
+    const text = readFileSync(file, 'utf8')
+    const body = text.split(new RegExp(`^${key}:.*$`, 'm'))[1]?.split(/^\S/m)[0] ?? ''
+    return (body.match(/^\s+- id:/gm) ?? []).length
+  }
+  expect(entries('templates/quiz.yaml', 'questions')).toBeGreaterThanOrEqual(3)
+  expect(entries('templates/design-prompt.yaml', 'rubric')).toBeGreaterThanOrEqual(3)
 })

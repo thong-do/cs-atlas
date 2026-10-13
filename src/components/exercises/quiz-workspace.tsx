@@ -9,6 +9,9 @@ import { exerciseStatus } from '@/lib/logic/filter'
 import { useLive, useStore } from '@/lib/store/context'
 import type { QuizDoc } from '@/lib/types'
 import { LessonBadges } from './lesson-badges'
+import { ReviewHistory } from './review-history'
+
+const RESULT_LABEL = { alone: 'solved alone', hint: 'solved with help', solution: 'needs another try' } as const
 
 export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
   const store = useStore()
@@ -58,7 +61,7 @@ export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
         </div>
         <p className="text-sm text-muted-foreground">
           {total} questions
-          {solved && progress?.solveRating && <> · Last result: {progress.solveRating === 'alone' ? 'solved alone' : 'solved with help'}</>}
+          {solved && progress?.solveRating && <> · Last result: {RESULT_LABEL[progress.solveRating]}</>}
         </p>
       </header>
 
@@ -103,7 +106,7 @@ export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
         )}
       </div>
 
-      {(solved || checked) && (
+      {(solved || checked) && quiz.flashcards.length > 0 && (
         <section className="space-y-3" aria-labelledby="flashcards-heading">
           <h2 id="flashcards-heading" className="text-xl font-semibold">Flashcards — in your reviews</h2>
           <p className="text-sm text-muted-foreground">{inReview ?? 0} of {quiz.flashcards.length} cards scheduled. Tap a card to flip it.</p>
@@ -125,6 +128,8 @@ export function QuizWorkspace({ quiz }: { quiz: QuizDoc }) {
           </div>
         </section>
       )}
+
+      {solved && <ReviewHistory slug={quiz.slug} />}
     </div>
   )
 }

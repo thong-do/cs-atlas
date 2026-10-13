@@ -58,3 +58,27 @@ test('the Caching ladder and the Exercises list show type badges and filter by t
   await expect(page.getByLabel('Type')).toHaveValue('quiz')
   await expect(page.getByText('1 of 140 exercises')).toBeVisible()
 })
+
+const WRONG = ['About 19 ms', 'A random key', 'Only update the cache', 'Make the TTL shorter', 'Cache-aside']
+
+test('after the quiz, flashcards come due on Today and can be reviewed', async ({ browser }) => {
+  const context = await browser.newContext()
+  const day1 = await context.newPage()
+  await day1.clock.install({ time: new Date('2026-10-13T09:00:00') })
+  await day1.goto('/exercises/caching-quiz/')
+  for (const text of WRONG) await day1.getByLabel(text, { exact: true }).check()
+  await day1.getByRole('button', { name: 'Check answers' }).click()
+  await expect(day1.getByText('0 of 5 correct')).toBeVisible()
+  await day1.close()
+
+  const later = await context.newPage()
+  await later.clock.install({ time: new Date('2026-10-20T09:00:00') })
+  await later.goto('/')
+  const cards = later.locator('article', { hasText: 'Flashcard · Caching' })
+  await expect(cards.first()).toBeVisible()
+  const before = await cards.count()
+  await cards.first().getByRole('button', { name: 'Reveal' }).click()
+  await cards.first().getByRole('button', { name: 'Good', exact: true }).click()
+  await expect(cards).toHaveCount(before - 1)
+  await expect(later.getByRole('link', { name: 'Take the quiz' })).toBeVisible()
+})

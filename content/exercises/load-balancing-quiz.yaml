@@ -16,17 +16,17 @@ questions:
     explanation: "Round-robin ignores how long requests last, so slow ones pile up. Least-connections sends new work to the server with the fewest active requests."
   - id: sticky-sessions
     prompt: "A service keeps carts in server memory and uses sticky sessions. What goes wrong when one server is removed?"
-    choices: ["The balancer stops working", "Users pinned to it lose their carts", "All servers restart", "TLS certificates expire"]
+    choices: ["Users are rebalanced with their carts intact", "Users pinned to it lose their carts", "The balancer replays their carts from its cache", "Their carts move to the next server in turn"]
     answer: 1
     explanation: "State held in one server's memory dies with it. Keep sessions in a shared store such as Redis, so any server can serve any request."
   - id: deploy-drop
     prompt: "During a deploy, users see errors on requests that were in progress. What should you enable?"
-    choices: ["Connection draining, so in-flight requests can finish", "A shorter health check interval", "Sticky sessions to keep users on one server", "Least-response-time instead of round-robin"]
+    choices: ["Connection draining, so in-flight requests can finish", "A shorter health check interval to spot removals sooner", "Sticky sessions to keep users on one server longer", "Least-response-time instead of round-robin selection"]
     answer: 0
     explanation: "Draining stops sending new requests to a server being removed but lets existing ones complete, up to a timeout."
   - id: lb-spof
     prompt: "Which design removes the load balancer as a single point of failure?"
-    choices: ["Adding more app servers behind it", "Using longer health check timeouts", "Terminating TLS on every app server", "Running a redundant pair or a managed multi-zone balancer"]
+    choices: ["Adding more app servers behind it", "Health checks that route around it instantly", "Terminating TLS on every app server instead", "Running a redundant pair or a managed multi-zone balancer"]
     answer: 3
     explanation: "Extra app servers do not help if the one balancer in front of them fails. It needs its own redundancy, such as a VRRP pair or a managed cloud balancer."
 flashcards:

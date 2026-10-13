@@ -13,12 +13,12 @@ A supermarket opens several checkout lanes and a person at the entrance points e
 
 A **load balancer** is that person. Clients talk to one address; the balancer forwards each request to one of many identical servers. That gives you two things:
 
-- **Scale out.** One server handles roughly 500 requests/s; six handle roughly 3,000. Adding servers is easier than buying a bigger one.
+- **Scale out.** If one server handles 500 requests/s (an illustrative figure), six handle about 3,000. Adding servers is easier than buying a bigger one.
 - **Survive failures.** Stop sending traffic to a dead server and users never notice.
 
-Spreading work only helps if the balancer picks well, so the choice of algorithm matters.
-
 **L4 vs L7.** A layer-4 balancer works on TCP/UDP connections. It sees IPs and ports, not HTTP, so it cannot route on a URL or header. It is fast and simple. A layer-7 balancer terminates the HTTP request, reads it, and can route `/api` to one pool and `/images` to another, add headers, or retry. It costs more CPU per request, and it is what most web systems use.
+
+Spreading work only helps if the balancer picks well, so the algorithm matters.
 
 | Algorithm | Picks | Good for |
 |---|---|---|
@@ -74,9 +74,11 @@ server {
 - `weight=2` on the third server gives it roughly twice the share, because it is a bigger machine.
 - `max_fails=3 fail_timeout=30s` is a **passive** health check: after 3 failed attempts within 30 s, nginx stops using that server for 30 s, then tries it again.
 - `backup` receives traffic only when all the others are unavailable.
-- `proxy_next_upstream` retries a failed request on another server. Retry only requests that are safe to repeat, such as GET.
+- `proxy_next_upstream` retries a failed request on another server. nginx already won't retry non-idempotent requests (POST, PATCH, LOCK) unless you add `non_idempotent`; leave it off unless you have idempotency keys.
 
-Active health checks, where the balancer probes a `/healthz` endpoint on a timer, are an NGINX Plus feature (`health_check`). Open-source nginx has only the passive kind. Cloud balancers, HAProxy and Envoy offer both.
+This snippet listens on port 80 to stay minimal. In production you would use `listen 443 ssl;` with certificates, so TLS terminates at the balancer.
+
+Active health checks, where the balancer probes a `/healthz` endpoint on a timer, are an NGINX Plus feature (`health_check`). Open-source nginx has only the passive kind. HAProxy and Envoy offer both active and passive checks; managed cloud balancers mainly use active checks.
 
 **Active** checks find a dead server before a user hits it. **Passive** checks cost nothing extra, but the first few real requests fail. Use a health endpoint that checks what the server needs to serve traffic, but not every downstream dependency; otherwise one slow database can mark every server unhealthy at once.
 
@@ -85,7 +87,7 @@ Active health checks, where the balancer probes a `/healthz` endpoint on a timer
 - **Sticky sessions.** Pinning a user to one server (by cookie or IP hash) lets you keep session data in memory, but it skews load, and when that server dies or is removed, those users lose their session. Move state out: a shared store such as Redis, or a signed token. Then any server can handle any request.
 - **Killing servers mid-request.** Removing a server during a deploy drops its in-flight requests. Use **connection draining** (called deregistration delay on AWS): stop new requests, let existing ones finish up to a timeout, then stop the server.
 - **Cold servers get flooded.** A new server with empty caches, under least-connections, looks idle and takes a surge. Use **slow start** to ramp its share over 30–60 s.
-- **The balancer as a single point of failure.** One balancer makes all your servers pointless when it fails. Run a redundant pair that shares a virtual IP (keepalived/VRRP), or use a managed cloud balancer, which runs across several machines and zones for you.
+- **The balancer as a single point of failure.** One balancer makes all your servers pointless when it fails. Run a redundant pair that shares a virtual IP (keepalived/VRRP), use a managed cloud balancer that runs across several machines and zones, or publish several balancer IPs in DNS, or announce one IP from many balancers via anycast.
 - **Capacity that only works when healthy.** Six instances at 3,000 requests/s carry 500 each. If an availability zone holding two of them fails, four remain and carry 750 each, 50% more. Keep headroom for the failure you plan to survive.
 - **Unsafe retries.** Retrying a non-idempotent POST can charge a card twice. Retry only idempotent requests, or use idempotency keys.
 

@@ -15,10 +15,10 @@ questions:
     answer: 1
     explanation: "DNS changes are not pushed. Resolvers and clients keep the old answer until its TTL ends (and some hold it longer), so 'propagation' is caches expiring."
   - id: apex-cname
-    prompt: "You want example.com (the zone apex) to point at your CDN's hostname. What is the standard-compliant way?"
+    prompt: "You want example.com (the zone apex) to point at your CDN's hostname. What do people actually do?"
     choices: ["Add a CNAME for example.com", "Add an MX record for example.com", "Use a provider's ALIAS/ANAME or CNAME flattening, or redirect the apex to www", "Add a TXT record for example.com"]
     answer: 2
-    explanation: "A CNAME cannot coexist with the NS and SOA records every apex has. Providers work around it by returning A/AAAA records for you (ALIAS, ANAME, flattening), or you can redirect the apex to a www name that has a CNAME."
+    explanation: "A CNAME cannot coexist with the NS and SOA records every apex has. Many DNS providers offer non-standard workarounds that return A/AAAA records for you (ALIAS, ANAME, flattening), or you can redirect the apex to a www name that has a CNAME."
   - id: asset-headers
     prompt: "A deploy produces app.3f9a1c.js (fingerprinted) and a new index.html that references it. Which caching setup is safest and fastest?"
     choices: ["index.html: max-age=31536000; app.3f9a1c.js: max-age=60", "Both files: no-store", "Both files: max-age=31536000", "app.3f9a1c.js: max-age=31536000, immutable; index.html: short TTL or revalidation"]
@@ -26,9 +26,9 @@ questions:
     explanation: "A fingerprinted name never changes meaning, so a long max-age is safe. The HTML is what points to the new names, so it must refresh quickly."
   - id: cache-key
     prompt: "Marketing adds a random ?utm_id=… to every link, and the CDN hit ratio collapses. Why?"
-    choices: ["The query string is part of the default cache key, so every URL looks like a different object", "CDNs cannot serve URLs with query strings", "Query strings turn a response into a POST", "The browser stops sending cookies"]
+    choices: ["The query string is usually part of the cache key, so every URL looks like a different object", "CDNs cannot serve URLs with query strings", "Query strings turn a response into a POST", "The browser stops sending cookies"]
     answer: 0
-    explanation: "By default the cache key includes the path and query string. Configure the CDN to ignore parameters that do not change the response."
+    explanation: "On many CDNs the default cache key includes the path and query string. Configure the CDN to ignore parameters that do not change the response."
 flashcards:
   - id: recursive-resolver
     front: "Recursive resolver"
@@ -47,7 +47,7 @@ flashcards:
     back: "Not a push: old answers just stay in caches until their TTL expires, so users switch at different times."
   - id: cache-key
     front: "CDN cache key"
-    back: "What makes two requests the same cached object: by default host, path and query string, optionally chosen headers."
+    back: "What makes two requests the same cached object: usually host, path and query string (provider defaults vary), optionally chosen headers."
   - id: s-maxage
     front: "s-maxage"
     back: "A Cache-Control setting for shared caches such as CDNs only. It overrides max-age there; browsers ignore it."

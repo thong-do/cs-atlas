@@ -39,10 +39,11 @@ reference: |
 
   **First visit.** A miss costs one trip to the origin per edge location, then everything is a hit. Use an
   origin shield or tiered cache so only one edge location per region fetches from the origin. With HTTP/2 or
-  HTTP/3, TLS 1.3, Brotli or gzip, and sized images, 2 MB from a nearby edge fits comfortably under 1.5 s.
+  HTTP/3, TLS 1.3, Brotli or gzip, and sized images, the network part is short. Transfer time still depends on bandwidth (2 MB is roughly 0.8 s at 20 Mbps, more on slow mobile), so keep the critical path small: render-blocking CSS/JS first, compressed, and images lazy-loaded below the fold.
 
-  **Load.** At 2,000 views/s with a 95%+ hit ratio on HTML and nearly 100% on assets, the origin sees a few
-  hundred requests per second at most, and a spike mostly lands on the edge.
+  **Load.** At 2,000 views/s with a 95%+ hit ratio on HTML and nearly 100% on assets, the origin load is tiny: with
+  `s-maxage=60` and an origin shield, each of the ~40 pages is revalidated about once a minute (under one request
+  per second), plus misses for new assets after a deploy. A spike mostly lands on the edge.
 
   **Measure.** Hit ratio, origin requests/s, p95 load time and time to first byte by region, DNS lookup time,
   and error rates. Alert if the hit ratio drops: it often means a changed cache key or headers.

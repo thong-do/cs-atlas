@@ -1,0 +1,56 @@
+slug: client-server-http-quiz
+type: quiz
+title: "Client–server & HTTP — quiz"
+lessons: [client-server-http]
+ladderOrder: 1
+questions:
+  - id: statelessness
+    prompt: "HTTP is stateless. What does that mean for scaling?"
+    choices: ["Servers must keep each user's session in local memory", "Any server can answer if session state lives in a shared store", "Clients must keep every request on the same server", "Responses can never be cached by anyone"]
+    answer: 1
+    explanation: "HTTP itself carries no memory between requests; apps keep state in a shared store or token rather than one server's memory, so any server can answer."
+  - id: retry-safety
+    prompt: "A client times out waiting for a reply. Which request is safest to retry automatically?"
+    choices: ["PUT /notes/42 with the full note", "POST /payments to charge a card", "POST /notes to create a note", "Any request, since the timeout means it failed"]
+    answer: 0
+    explanation: "PUT is idempotent: repeating it leaves the same state. A timeout does not mean the server did nothing, so repeating a POST can duplicate the charge or note."
+  - id: auth-codes
+    prompt: "A logged-in user requests another user's private note. Which status fits best?"
+    choices: ["401 Unauthorized", "400 Bad Request", "500 Internal Server Error", "403 Forbidden"]
+    answer: 3
+    explanation: "The user is authenticated but not allowed. 401 means the server doesn't know who you are."
+  - id: create-status
+    prompt: "POST /v1/notes creates a note. What should the response be?"
+    choices: ["200 OK with the new note in the body", "201 Created with a Location header", "204 No Content with an empty body", "302 Found redirecting to the notes list"]
+    answer: 1
+    explanation: "201 says a new resource exists, and Location tells the client where. 200 works for reads but hides that something was created."
+  - id: http-versions
+    prompt: "Which statement about HTTP versions is accurate?"
+    choices: ["HTTP/2 opens a new TCP connection for every request", "HTTP/3 still runs over TCP but shortens the handshake", "HTTP/3 uses QUIC over UDP; HTTP/2 shares one TCP connection", "HTTP/1.1 closes its connection after every response"]
+    answer: 2
+    explanation: "HTTP/2 multiplexes streams over a single TCP connection; HTTP/3 uses QUIC over UDP. HTTP/1.1 reuses connections via keep-alive."
+flashcards:
+  - id: stateless
+    front: "Stateless"
+    back: "HTTP keeps no memory between requests; each carries what it needs. Keep app state in a shared store or token, not one server."
+  - id: idempotent
+    front: "Idempotent method"
+    back: "Doing it once or many times leaves the same state. GET, PUT and DELETE are; POST is not. Safe to retry."
+  - id: status-401-403
+    front: "401 vs 403"
+    back: "401: not authenticated, the server doesn't know who you are. 403: known, but not allowed."
+  - id: status-classes
+    front: "Status code classes"
+    back: "2xx success, 3xx redirect, 4xx client error, 5xx server error."
+  - id: keep-alive
+    front: "Keep-alive"
+    back: "Reusing one open connection for many requests, avoiding a new TCP and TLS handshake each time."
+  - id: etag
+    front: "ETag and 304"
+    back: "A version tag for a response. The client sends it back; if unchanged, the server replies 304 with no body."
+  - id: http-versions
+    front: "HTTP/2 vs HTTP/3"
+    back: "HTTP/2 multiplexes streams on one TCP connection, so a lost packet stalls all. HTTP/3 uses QUIC on UDP: only that stream stalls."
+  - id: cursor-pagination
+    front: "Cursor pagination"
+    back: "Ask for items after a given id or token. It stays correct when rows are added, unlike page numbers."

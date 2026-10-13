@@ -9,6 +9,8 @@ export const VISUALIZER_KINDS = [
   'house-robber',
   'subsets-tree',
   'cache-lru',
+  'dns-resolution',
+  'load-balancer',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

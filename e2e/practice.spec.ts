@@ -1,10 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const CORRECT = [
   'About 1.95 ms',
   'The key that was used least recently',
   'Update the database, then delete the cached key',
-  'Add random jitter to TTLs and let one request refill while others wait',
+  'Jitter the TTLs and let one request refill the key',
   'Write-back',
 ]
 
@@ -67,6 +67,13 @@ test('design prompt validates the insight and lets the learner edit after compar
   await expect(page.getByLabel('Key insight')).toHaveValue('Short insight')
 })
 
+async function countLine(page: Page) {
+  const text = (await page.getByText(/^\d+ of \d+ exercises$/).textContent()) ?? ''
+  const m = /^(\d+) of (\d+) exercises$/.exec(text)
+  expect(m).not.toBeNull()
+  return { shown: Number(m![1]), total: Number(m![2]) }
+}
+
 test('the Caching ladder and the Exercises list show type badges and filter by type', async ({ page }) => {
   await page.goto('/system-design/caching/')
   const ladder = page.locator('#practice-ladder')
@@ -74,10 +81,14 @@ test('the Caching ladder and the Exercises list show type badges and filter by t
   await expect(ladder.getByText('Design', { exact: true })).toBeVisible()
   await page.goto('/exercises/?type=quiz')
   await expect(page.getByLabel('Type')).toHaveValue('quiz')
-  await expect(page.getByText('1 of 140 exercises')).toBeVisible()
+  const { shown, total } = await countLine(page)
+  expect(shown).toBeLessThan(total)
+  const rows = page.locator('main ul.divide-y > li')
+  await expect(rows).toHaveCount(shown)
+  await expect(rows.filter({ has: page.getByText('Quiz', { exact: true }) })).toHaveCount(shown)
 })
 
-const WRONG = ['About 19 ms', 'A random key', 'Only update the cache', 'Make the TTL shorter', 'Cache-aside']
+const WRONG = ['About 19 ms', 'A random key', 'Only update the cache', 'Shorten the TTL so keys refresh more often', 'Cache-aside']
 
 test('after the quiz, flashcards come due on Today and can be reviewed', async ({ browser }) => {
   const context = await browser.newContext()

@@ -1,0 +1,56 @@
+slug: dns-cdn-quiz
+type: quiz
+title: "DNS & CDNs — quiz"
+lessons: [dns-cdn]
+ladderOrder: 1
+questions:
+  - id: lookup-cost
+    prompt: "A resolver has no cached answer. Hops cost 5 ms (to the resolver), 20 ms (root), 20 ms (TLD) and 30 ms (authoritative). A second device then asks the same resolver within the TTL. How long do the two lookups take?"
+    choices: ["75 ms, then 75 ms", "5 ms, then 5 ms", "75 ms, then 5 ms", "55 ms, then 20 ms"]
+    answer: 2
+    explanation: "The first lookup walks the hierarchy: 5 + 20 + 20 + 30 = 75 ms. The second is answered from the resolver's cache, so it pays only the 5 ms to reach the resolver."
+  - id: propagation
+    prompt: "You change a site's A record, but some users still reach the old server hours later. What is the best explanation?"
+    choices: ["Caches holding the old answer have not expired", "The root servers have not copied the change yet", "The new record is stored only in one country", "Browsers refuse to use new IP addresses"]
+    answer: 0
+    explanation: "DNS changes are not pushed. Resolvers and clients keep the old answer until its TTL ends (and some hold it longer), so 'propagation' is caches expiring."
+  - id: apex-cname
+    prompt: "You want example.com (the zone apex) to point at your CDN's hostname. What do people actually do?"
+    choices: ["Add a CNAME for example.com pointing at the CDN hostname", "Add an MX record for example.com pointing at the CDN hostname", "Add a TXT record for example.com naming the CDN hostname", "Use ALIAS/ANAME or CNAME flattening, or redirect to www"]
+    answer: 3
+    explanation: "A CNAME cannot coexist with the NS and SOA records every apex has. Many DNS providers offer non-standard workarounds that return A/AAAA records for you (ALIAS, ANAME, flattening), or you can redirect the apex to a www name that has a CNAME."
+  - id: asset-headers
+    prompt: "A deploy produces app.3f9a1c.js (fingerprinted) and a new index.html that references it. Which caching setup is safest and fastest?"
+    choices: ["index.html: max-age=31536000; app.3f9a1c.js: max-age=60", "JS: max-age=31536000, immutable; HTML: short TTL or revalidate", "Both files: max-age=31536000, with no revalidation", "Both files: no-store, so every visit fetches from origin"]
+    answer: 1
+    explanation: "A fingerprinted name never changes meaning, so a long max-age is safe. The HTML is what points to the new names, so it must refresh quickly."
+  - id: cache-key
+    prompt: "Marketing adds a random ?utm_id=… to every link, and the CDN hit ratio collapses. Why?"
+    choices: ["The CDN purges cached copies when it sees an unfamiliar parameter", "Browsers add no-cache headers to URLs that carry a query string", "The query string is usually part of the cache key, so each URL looks new", "The extra parameter changes the hostname, so edge lookups miss too"]
+    answer: 2
+    explanation: "On many CDNs the default cache key includes the path and query string. Configure the CDN to ignore parameters that do not change the response."
+flashcards:
+  - id: recursive-resolver
+    front: "Recursive resolver"
+    back: "The server that looks up a name for you by asking root, TLD and authoritative servers, and caches the answer."
+  - id: authoritative-server
+    front: "Authoritative server"
+    back: "The name server that holds the real records for a domain. It is the source of truth, not a cache."
+  - id: dns-ttl
+    front: "DNS TTL"
+    back: "How many seconds an answer may be cached. Short means fast changes but more lookups; long is cheaper but slow to change."
+  - id: cname
+    front: "CNAME record"
+    back: "Says one name is an alias of another. It can't be at the zone apex; providers offer ALIAS/ANAME or flattening."
+  - id: propagation
+    front: "DNS propagation"
+    back: "Not a push: old answers just stay in caches until their TTL expires, so users switch at different times."
+  - id: cache-key
+    front: "CDN cache key"
+    back: "What makes two requests the same cached object: usually host, path and query string (provider defaults vary), optionally chosen headers."
+  - id: s-maxage
+    front: "s-maxage"
+    back: "A Cache-Control setting for shared caches such as CDNs only. It overrides max-age there; browsers ignore it."
+  - id: fingerprinting
+    front: "Versioned (fingerprinted) assets"
+    back: "File names that include a content hash, like app.3f9a1c.js. A change means a new name, so a long max-age is safe."

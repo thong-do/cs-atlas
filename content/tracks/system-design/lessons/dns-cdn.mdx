@@ -1,0 +1,136 @@
+---
+slug: dns-cdn
+title: DNS & CDNs
+level: beginner
+authors: [cs-atlas]
+prerequisites: [client-server-http]
+summary: "Trace how a name becomes an IP address, and serve a site from edge caches close to users with safe cache headers and purges."
+---
+
+## Intuition
+
+Before you can phone a friend, you look up their number. **DNS** (the Domain Name System) is the web's phone book: it turns a name like `www.example.com` into an IP address like `192.0.2.10` (a reserved documentation address). It is split into a hierarchy, and every layer remembers answers for a while.
+
+A **CDN** (content delivery network) is a chain of local shops. Instead of everyone driving to one far-away warehouse (your **origin** server), copies of popular goods sit in nearby shops (**edge** servers).
+
+**The DNS hierarchy.** Names read right to left: `www.example.com.` (the final dot is the **root**).
+
+- **Root servers** know who runs each top-level domain.
+- **TLD servers** (`.com`, `.org`, `.uk`) know which name servers run each domain under them.
+- **Authoritative servers** hold the real records for `example.com`. They are the source of truth.
+
+Your device does not walk this tree itself. It asks a **recursive resolver** (usually run by your ISP, company or a public provider), which does the walking and caches the results. The resolver *asks around on your behalf*; the authoritative server *owns the answer*.
+
+**Record types:**
+
+| Type | Holds | Example |
+|---|---|---|
+| A | A name's IPv4 address | `www` → `192.0.2.10` |
+| AAAA | A name's IPv6 address | `www` → `2001:db8::10` |
+| CNAME | "This name is an alias of that name" | `www` → `edge.cdn-provider.example` |
+| MX | Where to deliver email for the domain | `10 mail.example.com` |
+| TXT | Free text: domain-ownership proofs, SPF and similar | `"v=spf1 ..."` |
+| NS | Which name servers are authoritative for a zone | `ns1.dns-host.example` |
+
+A CNAME cannot sit at the **zone apex** (`example.com` itself), because the apex must also carry NS and SOA records and a CNAME may not share a name with other records. Many DNS providers offer non-standard workarounds (ALIAS, ANAME, CNAME flattening) that return plain A/AAAA records there.
+
+**TTL (time to live)** is the number of seconds an answer may be cached. Short TTLs allow quick changes but cause more lookups. Long TTLs are cheaper but slow every change. A TTL is a maximum the owner asks for: resolvers and browsers may cap it or, in practice, sometimes hold answers longer. Resolvers also cache failures (**negative caching**): "no such name" can be remembered, so a record you just created may look missing for a while.
+
+**Why changes "propagate" slowly.** Nothing is pushed anywhere. Propagation is just thousands of caches, each holding the old answer, expiring at different moments. With a 24-hour TTL, some users may see the old address for a day. Lower the TTL well before a planned change, then raise it after.
+
+**Steering users.** Authoritative servers can answer differently depending on who asks. **GeoDNS** returns an address near the asker; **latency-based routing** returns the region with the best measured latency. They see the *resolver's* address, not the user's, unless the resolver forwards part of the user's address (EDNS Client Subnet), which many large public resolvers do. Answers are cached, so DNS failover is only as fast as the TTL.
+
+**What a CDN does.** An edge server receives the request. If it holds a fresh copy (a **hit**), it answers immediately. If not (a **miss**), it fetches from the origin, stores the copy, and answers. Key ideas:
+
+- **Cache key:** what makes two requests "the same". Usually it is the host, path and query string (provider defaults vary); CDNs can also vary it by chosen headers (such as `Accept-Encoding`). `/a.js?v=1` and `/a.js?v=2` are different entries.
+- **Origin-controlled caching:** the origin sends `Cache-Control`. `max-age=N` applies to every cache, including browsers. `s-maxage=N` applies only to *shared* caches such as CDNs and overrides `max-age` there. `public` explicitly marks the response as storable by shared caches (it matters most for responses to requests carrying `Authorization`); `private` means only the user's own browser may. `no-store` means do not keep it anywhere.
+- **Invalidation:** a "purge" drops objects early, by URL, tag or everything. It takes seconds to a few minutes, depending on the provider.
+- **What is worth caching:** static files (images, scripts, CSS, fonts, downloads) and public pages the same for everyone. Personalised responses (a logged-in dashboard) get `private` or `no-store`.
+
+**Anycast.** One IP address is announced from many locations; internet routing sends each packet to a nearby one. Root servers, public resolvers and CDNs use it. Routing follows network paths, so the machine reached is usually, but not always, the nearest.
+
+CDNs also absorb traffic spikes and many floods at the edge. That protects the origin only if it is reachable through the CDN alone.
+
+## Visual
+
+The visualizer walks through the same lookup twice, with the numbers used in this lesson. The first lookup has to ask the root, the TLD and the authoritative server; the second, from another device on the same network, is answered from the resolver's cache.
+
+<Visualizer kind="dns-resolution" />
+
+Hop times are illustrative: 5 ms to the resolver, then 20 ms (root), 20 ms (TLD) and 30 ms (authoritative). First lookup 5 + 20 + 20 + 30 = **75 ms**; cached lookup **5 ms**. The record's TTL is 300 s, so the resolver may keep it for up to 5 minutes.
+
+A CDN edge serving a hit, then a miss:
+
+```text
+HIT   user ──► edge (Frankfurt) ──► user              ~20 ms
+               copy found, still fresh
+
+MISS  user ──► edge (Frankfurt) ──► origin (Virginia) ──► edge ──► user
+               no copy / expired    ~90 ms round trip     stores copy
+                                                          ~110 ms
+next user nearby: HIT
+```
+
+Times are illustrative. The origin round trip is paid once, not once per user.
+
+## Example
+
+Serve `www.example.com` through a CDN. Names like `edge.cdn-provider.example` are placeholders for your provider's hostname.
+
+**1. DNS records** at your authoritative DNS host:
+
+```text
+www.example.com.   300  IN  CNAME  edge.cdn-provider.example.
+example.com.       300  IN  ALIAS  edge.cdn-provider.example.   ; provider-specific, not a standard type
+```
+
+A resolver follows the CNAME and resolves the CDN's name, which the CDN answers with an edge address near the user (via GeoDNS or anycast).
+
+**2. First request: a miss.** No edge has `/assets/app.3f9a1c.js` yet, so it fetches from the origin:
+
+```text
+GET /assets/app.3f9a1c.js HTTP/1.1
+Host: www.example.com
+
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+Content-Type: text/javascript
+X-Cache: MISS            (header name varies by CDN)
+```
+
+**3. Second request: a hit.** Same URL, now served from the edge, with no origin traffic:
+
+```text
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+Age: 42                  (seconds this copy has sat in a shared cache)
+X-Cache: HIT
+```
+
+**4. Headers by file type.** The file name `app.3f9a1c.js` contains a hash of its content (a **versioned** or fingerprinted name). A changed file gets a new name, so a one-year `max-age` is safe. The HTML refers to those names, so it must update quickly:
+
+```text
+/assets/app.3f9a1c.js     Cache-Control: public, max-age=31536000, immutable
+/index.html               Cache-Control: public, max-age=0, s-maxage=60, must-revalidate
+                          (or: no-cache, which revalidates with an ETag each time)
+```
+
+**5. Deploy.** You ship `app.7be204.js` and a new `index.html` pointing to it. Keep old assets available for pages still open. Purge the changed page URLs, such as `/` and `/pricing/` (`/` and `/index.html` are different cache keys), or let `s-maxage=60` expire them. Within about a minute, users get the new HTML, which fetches the new asset; it misses once per edge, then hits.
+
+
+## Pitfalls
+
+- **Assuming a DNS change is instant.** Caches hold the old answer until the TTL ends, and some hold it longer. Lower the TTL before a migration (wait out the old TTL first), and keep the old server running until traffic drains.
+- **Very low TTLs everywhere "to be safe".** Every expiry costs a lookup. Use short TTLs only where fast change or failover matters.
+- **A CNAME at the apex.** It breaks other records (NS, MX, SOA). Use your provider's ALIAS/ANAME/flattening, or redirect the apex to `www`.
+- **Caching HTML for a year.** Users keep seeing old pages and old asset names. Give HTML short TTLs or revalidation; give only fingerprinted assets long ones.
+- **Long `max-age` on non-versioned files** (`/logo.png`). Browsers keep them and you cannot recall them with a purge. Version the file name, or keep the TTL short.
+- **Caching personalised responses in a shared cache.** One user's page can be served to another. Use `private` or `no-store`, or vary the key safely.
+- **Cache-key accidents.** Random query parameters (tracking IDs) make every URL unique and the hit rate collapses. Ignore parameters that do not change the response.
+
+## Tips & tricks
+
+- **Fingerprint static assets** and give them `max-age=31536000, immutable`; keep HTML on short TTLs or revalidation.
+- **Measure:** the CDN cache hit ratio (often split into requests and bytes), origin requests per second, time to first byte by region, DNS lookup time, and the p95 page load.
+- **Check with tools:** `dig www.example.com` shows the answer and TTL; `Age` and the CDN's hit/miss header show cache status.
+- **In interviews:** say what is cached, where, under which key and for how long, how a deploy becomes visible, and what happens on a miss (including many users missing at once; CDNs can collapse those into one origin request).

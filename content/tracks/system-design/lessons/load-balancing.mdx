@@ -13,7 +13,7 @@ A supermarket opens several checkout lanes and a person at the entrance points e
 
 A **load balancer** is that person. Clients talk to one address; the balancer forwards each request to one of many identical servers. That gives you two things:
 
-- **Scale out.** If one server handles 500 requests/s (an illustrative figure), six handle about 3,000. Adding servers is easier than buying a bigger one.
+- **Scale out.** If one server comfortably handles 400 requests/s (an illustrative figure), ten handle about 4,000. Adding servers is easier than buying a bigger one.
 - **Survive failures.** Stop sending traffic to a dead server and users never notice.
 
 **L4 vs L7.** A layer-4 balancer works on TCP/UDP connections. It sees IPs and ports, not HTTP, so it cannot route on a URL or header. It is fast and simple. A layer-7 balancer terminates the HTTP request, reads it, and can route `/api` to one pool and `/images` to another, add headers, or retry. It costs more CPU per request, and it is what most web systems use.
@@ -27,7 +27,7 @@ Spreading work only helps if the balancer picks well, so the algorithm matters.
 | Least-connections | Fewest active requests | Requests of varied duration |
 | Least-response-time | Fastest recent responses, plus few connections | Servers with uneven speed |
 | Power of two choices | Two random servers, the less busy one | Many balancers with no shared view |
-| Consistent hashing | Same key, same server | Caches, sharded data (a later lesson) |
+| Consistent hashing | Same key, same server | Caches, sharded data (covered with sharding) |
 
 Least-connections only counts requests, not their cost. Least-response-time also reacts to a slow server, but a server that fails instantly looks fast, so pair it with health checks. **Power of two choices** is a cheap trick: sampling two random servers and taking the less loaded one avoids most of the worst imbalance without tracking every server perfectly.
 
@@ -35,7 +35,7 @@ Least-connections only counts requests, not their cost. Least-response-time also
 
 <Visualizer kind="load-balancer" />
 
-The scenario: 8 requests arrive one second apart at 3 servers (A, B, C). Durations are mixed: r1, r4 and r7 take 4 s; the others take 1 s. Round-robin deals them out A, B, C, A, B, C, A, B, so A gets the three slow ones at t=0, 3 and 6 and holds two at once. Least-connections sends each request to the server with the fewest active ones, so no server ever has more than 1.
+The scenario: 8 requests arrive one second apart at 3 servers (A, B, C). Durations are mixed: r1, r4 and r7 take 4 s; the others take 1 s. Round-robin deals them out A, B, C, A, B, C, A, B, so A gets the three slow ones at t=0, 3 and 6 and holds two at once. Least-connections sends each request to the server with the fewest active ones, so here no server ever had more than 1.
 
 It also left server C idle. Whenever several servers tied for the fewest active requests, the tie went to the first one in the list, so A and B took all the work. Real balancers break ties randomly or by weight, so load would be spread more evenly.
 
@@ -87,15 +87,15 @@ Active health checks, where the balancer probes a `/healthz` endpoint on a timer
 - **Sticky sessions.** Pinning a user to one server (by cookie or IP hash) lets you keep session data in memory, but it skews load, and when that server dies or is removed, those users lose their session. Move state out: a shared store such as Redis, or a signed token. Then any server can handle any request.
 - **Killing servers mid-request.** Removing a server during a deploy drops its in-flight requests. Use **connection draining** (called deregistration delay on AWS): stop new requests, let existing ones finish up to a timeout, then stop the server.
 - **Cold servers get flooded.** A new server with empty caches, under least-connections, looks idle and takes a surge. Use **slow start** to ramp its share over 30–60 s.
-- **The balancer as a single point of failure.** One balancer makes all your servers pointless when it fails. Run a redundant pair that shares a virtual IP (keepalived/VRRP), use a managed cloud balancer that runs across several machines and zones, or publish several balancer IPs in DNS, or announce one IP from many balancers via anycast.
-- **Capacity that only works when healthy.** Six instances at 3,000 requests/s carry 500 each. If an availability zone holding two of them fails, four remain and carry 750 each, 50% more. Keep headroom for the failure you plan to survive.
+- **The balancer as a single point of failure.** One balancer makes all your servers pointless when it fails. Run a redundant pair (keepalived/VRRP), a managed cloud balancer, several balancer IPs in DNS, or one IP announced from many balancers via anycast.
+- **Capacity that only works when healthy.** Eight instances split across two availability zones, four in each, share the traffic equally. If one zone fails, the four survivors carry everything, so per-instance load doubles. Servers already at 50% of capacity would hit 100%, with no margin. Keep headroom for the failure you plan to survive.
 - **Unsafe retries.** Retrying a non-idempotent POST can charge a card twice. Retry only idempotent requests, or use idempotency keys.
 
 ## Tips & tricks
 
 - **TLS termination.** Decrypting at the balancer keeps certificates in one place and lets it read requests for L7 routing. Traffic behind it is then plain unless you re-encrypt to the servers (end-to-end TLS). Do that if the network between them is not fully trusted or if compliance requires it.
 - **Cross-zone balancing.** If each zone's balancer node sends only to its own zone's servers, an uneven number of servers per zone gives uneven load. Enable cross-zone load balancing, or keep zones equal.
-- **Local vs global.** A local balancer spreads load inside one region. Global load balancing sends users to the nearest or healthiest region, using geo-aware DNS or **anycast**, where many sites announce the same IP and the network routes each client to a nearby one. DNS answers are cached, so failover takes about one TTL.
+- **Local vs global.** A local balancer spreads load inside one region. Global load balancing sends users to the nearest or healthiest region, using GeoDNS or **anycast**, where many sites announce the same IP and the network routes each client to a nearby one. DNS answers are cached, so failover takes about one TTL.
 - **Start simple.** Round-robin or least-connections is enough for most services. Use weights for mixed hardware.
 - **Measure** per-server request rate, active connections, error rate and p99 latency, plus healthy-host count. A skewed distribution across servers is the first sign of trouble.
 - In interviews, say which layer you balance at, which algorithm, how you detect failures, how deploys drain, where session state lives, and what removes the balancer as a single point of failure.

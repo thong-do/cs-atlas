@@ -62,7 +62,7 @@ Idempotency tells a client what is safe to **retry** after a timeout. Retrying a
 
 **Headers** are key–value metadata. Three to know: `Content-Type` (the format of the body, such as `application/json`), `Cache-Control` (how long a response may be reused, such as `max-age=60`), and `Authorization` (credentials, such as `Bearer <token>`).
 
-Because the server is stateless, "who are you?" travels with every request. A **cookie** is stored by the browser and sent back automatically; a server-side session keeps the data and the cookie holds only an id. A **token** (often a JWT) is sent in the `Authorization` header, usually by app or API clients. Cookies suit browsers; tokens suit APIs. Mark session cookies `HttpOnly`, `Secure` and `SameSite`.
+Because HTTP is stateless, "who are you?" travels with every request. A **cookie** is stored by the browser and sent back automatically; a server-side session keeps the data and the cookie holds only an id. A **token** (often a JWT) is sent in the `Authorization` header, usually by app or API clients. Cookies suit browsers; tokens suit APIs. Mark session cookies `HttpOnly`, `Secure` and `SameSite`.
 
 Versions of HTTP, one line each:
 
@@ -82,7 +82,7 @@ Authorization: Bearer eyJhbGciOi...
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Cache-Control: max-age=60
+Cache-Control: private, max-age=60
 ETag: "v7"
 
 {"id": 42, "title": "Buy milk", "done": false}
@@ -91,7 +91,7 @@ ETag: "v7"
 Where the time goes on a first visit (illustrative, with a 50 ms round trip):
 
 ```text
-DNS lookup      ░░░░                    ~20 ms  (skipped if cached)
+DNS lookup      ░░░░                    ~20 ms  (a few ms if cached, up to ~100 ms cold; see DNS & CDNs)
 TCP handshake   ░░░░░░░░░░              1 round trip   ~50 ms
 TLS handshake   ░░░░░░░░░░              1 round trip   ~50 ms  (TLS 1.3)
 Request→resp.   ░░░░░░░░░░              1 round trip   ~50 ms
@@ -141,7 +141,7 @@ PATCH /v1/notes/42
 {"id": 42, "title": "Buy milk", "done": true}
 ```
 
-Use PUT instead when the client sends the whole note; repeating it gives the same result. If someone else changed the note since you read it, reject the write with **409 Conflict**: the client sends the `version` it read, and if the stored version is newer, the server refuses.  (When the client sends `If-Match: "v7"` and the version no longer matches, the standard answer is 412 Precondition Failed.)
+Use PUT instead when the client sends the whole note; repeating it gives the same result. If someone else changed the note since you read it, reject the write with **409 Conflict**: the client sends the `version` it read, and if the stored version is newer, the server refuses. (When the client sends `If-Match: "v7"` and the version no longer matches, the standard answer is 412 Precondition Failed.)
 
 **Delete**:
 

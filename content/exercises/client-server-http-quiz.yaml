@@ -6,7 +6,7 @@ ladderOrder: 1
 questions:
   - id: statelessness
     prompt: "HTTP is stateless. What does that mean for scaling?"
-    choices: ["Servers cannot store any data, so they never need a database", "Each request carries what is needed, so servers are interchangeable if shared state lives outside their memory", "Clients must keep one connection to one server", "Responses are never cached"]
+    choices: ["Servers must keep each user's session in local memory", "Any server can answer if session state lives in a shared store", "Clients must keep every request on the same server", "Responses can never be cached by anyone"]
     answer: 1
     explanation: "HTTP itself carries no memory between requests; apps keep state in a shared store or token rather than one server's memory, so any server can answer."
   - id: retry-safety
@@ -21,12 +21,12 @@ questions:
     explanation: "The user is authenticated but not allowed. 401 means the server doesn't know who you are."
   - id: create-status
     prompt: "POST /v1/notes creates a note. What should the response be?"
-    choices: ["200 OK with an empty body", "201 Created with a Location header for the new note", "204 No Content", "302 Found"]
+    choices: ["200 OK with the new note in the body", "201 Created with a Location header", "204 No Content with an empty body", "302 Found redirecting to the notes list"]
     answer: 1
     explanation: "201 says a new resource exists, and Location tells the client where. 200 works for reads but hides that something was created."
   - id: http-versions
     prompt: "Which statement about HTTP versions is accurate?"
-    choices: ["HTTP/2 opens one TCP connection per request", "HTTP/3 runs over TCP with a faster handshake", "HTTP/3 runs over QUIC on UDP, and HTTP/2 multiplexes requests over one TCP connection", "HTTP/1.1 cannot reuse connections"]
+    choices: ["HTTP/2 opens a new TCP connection for every request", "HTTP/3 still runs over TCP but shortens the handshake", "HTTP/3 uses QUIC over UDP; HTTP/2 shares one TCP connection", "HTTP/1.1 closes its connection after every response"]
     answer: 2
     explanation: "HTTP/2 multiplexes streams over a single TCP connection; HTTP/3 uses QUIC over UDP. HTTP/1.1 reuses connections via keep-alive."
 flashcards:

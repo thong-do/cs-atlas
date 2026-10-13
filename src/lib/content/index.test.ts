@@ -111,8 +111,9 @@ describe('content inventory', () => {
   })
 
   it('maps every quiz flashcard to its quiz and lesson by review key', () => {
-    const { flashcards } = getCatalog()
-    expect(Object.keys(flashcards)).toHaveLength(40)
+    const { flashcards, exercises } = getCatalog()
+    const expected = exercises.reduce((n, x) => n + (x.type === 'quiz' ? (x as QuizExercise).flashcardIds.length : 0), 0)
+    expect(Object.keys(flashcards)).toHaveLength(expected)
     expect(flashcards['client-server-http-quiz#idempotent']).toMatchObject({ quiz: 'client-server-http-quiz', lesson: 'client-server-http' })
     expect(flashcards['dns-cdn-quiz#dns-ttl']).toMatchObject({ quiz: 'dns-cdn-quiz', lesson: 'dns-cdn' })
     expect(flashcards['sql-vs-nosql-quiz#index']).toMatchObject({ quiz: 'sql-vs-nosql-quiz', lesson: 'sql-vs-nosql' })

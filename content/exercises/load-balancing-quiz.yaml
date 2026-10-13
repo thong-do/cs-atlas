@@ -26,7 +26,7 @@ questions:
     explanation: "Draining stops sending new requests to a server being removed but lets existing ones complete, up to a timeout."
   - id: lb-spof
     prompt: "Which design removes the load balancer as a single point of failure?"
-    choices: ["Adding more app servers behind it", "Health checks that route around it instantly", "Terminating TLS on every app server instead", "Running a redundant pair or a managed multi-zone balancer"]
+    choices: ["Adding more app servers behind the balancer", "Running health checks that route around it instantly", "Terminating TLS on every app server instead", "A redundant pair or a managed multi-zone balancer"]
     answer: 3
     explanation: "Extra app servers do not help if the one balancer in front of them fails. It needs its own redundancy, such as a VRRP pair or a managed cloud balancer."
 flashcards:

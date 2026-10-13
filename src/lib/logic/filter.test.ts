@@ -10,13 +10,15 @@ const exercises = [
   prob('3sum', '3Sum', 15, ['two-pointers'], 'medium'),
   prob('trap', 'Trapping Rain Water', 42, ['two-pointers', 'stack'], 'hard'),
   prob('lru', 'LRU Cache', 146, ['ll', 'cache'], 'medium'),
+  { slug: 'qz', type: 'quiz', title: 'Caching quiz', lessons: ['cache'], ladderOrder: 2, questionCount: 8, flashcardIds: [] } as unknown as ExerciseMeta,
+  { slug: 'dz', type: 'design-prompt', title: 'Design a cache', lessons: ['cache'], ladderOrder: 3 } as unknown as ExerciseMeta,
 ]
 const trackOf = (slug: string) => (slug === 'cache' ? 'system-design' : 'algorithms')
 const progress = new Map<string, ProblemProgress>([
   ['two-sum', { slug: 'two-sum', status: 'solved', solveRating: 'alone', needsResolve: false, updatedAt: '' }],
   ['3sum', { slug: '3sum', status: 'solved', solveRating: 'hint', needsResolve: true, updatedAt: '' }],
 ])
-const all: ExerciseFilter = { q: '', track: 'all', lesson: 'all', difficulty: 'all', status: 'all' }
+const all: ExerciseFilter = { q: '', track: 'all', lesson: 'all', difficulty: 'all', status: 'all', type: 'all' }
 const slugs = (f: Partial<ExerciseFilter>) => filterExercises(exercises, progress, { ...all, ...f }, trackOf).map((p) => p.slug)
 
 describe('exerciseStatus', () => {
@@ -29,7 +31,7 @@ describe('exerciseStatus', () => {
 
 describe('filterExercises', () => {
   it('returns everything with no filters', () => {
-    expect(slugs({})).toEqual(['two-sum', '3sum', 'trap', 'lru'])
+    expect(slugs({})).toEqual(['two-sum', '3sum', 'trap', 'lru', 'qz', 'dz'])
   })
 
   it('searches title case-insensitively and by leetcode id prefix', () => {
@@ -43,13 +45,19 @@ describe('filterExercises', () => {
   })
 
   it('filters by status, including needs re-solve', () => {
-    expect(slugs({ status: 'unsolved' })).toEqual(['trap', 'lru'])
+    expect(slugs({ status: 'unsolved' })).toEqual(['trap', 'lru', 'qz', 'dz'])
     expect(slugs({ status: 'alone' })).toEqual(['two-sum'])
     expect(slugs({ status: 'resolve' })).toEqual(['3sum'])
   })
 
   it('filters by track: an exercise matches every track one of its lessons belongs to', () => {
-    expect(slugs({ track: 'system-design' })).toEqual(['lru'])
+    expect(slugs({ track: 'system-design' })).toEqual(['lru', 'qz', 'dz'])
     expect(slugs({ track: 'algorithms' })).toContain('lru')
+  })
+
+  it('filters by type, and a difficulty filter only matches problems', () => {
+    expect(slugs({ type: 'quiz' })).toEqual(['qz'])
+    expect(slugs({ type: 'design-prompt' })).toEqual(['dz'])
+    expect(slugs({ difficulty: 'easy' })).not.toContain('qz')
   })
 })

@@ -48,3 +48,13 @@ test('completing the design prompt saves the design as a note', async ({ page })
   await expect(page.getByRole('heading', { name: 'Rubric' })).toBeVisible()
   await expect(page.getByText(/Protects hot keys from a stampede/)).toBeVisible()
 })
+
+test('the Caching ladder and the Exercises list show type badges and filter by type', async ({ page }) => {
+  await page.goto('/system-design/caching/')
+  const ladder = page.locator('#practice-ladder')
+  await expect(ladder.getByText('Quiz', { exact: true })).toBeVisible()
+  await expect(ladder.getByText('Design', { exact: true })).toBeVisible()
+  await page.goto('/exercises/?type=quiz')
+  await expect(page.getByLabel('Type')).toHaveValue('quiz')
+  await expect(page.getByText('1 of 140 exercises')).toBeVisible()
+})

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { ExerciseTypeBadge } from '@/components/exercises/exercise-type-badge'
 import { DifficultyBadge } from '@/components/difficulty-badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -121,7 +122,7 @@ export function TodayView() {
             {nextUp.map((p) => (
               <li key={p.slug} className="flex items-center gap-3 px-3 py-2">
                 <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
-                {isProblem(p) && <DifficultyBadge difficulty={p.difficulty} />}
+                {isProblem(p) ? <DifficultyBadge difficulty={p.difficulty} /> : <ExerciseTypeBadge type={p.type} />}
               </li>
             ))}
           </ul>

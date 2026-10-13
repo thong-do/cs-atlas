@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo } from 'react'
+import { ExerciseTypeBadge } from '@/components/exercises/exercise-type-badge'
 import { DifficultyBadge } from '@/components/difficulty-badge'
 import { StatusIcon } from '@/components/status-icon'
 import { exerciseStatus } from '@/lib/logic/filter'
@@ -20,6 +21,9 @@ export function LadderList({ exercises }: { exercises: ExerciseMeta[] }) {
           <span className="w-5 text-right text-xs text-muted-foreground">{i + 1}</span>
           <StatusIcon status={exerciseStatus(progress.get(p.slug))} />
           <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
+          <ExerciseTypeBadge type={p.type} />
+          {p.type === 'quiz' && <span className="text-xs text-muted-foreground">{p.questionCount} questions</span>}
+          {p.type === 'design-prompt' && <span className="text-xs text-muted-foreground">Self-graded</span>}
           {isProblem(p) && (
             <>
               <DifficultyBadge difficulty={p.difficulty} />

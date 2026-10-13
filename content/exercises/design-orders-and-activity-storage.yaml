@@ -21,7 +21,7 @@ rubric:
   - id: orders-sql
     point: "Chooses a relational database (such as Postgres) for orders and payments, citing relationships, constraints and ad-hoc reporting."
   - id: transaction
-    point: "Wraps order, payment and stock changes in one ACID transaction so they apply together or not at all."
+    point: "Puts the order, payment intent and stock reservation in one ACID transaction; the external charge happens outside it, with an idempotency key or unique constraint on the payment record so retries do not double-charge."
   - id: activity-layout
     point: "Models the stream around its one read: partition (or key) by user, rows sorted newest first, so 'last 50' is one ordered read."
   - id: write-scaling
@@ -32,17 +32,22 @@ reference: |
   **(a) Orders and payments: Postgres.** The data is relational (customers, orders, items,
   payments), with constraints and multi-row invariants. Place an order in one transaction:
   decrement stock with a conditional update, insert the order and items, and record the payment
-  intent. If any step fails, everything rolls back. 100 orders/s is well within one tuned
+  intent. If any step fails, everything rolls back. The external card charge happens outside the
+  transaction, keyed by an idempotency key stored under a unique constraint on the payment record,
+  so a retry cannot charge twice. 100 orders/s is well within one tuned
   primary; add read replicas for dashboards and reports (accepting some replica lag), and index
   `customer_id` and `created_at`. A relational store also keeps finance's new questions cheap,
   as they are just new queries.
 
   **(b) Activity stream: wide-column or key-value.** One known read suggests designing the
   table around it. In Cassandra terms: partition key `user_id`, clustering key `event_time`
-  descending, so "last 50" reads the head of one partition. At 20,000 events/s of about 200 B,
+  descending, so "last 50" reads the head of one partition, typically a few milliseconds, well inside
+  the 50 ms target. Add a time-ordered unique id (such as a timeuuid) to the clustering key so
+  events with equal timestamps do not collide. At 20,000 events/s of about 200 B,
   ingest is roughly 4 MB/s, or about 350 GB a day before replication, and about 31 TB over
   90 days. Spread across many nodes that is routine for such a store. Set a TTL of 90 days so old
-  rows expire, and bucket by day or week if a single user's partition could grow too large.
+  rows expire, and bucket by day or week if a single user's partition could grow too large; then "last 50" may need
+  to read the previous bucket too.
   DynamoDB with the same keys is an equivalent choice.
 
   **Trade-offs.** The stream gives up joins and ad-hoc queries; run analytics from a copy in

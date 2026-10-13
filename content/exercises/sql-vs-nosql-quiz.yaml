@@ -11,7 +11,7 @@ questions:
     explanation: "Atomicity means all the changes in a transaction apply or none do. Isolation is about concurrent transactions, and durability is about surviving a crash."
   - id: nosql-consistency
     prompt: "A teammate says all NoSQL databases are eventually consistent only. What is the best reply?"
-    choices: ["True, that is what defines NoSQL", "NoSQL is a family; some stores offer strongly consistent reads or tunable consistency, so check the product", "True, but only for key-value stores", "False, every NoSQL database is fully ACID across all data"]
+    choices: ["Mostly true; strong consistency only exists in SQL databases", "Not quite: it is a family, and some stores offer strong or tunable consistency", "Mostly true; only graph stores can be strongly consistent", "False; every NoSQL database is fully ACID across all its data"]
     answer: 1
     explanation: "The label covers very different systems. For example, Cassandra has tunable consistency and DynamoDB offers strongly consistent reads, each with caveats."
   - id: pick-orders
@@ -26,9 +26,9 @@ questions:
     explanation: "Partitioning by user spreads writes, and the sort order makes 'latest 50' a single ordered read of one partition. One growing document gets huge and is rewritten on every event."
   - id: scale-sql
     prompt: "Reads on a Postgres primary are overloading it. Which step comes before sharding?"
-    choices: ["Migrate to a document store", "Add an index or caching, then read replicas", "Remove the foreign keys", "Disable transactions"]
+    choices: ["Migrate to a document store", "Add an index or caching, then read replicas", "Split the data across shards right away", "Switch to a graph database"]
     answer: 1
-    explanation: "Tune queries and indexes, cache, and add read replicas first. They are cheaper than partitioning, though replicas can lag behind the primary."
+    explanation: "Tune queries and indexes, scale up the machine, cache, and add read replicas first. They are cheaper than partitioning, though replicas can lag behind the primary."
 flashcards:
   - id: schema
     front: "Schema"
@@ -47,7 +47,7 @@ flashcards:
     back: "A sorted lookup structure, often a B-tree, that avoids scanning every row. It speeds reads and slows writes slightly."
   - id: wide-column
     front: "Wide-column store"
-    back: "Rows grouped by partition key and sorted inside it, such as Cassandra. Great for heavy writes and reads of a known range."
+    back: "Stores like Cassandra group rows by partition key and sort them inside it."
   - id: denormalize
     front: "Denormalization"
     back: "Copy data into several places so one read gets everything. Reads get simpler; updates must touch every copy."

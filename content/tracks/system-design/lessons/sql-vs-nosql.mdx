@@ -28,10 +28,10 @@ The four ACID letters say what a transaction protects:
 |---|---|---|
 | **A**tomicity | All the changes in a transaction happen, or none do | Debit and credit both apply, or neither |
 | **C**onsistency | A transaction moves the data from one valid state to another, under your constraints | A foreign key can't point at a missing row |
-| **I**solation | Concurrent transactions don't see each other's half-finished work, to a degree set by the **isolation level** | Two buyers can't both take the last item |
+| **I**solation | Concurrent transactions don't see each other's half-finished work, to a degree set by the **isolation level** | Another transaction never sees your half-written order |
 | **D**urability | Once committed, a change survives a crash | A confirmed payment is on disk |
 
-Atomicity is all-or-nothing, not locking; isolation is what handles concurrency. Isolation comes in levels, and the default varies: Postgres uses Read Committed, and stronger levels such as Serializable cost more and can abort transactions you must retry.
+Atomicity is all-or-nothing, not locking; isolation is what handles concurrency. Isolation comes in levels, and the default varies: Postgres uses Read Committed, which hides uncommitted work but does not stop two transactions from both reading stock as 1. Stronger levels such as Serializable prevent more, cost more, and can abort transactions you must retry.
 
 An **index** works like the index of a book: a sorted structure (usually a B-tree) that jumps to matching rows. It speeds reads and slows writes a little, since each write updates it too. Index the columns you filter and join on.
 
@@ -83,19 +83,20 @@ CREATE TABLE order_items (
   order_id    BIGINT NOT NULL REFERENCES orders(id),
   sku         TEXT   NOT NULL,
   qty         INT    NOT NULL CHECK (qty > 0),
-  price_cents INT    NOT NULL
+  price_cents INT    NOT NULL,
+  PRIMARY KEY (order_id, sku)        -- also indexes order_id for the join
 );
 CREATE INDEX ON orders (customer_id, created_at DESC);
 ```
 
-A question that crosses tables, and the index above keeps the lookup cheap:
+A question that crosses tables. The `orders` index finds customer 7's newest orders in order, and the primary key on `order_items` finds each order's lines:
 
 ```sql
-SELECT o.id, SUM(i.qty * i.price_cents) AS total_cents
+SELECT o.id, o.created_at, SUM(i.qty * i.price_cents) AS total_cents
 FROM orders o JOIN order_items i ON i.order_id = o.id
 WHERE o.customer_id = 7
-GROUP BY o.id
-ORDER BY o.id DESC LIMIT 10;
+GROUP BY o.id, o.created_at
+ORDER BY o.created_at DESC LIMIT 10;
 ```
 
 Placing an order must be atomic: reserve stock and create the order together.
@@ -140,7 +141,7 @@ partition key: user_id        sort key: event_time (newest first)
   - Lookup by one key at low latency, maybe as a cache or session store: key-value.
   - One self-contained aggregate read and written together: document.
   - Questions that follow many hops of relationships: graph.
-- **Scale in this order:** a bigger machine, then indexes and query tuning, then caching, then read replicas, then partitioning. Replicas can lag, so a read right after a write may be stale.
+- **Scale in this order:** indexes and query tuning, then a bigger machine, then caching, then read replicas, then partitioning. Replicas can lag, so a read right after a write may be stale.
 - **Design NoSQL from the queries.** List the reads first, then shape the data. Adding a new query later often means a new table or an index.
 - **Mixing is normal.** A relational core for orders plus a key-value store for sessions plus a search index is common.
 - In interviews, state the access patterns, the consistency you need, and the write rate. Then say why one database satisfies them, and when you would add another.

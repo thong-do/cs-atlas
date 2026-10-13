@@ -15,7 +15,7 @@ rubric:
   - id: key-and-value
     point: "Caches the product-details response under a key that includes every input that changes it (e.g. product id, currency, locale)."
   - id: ttl-jitter
-    point: "Sets a TTL at or below 60 s and adds random jitter so popular keys don't all expire together."
+    point: "Sets a TTL comfortably below 60 s and adds random jitter so popular keys don't all expire together."
   - id: invalidate-on-write
     point: "Deletes (or updates) the cached entry after a price or stock write commits, so most reads see changes immediately; the TTL is only the backstop."
   - id: stampede
@@ -27,7 +27,7 @@ reference: |
   `product:{id}:{currency}:{locale}`. On a hit, return it; on a miss, read the database,
   store the result, and return it.
 
-  **Freshness.** Give each entry a TTL of 45–60 s, chosen randomly per write (jitter),
+  **Freshness.** Give each entry a TTL of 45–55 s, chosen randomly per cache fill (jitter),
   so the 60 s staleness limit holds even if an invalidation is missed. The TTL is a backstop,
   not the main mechanism: after a price or stock update commits, the writer deletes every key
   for that product, so the next read refills with the new data. At 50 writes/s that's cheap.

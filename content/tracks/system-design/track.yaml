@@ -11,5 +11,5 @@ modules:
     lessons: [load-balancing, replication-sharding, queues-streams, rate-limiting]
   - slug: case-studies
     title: Case Studies
-    lessons: []
-    comingSoon: ["URL shortener", "News feed", "Chat"]
+    lessons: [url-shortener]
+    comingSoon: ["News feed", "Chat"]

@@ -68,7 +68,7 @@ describe('content inventory', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
-    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting'])
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'url-shortener'])
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing', 'client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
@@ -94,6 +94,9 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'rate-limiting')).toMatchObject({ track: 'system-design', prerequisites: ['load-balancing'] })
     expect(getLessonDoc('rate-limiting')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('rate-limiting')).map((e) => e.slug).sort()).toEqual(['design-api-rate-limiter', 'rate-limiting-quiz'])
+    expect(lessons.find((l) => l.slug === 'url-shortener')).toMatchObject({ track: 'system-design', prerequisites: ['caching', 'sql-vs-nosql'] })
+    expect(getLessonDoc('url-shortener')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('url-shortener')).map((e) => e.slug).sort()).toEqual(['design-pastebin', 'url-shortener-quiz'])
   })
 
   const { lessons, exercises: allExercises } = getCatalog()

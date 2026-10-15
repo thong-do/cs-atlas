@@ -1,0 +1,46 @@
+slug: design-pastebin
+type: design-prompt
+title: "Design: a pastebin"
+lessons: [url-shortener]
+ladderOrder: 2
+prompt: |
+  Design a pastebin. Users, anonymous or logged in, upload text and get a link. **2 M new pastes/day**, average size
+  **10 KB**, maximum **1 MB**. Reads are **10× writes**. The author picks an expiry of **10 minutes, 1 day or never**.
+
+  **Pastes must not be guessable**: knowing one link must not reveal others.
+  Describe how you store pastes (and how much), how you generate IDs, how expiry and cleanup work, the read path with
+  caching or a CDN, and the abuse limits. Show the arithmetic.
+hint: "Compare how big and how hot the paste text is with the small record that describes it, then ask what an attacker learns from IDs that count upward."
+rubric:
+  - id: storage-split
+    point: "Estimates storage (20 GB/day, about 7.3 TB/year before replication) and stores the large paste bodies separately from a small metadata record, in object storage rather than the metadata database."
+  - id: id-generation
+    point: "Generates unguessable IDs from a secure random source with enough bits (for example 128), not a sequential counter, and handles a duplicate with a conditional insert."
+  - id: expiry-cleanup
+    point: "Stores an expiry time and checks it on every read, with background cleanup or native TTL for metadata and content, and keeps cache lifetimes within the remaining life."
+  - id: read-path
+    point: "Computes read load (about 230/s average) and serves reads through a cache or CDN, noting that a paste's content never changes."
+  - id: abuse-limits
+    point: "Limits abuse: per-IP and per-account rate limits, a lower quota for anonymous users, the 1 MB cap enforced at the edge, and spam or malware scanning with a report-and-delete path."
+reference: |
+  **Arithmetic.** 2 M × 10 KB = 20 GB/day; × 365 ≈ 7.3 TB/year before replication (three copies is about 22 TB).
+  Writes: 2 M ÷ 86,400 ≈ 23/s. Reads: 10 × that, 20 M/day ≈ 230/s average, about 700/s at a 3× peak.
+
+  **Storage.** Split each paste in two. A small metadata record (id, owner, size, created, expires, visibility;
+  roughly 200 B, so 730 M pastes/year is about 146 GB) lives in a key-value or SQL store sharded by id.
+  The text itself, up to 1 MB, goes in object storage under the same id. This keeps the database small and
+  lets bytes scale in the cheapest tier.
+
+  **IDs.** Take 16 random bytes (128 bits) from a cryptographic random source and encode them as 22 URL-safe
+  base64 characters. At 128 bits a collision is negligible and guessing is infeasible; counters or timestamps
+  would let one link reveal its neighbours. Insert metadata with a conditional write anyway.
+
+  **Expiry.** Save `expires_at` (10 minutes, 1 day, or none). Every read checks it, so a late cleanup is
+  harmless. A sweeper or native TTL deletes expired metadata and then the object, and an object lifecycle rule
+  is a backstop.
+
+  **Read path.** Paste content is immutable, so a CDN can cache it. Set `Cache-Control: max-age` to at most the
+  time remaining, so a 10-minute paste is not served after expiry. Misses read the metadata, then the object.
+
+  **Abuse.** Enforce 1 MB at the edge. Use token-bucket limits per IP and per account, with a tighter quota for anonymous
+  users. Scan for malware and spam, and offer report and delete.

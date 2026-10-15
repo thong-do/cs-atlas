@@ -1,0 +1,56 @@
+slug: url-shortener-quiz
+type: quiz
+title: "URL shortener — quiz"
+lessons: [url-shortener]
+ladderOrder: 1
+questions:
+  - id: code-space
+    prompt: "A shortener creates 600 million links a year and uses 7-character base62 codes (62^7 ≈ 3.5 × 10^12) that are never reused. Roughly how long until the code space runs out?"
+    choices: ["About 6 years, because 62^7 is only about 3.5 × 10^9", "About 60 years, because 62^7 is only about 3.5 × 10^10", "About 600 years, because only about a sixth of the codes are usable in practice", "About 6,000 years, since 3.5 × 10^12 ÷ 6 × 10^8 ≈ 5,900"]
+    answer: 3
+    explanation: "62^7 ≈ 3.5 × 10^12, and dividing by 6 × 10^8 links per year gives about 5,900 years. The other choices misstate the size of the space."
+  - id: redirect-status
+    prompt: "Owners of short links want exact click counts and the ability to change a link's destination later. Which redirect should the shortener send?"
+    choices: ["301, because a permanent redirect is cheaper for the server and clients always revalidate it", "302 or 307, because browsers are not told to remember it, so each click reaches the server", "301, because search engines then credit the clicks to the short domain", "Either one, because the status code only changes how crawlers treat the link"]
+    answer: 1
+    explanation: "A 301 may be cached by browsers, so later clicks can skip your server and go uncounted, and a changed destination may never reach them. A 302 or 307 is temporary, so each click is seen."
+  - id: counter-codes
+    prompt: "A team encodes a database counter in base62 for its short codes. Collisions are impossible, so what is the main design concern left with this approach?"
+    choices: ["Base62 encoding is lossy, so two different counter values can produce the same code", "A counter cannot be shared across several API servers without producing duplicate ids", "Consecutive links get consecutive codes, so anyone can enumerate and track growth", "Counter codes end up longer than hash codes for the same number of stored links"]
+    answer: 2
+    explanation: "Sequential ids are predictable. Servers can lease id ranges to avoid a shared counter, but the order still shows unless it is scrambled or random codes are used."
+  - id: hash-codes
+    prompt: "A service derives each code from the first 7 base62 digits of a hash of the long URL. What must its write path handle?"
+    choices: ["Two different URLs can map to one code, so the insert must detect a conflict and retry", "The same URL submitted twice gets two different codes, so duplicate rows accumulate fast", "Hash outputs are sequential, so anyone can enumerate the codes the service has issued", "A hash cannot be computed unless a central coordinator hands out the input values"]
+    answer: 0
+    explanation: "Truncating a hash to 3.5 × 10^12 values makes collisions certain at scale, so a conditional insert and a retry are needed. Hashing is deterministic and needs no coordinator."
+  - id: hit-ratio
+    prompt: "Peak load is 6,000 redirects/s. The cache hit ratio rises from 90% to 99%. What happens to reads reaching the database?"
+    choices: ["They fall from 600/s to 540/s, a 10% reduction", "They fall from 600/s to 300/s, so they are halved", "They fall from 6,000/s to 5,400/s because hits are free", "They fall from 600/s to 60/s, a tenfold reduction"]
+    answer: 3
+    explanation: "Misses are 10% of 6,000 = 600/s, then 1% = 60/s. Going from 90% to 99% hits cuts the miss rate tenfold."
+flashcards:
+  - id: base62
+    front: "Base62 code"
+    back: "A–Z, a–z and 0–9. Seven characters give 62^7 ≈ 3.5 × 10^12 codes, enough for thousands of years at 600 M links a year."
+  - id: redirect-301-302
+    front: "301 vs 302 redirect"
+    back: "301 is permanent and browsers may cache it, so later clicks can skip your server uncounted. 302 or 307 is temporary, so every click reaches you."
+  - id: hash-code
+    front: "Hash-based short code"
+    back: "Hash the URL and truncate. No coordination, same URL gives the same code, but truncation collides, so insert conditionally and retry."
+  - id: counter-code
+    front: "Counter or ID-range codes"
+    back: "Base62-encode a counter, with each server leasing a block of ids. No collisions, but consecutive codes can be enumerated."
+  - id: random-code
+    front: "Random code with uniqueness check"
+    back: "Draw random digits and insert only if absent. Collision chance equals how full the space is, so a retry nearly always works."
+  - id: custom-alias
+    front: "Custom alias"
+    back: "A user-chosen code. Use the same conditional insert as generated codes, return 409 if taken, and reserve system words."
+  - id: click-events
+    front: "Async click analytics"
+    back: "Emit a click event to a queue instead of writing on the redirect path. Dedupe by event id, and never let analytics fail a redirect."
+  - id: hit-ratio-load
+    front: "Hit ratio and database load"
+    back: "Database reads = peak reads × miss ratio. At 6,000/s, 90% hits leave 600/s and 99% leaves 60/s."

@@ -102,7 +102,9 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
       if (l.triggers.length === 0) err('V8', lessonFile(l), 'algorithms lessons need at least one trigger')
       if (!l.complexity) err('V8', lessonFile(l), 'algorithms lessons need a complexity')
     }
-    const required = [...REQUIRED_SECTIONS, l.track === ALGORITHMS ? 'Template' : 'Example']
+    // Case-study lessons replace Example with "Design walkthrough" (and add "Requirements & estimates").
+    const isCaseStudy = l.track !== ALGORITHMS && l.headings.includes('Design walkthrough')
+    const required = [...REQUIRED_SECTIONS, l.track === ALGORITHMS ? 'Template' : isCaseStudy ? 'Design walkthrough' : 'Example']
     const missing = required.filter((h) => !l.headings.includes(h))
     if (missing.length > 0) err('V9', lessonFile(l), `missing section(s) ${missing.map((h) => `"## ${h}"`).join(', ')}`)
     for (const m of l.raw.matchAll(/<Visualizer\s[^>]*?\bkind=["']([^"']*)["']/g)) {

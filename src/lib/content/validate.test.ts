@@ -146,6 +146,14 @@ describe('validateContent', () => {
     expect(errors).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Example"')
   })
 
+  it('V9: a case study may use Design walkthrough in place of Example', () => {
+    const c = valid()
+    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'] })
+    expect(validateContent(c).filter((e) => e.startsWith('[V9]'))).toEqual([])
+    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ['Intuition', 'Visual', 'Design walkthrough', 'Tips & tricks'] })
+    expect(validateContent(c)).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Pitfalls"')
+  })
+
   it('V9: <Visualizer kind> in the body must be a known kind', () => {
     const c = valid()
     c.lessons[0] = lesson('aaa', 'algorithms', { raw: 'ok <Visualizer kind="heap" />\n<Visualizer kind="nope" />' })

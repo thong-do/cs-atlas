@@ -1,0 +1,104 @@
+---
+slug: replication-sharding
+title: Replication & sharding
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [sql-vs-nosql]
+summary: "Copy data to survive failures and serve more reads, split it to scale writes and storage, and know what each choice costs."
+---
+
+## Intuition
+
+A library has one rare book. Photocopy it and put copies in three branches: readers are spread out, and a fire at one branch loses nothing. That is **replication**: the same data on several machines. The catch is that when the author issues a correction, some branches get it later than others.
+
+Now the library holds ten million books and no building fits them. Split the collection by author surname, A–F in one building, G–M in the next. That is **sharding** (also called partitioning): each machine holds a different slice. Look-ups get faster per building, but a question like "all books published in 1999" now means visiting every building.
+
+Replication gives **read scale, availability and durability**. Sharding gives **write and storage scale**. Large systems usually do both: each shard is itself replicated.
+
+**Leader–follower replication.** Writes go to one **leader**; it ships its changes to **followers**, which serve reads.
+- **Synchronous:** the leader waits for a follower to confirm before acknowledging. Nothing acknowledged is lost if the leader dies, but a slow follower slows every write.
+- **Asynchronous:** the leader acknowledges at once. Writes are fast, but a crash can lose the last acknowledged writes, and followers **lag**.
+
+**Replication lag** causes visible bugs. After you post a comment, a refresh reads from a lagging follower and your comment is gone. Fixes:
+- **Read-your-writes:** read the user's own recent data from the leader, or from a follower that has caught up to their last write.
+- **Monotonic reads:** pin each user to one follower (a sticky read), so time never appears to go backwards.
+
+**Failover** promotes a follower when the leader dies. Risks: acknowledged async writes are lost; the old leader may come back believing it is still the leader (**split brain**, two leaders accepting writes). Guard with a fencing token or epoch number that storage rejects when stale, and promote only after a majority agrees.
+
+**Multi-leader** setups (often one leader per region) accept writes in several places; the price is **write conflicts** you must resolve. **Leaderless** designs (Dynamo-style) write to N replicas and use **quorums**: with N replicas, W write acks and R read replicas, **W + R > N** means a read and a write share at least one replica. Rule of thumb, not a full guarantee: sloppy quorums, concurrent writes and failures can still return stale data, so it is not linearizability by itself.
+
+## Visual
+
+```text
+Leader with two followers (a write to key x)
+
+                    ┌── sync ack ───► follower 1  (reads, failover candidate)
+  client ─► LEADER ─┤
+                    └── async ──────► follower 2  (reads, may lag)
+  client ◄─ "ok" returned after follower 1 confirms
+```
+
+Sharding by `hash mod N` is easy but fragile: change N and most keys change owner. **Consistent hashing** puts nodes and keys on a ring and gives each key to the first node clockwise.
+
+<Visualizer kind="consistent-hashing" />
+
+The scenario: a ring of positions 0–99 with nodes A at 10, B at 45 and C at 80. Keys land at k1 5, k2 30, k3 50, k4 70, k5 90 and go to A, B, C, C and A (k5 wraps past 99). Then node D joins at 60 and takes over the arc (45, 60] from C. Only k3 (50) moves, C to D: 1 of 5 keys.
+
+With `hash mod N`, going from 3 to 4 servers keeps a key in place only when `h mod 3 == h mod 4`. That holds for 3 of every 12 residues (0, 1, 2), so about 3 in 4 keys move. Consistent hashing moves roughly 1/N of keys on average, here about 1 in 4 once D has joined; one small example can land above or below that. **Virtual nodes** (each server placed at many ring positions) even out arc sizes and spread a departing node's load across many neighbours.
+
+## Example
+
+Plan sharding for a `comments` table: about 600 million rows at roughly 300 bytes each, so 600M × 300 B ≈ 180 GB, plus indexes. This is an illustrative figure.
+
+```sql
+-- Logical schema; shard key = post_id
+CREATE TABLE comments (
+  post_id    BIGINT NOT NULL,
+  comment_id BIGINT NOT NULL,        -- time-ordered id
+  author_id  BIGINT NOT NULL,
+  body       TEXT   NOT NULL,
+  PRIMARY KEY (post_id, comment_id)
+);
+CREATE INDEX comments_recent ON comments (post_id, comment_id DESC);
+```
+
+**Partition key: `post_id`.** The main query is "most recent 20 comments for a post". With `post_id` as key, that touches **one shard**, using the index above. Sharding by `comment_id` would scatter one post's comments over every shard.
+
+**Range vs hash on `post_id`.** Range partitioning (ids 1–1M on shard 1, and so on) allows range scans, but new posts all have the highest ids, so the newest range takes nearly all writes. Hash partitioning (`hash(post_id) mod` a fixed number of buckets) spreads posts evenly; you give up scans over adjacent posts. Pick hash here, since no query needs adjacent post ids.
+
+**Buckets, not machines.** Hash into 64 fixed buckets and map buckets to servers. With 4 servers, that is 16 buckets each, about 45 GB per server (180 GB ÷ 4). Adding a fifth server means moving a few whole buckets, not rehashing every row.
+
+**The viral post.** One post draws thousands of reads and writes per second, and all of them hit its single shard. Mitigations:
+- Cache the first page of comments (reads, the usual fix).
+- **Salt** the key for writes: store `(post_id, bucket)` with `bucket = hash(comment_id) mod 8`. Writes spread across 8 shards. The cost is that "most recent 20" now **fans out** to 8 shards, merges and sorts. Salt only posts flagged as hot.
+
+```python
+def shard_key(post_id, comment_id, hot_posts):
+    if post_id in hot_posts:                  # small, explicit set
+        return (post_id, hash(comment_id) % 8)
+    return (post_id, 0)
+
+def recent(post_id, hot_posts, n=20):
+    keys = [(post_id, b) for b in range(8)] if post_id in hot_posts else [(post_id, 0)]
+    rows = [r for k in keys for r in query_shard(k, limit=n)]   # fan out
+    return sorted(rows, key=lambda r: r.comment_id, reverse=True)[:n]
+```
+
+## Pitfalls
+
+- **Reading from a follower right after a write.** Users "lose" their own post. Route read-your-writes traffic to the leader for a short window, or track the write's position.
+- **Promoting a follower without fencing.** The old leader returns and both accept writes. Use fencing tokens and a majority-based election.
+- **Assuming async replication is durable.** An acknowledged write may exist only on the dead leader. Use synchronous replication to at least one follower if you cannot lose it, and accept the latency.
+- **Treating W + R > N as strong consistency.** It guarantees overlap of the read and write sets, no more. Concurrent writes still need a conflict rule (such as last-write-wins, which can drop data).
+- **A monotonic shard key.** Range-partitioning on a timestamp or auto-increment id sends all new writes to one shard. Hash it, or prefix with a bucket.
+- **Cross-shard queries and transactions.** Joins, secondary-index lookups and multi-shard transactions are slow or complex (fan-out, two-phase commit, or sagas). Choose the key so the frequent queries stay on one shard.
+- **Tiny fixed shard count.** If you pick 4 shards and need 16, you reshard under load. Start with many logical buckets mapped to few servers.
+
+## Tips & tricks
+
+- Scale in order: indexes, caching, read replicas, then sharding. Sharding is hard to undo.
+- Pick the partition key from the **most frequent query**, and check it has many distinct values with even traffic. A hot key beats any hash function.
+- Use range partitioning when range scans matter and writes are not monotonic; use hash for even spread.
+- Resharding: use many logical buckets (a fixed bucket count mapped to servers) or consistent hashing with virtual nodes, and move data in the background.
+- Measure per-shard storage, write rate and p99 latency, plus **replication lag** per follower and alert on it. Compare the busiest shard to the median.
+- Interview phrasing: "I would shard by `post_id`, hashed into fixed buckets, replicated to three nodes across zones. Writes go to the leader, and a user's own recent reads go there too, to get read-your-writes."

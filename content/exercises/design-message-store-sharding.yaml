@@ -1,0 +1,52 @@
+slug: design-message-store-sharding
+type: design-prompt
+title: "Design: shard a user-messages store"
+lessons: [replication-sharding]
+ladderOrder: 2
+prompt: |
+  A messaging product keeps a **user-messages table**: **4 TB today**, growing about **50 GB/day**.
+  It serves **30,000 reads/s** and **3,000 writes/s**. Users open their conversations **newest first**.
+  A single database node can no longer keep up with the writes or the storage.
+
+  **One region must survive the loss of a database node** without losing acknowledged messages.
+  Describe the partition key, the partitioning scheme, replication and failover, how you add capacity later,
+  and how you handle a few extremely active users. Show the capacity arithmetic.
+hint: "Write down the key the 'newest first' query filters on, then check what happens to your busiest value of that key."
+rubric:
+  - id: partition-key
+    point: "Picks a partition key matching the main query (such as user_id, with messages sorted newest first inside it), so a conversation read hits one shard."
+  - id: scheme
+    point: "Chooses hash partitioning into many fixed buckets mapped to servers (or consistent hashing with virtual nodes), and avoids a monotonic key such as time or an auto-increment id."
+  - id: replication
+    point: "Replicates each shard across nodes or zones, with at least one synchronous follower or a majority commit for durability, and plans failover with fencing so only one leader writes."
+  - id: capacity
+    point: "Does the arithmetic: yearly growth, shard count, per-shard storage and per-shard read and write rates, with headroom."
+  - id: hot-users
+    point: "Handles very active users by sub-partitioning their key (for example user_id plus a time bucket), caching, or limits, and accepts the fan-out cost."
+reference: |
+  **Key and scheme.** Partition by `user_id` and sort rows by `(conversation_id, sent_at DESC)` inside the
+  partition, so "open a conversation, newest first" reads one shard in order. Hash `user_id` into a fixed
+  number of logical buckets (say 256) and map buckets to servers. Do not partition by `sent_at`: every new
+  message would hit the newest range.
+
+  **Capacity.** Growth is 50 GB/day × 365 ≈ 18,250 GB ≈ 18 TB/year, so about 22 TB after a year (4 + 18).
+  With an illustrative target of at most about 1.5 TB per node, 22 TB ÷ 1.5 TB ≈ 15, so plan 16 shards
+  (about 250 GB each today, about 1.4 TB after a year). Load per shard: 3,000 ÷ 16 ≈ 190 writes/s and
+  30,000 ÷ 16 ≈ 1,900 reads/s, which one leader plus followers handles comfortably. Keep headroom for skew.
+  Storage is multiplied by the replica count: three copies means roughly 66 TB of raw disk after a year.
+
+  **Replication and failover.** Each shard has a leader and two followers in different zones. Writes
+  acknowledge after the leader and one synchronous follower have them, so losing one node loses no
+  acknowledged message. Reads can use followers; a user's own recent reads go to the leader for
+  read-your-writes. If the leader dies, a majority-based election promotes the up-to-date follower, and a
+  fencing token or epoch stops the old leader from writing if it returns.
+
+  **Adding capacity.** Because data lives in 256 buckets, add servers and move whole buckets in the
+  background, copying then switching the routing table. Only the moved buckets' data travels.
+
+  **Very active users.** One account sending a flood of messages makes its partition hot. Split it by
+  time bucket: key `(user_id, month)`, so history spreads over shards, and read "newest first" starting
+  with the latest bucket. Cache the first page and rate-limit abusive senders.
+
+  **Trade-offs.** Cross-user queries (search, a message visible to both sender and recipient) need a copy
+  per mailbox or an index, which adds writes. Watch per-shard size, write rate, p99 latency and replication lag.

@@ -8,6 +8,7 @@ const PAGES = [
   { path: '/system-design/dns-cdn/', final: 'Done: the first lookup took 75 ms, the cached one 5 ms' },
   { path: '/system-design/caching/', final: 'Done: 1 hit, 7 misses, 4 evictions' },
   { path: '/system-design/load-balancing/', final: 'Done: peak load 2 with round-robin vs 1 with least-connections' },
+  { path: '/system-design/replication-sharding/', final: 'Done: adding D moved 1 of 5 keys; with hash mod N, going from 3 to 4 servers would move about 3 in 4 keys' },
 ]
 const VIEWPORTS = [
   { width: 375, height: 812 },

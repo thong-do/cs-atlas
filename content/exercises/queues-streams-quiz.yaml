@@ -6,27 +6,27 @@ ladderOrder: 1
 questions:
   - id: crash-before-ack
     prompt: "A work queue gives at-least-once delivery. A worker finishes resizing an image, then crashes before sending the ack. What happens next?"
-    choices: ["The broker rolls back the resized image to keep state consistent", "The message moves straight to the dead-letter queue as a failure", "The message reappears and is redelivered, so the task may run twice", "The message is dropped, because the worker already received it"]
+    choices: ["The broker rolls back the resized image to keep state consistent", "The message moves straight to the dead-letter queue as a failure", "It is redelivered after a timeout, so the task may run twice", "The message is dropped, because the worker already received it"]
     answer: 2
     explanation: "Without an ack the broker assumes the work may not have happened and redelivers. That is why at-least-once consumers must tolerate duplicates."
   - id: ordering-key
     prompt: "A log topic has 6 partitions. All events for one order must be processed in the order they were produced. What do you do?"
-    choices: ["Use the order id as the partition key so its events share a partition", "Use a random key per event so partitions fill evenly", "Give each consumer in the group its own copy of every partition", "Raise the partition count, since order improves with more partitions"]
+    choices: ["Key events by order id so all of them land in one partition", "Use a random key per event so load spreads across all partitions", "Give each consumer in the group its own copy of every partition", "Raise the partition count, since order improves with more partitions"]
     answer: 0
     explanation: "Order is guaranteed only within a partition. Keying by order id routes all of that order's events to one partition, in sequence."
   - id: exactly-once-email
     prompt: "A handler sends a confirmation email for each queued message. Which design best approximates exactly-once effect?"
-    choices: ["Choose a broker whose documentation says exactly-once delivery", "Ack before sending so a message can never be redelivered", "Run a single consumer so two workers never see the same message", "Accept redelivery but skip sends already recorded under the message id"]
+    choices: ["Choose a broker whose documentation promises exactly-once delivery", "Ack before sending, so a crash can never cause a second delivery", "Run a single consumer so two workers never see the same message", "Accept redelivery; skip sends recorded under the order's event id"]
     answer: 3
-    explanation: "Exactly-once in practice is at-least-once delivery plus idempotent handling. Recording the message id lets a repeat be recognised and skipped."
+    explanation: "Exactly-once in practice is at-least-once delivery plus idempotent handling. Recording a producer-assigned event id (not the broker's per-send id, which a duplicate publish gets afresh) lets a repeat be recognised and skipped."
   - id: visibility-timeout
     prompt: "A queue uses a 30 s visibility timeout, but a task normally takes 90 s. What is the likely result?"
-    choices: ["The broker waits for the ack, so tasks are unaffected", "The message becomes visible again after 30 s and a second worker may start it", "The message goes to the dead-letter queue after the first 30 s", "The consumer is paused until the task finishes, then resumes"]
+    choices: ["Nothing: the broker always waits for the ack before redelivering", "It reappears after 30 s, so a second worker may start it", "The message goes to the dead-letter queue after the first 30 s", "The consumer is paused until the task finishes, then resumes"]
     answer: 1
     explanation: "While hidden, the message is invisible; when the timeout expires without a delete, it reappears for another consumer. The timeout must exceed the task time, or be extended."
   - id: outbox
     prompt: "A service commits an order to its database and then publishes an event, but sometimes crashes between the two steps. What does a transactional outbox change?"
-    choices: ["The event is written in the same DB transaction as the order, and a relay publishes it later", "The broker joins the database transaction so both commit atomically", "Events are published before the commit, so a crash cannot lose them", "Consumers re-read the orders table instead of receiving events"]
+    choices: ["Order and event commit in one transaction; a relay publishes later", "The broker joins the database transaction so both commit atomically", "Events are published before the commit, so a crash cannot lose them", "Consumers poll the orders table directly instead of receiving events"]
     answer: 0
     explanation: "A single transaction can cover the order row and the outbox row, so neither is lost without the other. The relay publishes at-least-once, so consumers must handle duplicates."
 flashcards:
@@ -41,7 +41,7 @@ flashcards:
     back: "Process, then ack. A crash before the ack causes redelivery, so duplicates are possible. The common default; pair it with idempotent handlers."
   - id: idempotent-consumer
     front: "Idempotent consumer"
-    back: "A handler where a repeated message has no extra effect, for example by checking a stored message id first. Turns at-least-once into an exactly-once effect."
+    back: "A repeat has no extra effect, e.g. dedupe on a producer-assigned event id. Exactly-once effect only if dedupe and effect commit together; email leaves a window."
   - id: visibility-timeout
     front: "Visibility timeout"
     back: "While a consumer works, the message is hidden. If it is not deleted before the timeout, it reappears and is redelivered. Set it above the task time."

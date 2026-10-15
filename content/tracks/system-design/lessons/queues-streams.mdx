@@ -26,13 +26,13 @@ The price is complexity: duplicates, ordering and a new thing to monitor.
 **Delivery semantics.**
 - **At-most-once:** acknowledge first, then process. A crash loses the message; nothing is duplicated.
 - **At-least-once:** process first, then ack. A crash before the ack means redelivery, so **duplicates happen**. This is the common default.
-- **"Exactly-once"** is not something a broker hands you for arbitrary side effects such as sending an email. In practice it means at-least-once delivery plus **idempotent processing** (a repeat has no extra effect; dedupe on a message id) or a transactional **outbox/inbox**. Some systems offer it within their own boundary (Kafka transactions across topics), but an external email call is outside it.
+- **"Exactly-once"** is not something a broker hands you for arbitrary side effects such as sending an email. In practice it means at-least-once delivery plus **idempotent processing** (a repeat has no extra effect; dedupe on a producer-assigned event id or business key such as order id plus task type, not the broker's per-send id) or a transactional **outbox/inbox**. Kafka transactions cover Kafka-to-Kafka work, not an external email call.
 
 **Ordering** holds only **within a partition** (or a key routed to one partition). Across partitions there is no order. Even in a work queue, retries and several competing consumers can reorder processing: task 2 may finish before a redelivered task 1.
 
 **Failures.** A consumer that takes a message but never acks must not block everything. SQS uses a **visibility timeout**: the message is hidden while a consumer works, and reappears if not deleted in time. RabbitMQ requeues unacked messages when the consumer's channel closes. A **poison message** (one that always fails) would loop forever, so after N attempts it goes to a **dead-letter queue (DLQ)**, for example via an SQS redrive policy, to be inspected by a human (provider defaults vary).
 
-**Backpressure and lag.** If producers outrun consumers, the backlog grows. **Consumer lag** (how far a group's offset trails the log's end, or how old the oldest queued message is) is the key health signal. Fixes: add consumers (up to the partition count in a log), speed up the work, or slow the producers.
+**Backpressure and lag.** If producers outrun consumers, the backlog grows. **Consumer lag** (how far a group's offset trails the log's end, or how old the oldest queued message is) is the key health signal. Fixes: add consumers (in a classic consumer group, up to the partition count), speed up the work, or slow the producers.
 
 **The outbox.** A service saves an order, then publishes "order created". If it crashes between the two, the DB has the order and nobody hears of it. The **transactional outbox** writes the event into an `outbox` table in the **same DB transaction** as the order. A separate relay reads unsent rows and publishes them, marking them sent. It publishes at-least-once, so consumers must tolerate duplicates.
 
@@ -57,7 +57,7 @@ Partitioned log: retained; each group has its own offsets
   hash(key) picks     partition 2: [m0 m1 m2 m3 m4]
   the partition
    group "billing" : p0@4  p1@2  p2@5   (one consumer per partition)
-   group "search"  : p0@1  p1@0  p2@2   (slower; replays from its offset)
+   group "search"  : p0@1  p1@0  p2@2   (slower; lags behind)
    Order holds within p0, p1, p2 separately, not across them.
 ```
 
@@ -72,7 +72,9 @@ Sizing, an illustrative scenario: a campaign sends 50 uploads/s for 10 minutes. 
 Thumbnails arrive late but the upload API never slows down. A generic consumer sketch follows; the method names are invented and it is not any specific SDK.
 
 ```python
-MAX_ATTEMPTS = 5
+import random
+
+MAX_ATTEMPTS = 5   # make_thumbnail and PermanentError are placeholders
 
 def run_worker(queue, dlq, store):
     while True:
@@ -103,18 +105,18 @@ Why it is safe: if a worker crashes after storing the thumbnail but before the a
 
 ## Pitfalls
 
-- **Assuming exactly-once.** Redelivery, retries and the producer's own timeouts all create duplicates. Make handlers idempotent: dedupe on a message id, or use naturally repeatable writes ("set", not "increment").
+- **Assuming exactly-once.** Redelivery, retries and the producer's own timeouts all create duplicates. Make handlers idempotent: dedupe on that event id or business key, or use naturally repeatable writes ("set", not "increment").
 - **Acking before the work is done.** A crash then loses the task silently. Ack after success, and accept duplicates.
 - **A visibility timeout shorter than the task.** The message reappears while the first worker is still running, so two workers process it. Set it above the slowest normal run, or extend it while working.
 - **Poison messages without a DLQ.** One bad message retries forever and burns capacity. Cap attempts, dead-letter, and alert on DLQ depth.
 - **Relying on global order.** Only a partition or key is ordered. Use the entity id as the key (all events of one order go to one partition), and design consumers to cope with reordering where retries are involved.
 - **DB commit, then publish.** A crash between them loses the event; publishing first risks announcing something that rolled back. Use the outbox.
-- **Retry storms.** Instant retries from many workers hammer a struggling dependency. Back off with jitter.
+- **Retry storms.** Instant retries hammer a struggling dependency. Back off with jitter.
 
 ## Tips & tricks
 
 - Choose a work queue for "do this task once, then forget it"; choose a log when several systems consume the same events, or you need replay and audit.
-- In a log, parallelism is capped by the partition count (one consumer per partition within a group). Pick a partition key with many distinct, evenly used values.
-- Use idempotency keys from the earlier HTTP lesson. Pass the message id downstream so retries are recognisable.
+- In a log, in a classic consumer group, parallelism is capped by the partition count (one consumer per partition). Pick a partition key with many distinct, evenly used values.
+- Use idempotency keys from the earlier HTTP lesson. Pass the event id or business key downstream so retries are recognisable.
 - Measure queue depth, age of the oldest message, consumer lag per group, processing time, retry rate and DLQ depth. Alert on age and DLQ growth, not just depth.
-- Interview phrasing: "I would enqueue after a transactional outbox write, run idempotent at-least-once consumers with capped, backed-off retries, dead-letter after five attempts, and alert on lag and DLQ depth."
+- Interview phrasing: "Delivery is at-least-once, so I make the handler safe to repeat, cap retries, and watch lag and the dead-letter queue."

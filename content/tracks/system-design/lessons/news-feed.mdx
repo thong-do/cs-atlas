@@ -17,7 +17,7 @@ It is interesting because reads and writes pull in opposite directions, and one 
 
 **Functional.** Publish, edit and delete posts. Follow and unfollow. Read a paged feed of recent posts from followed accounts.
 
-**Non-functional (assumptions).** Feed reads are fast (p99 under a few hundred ms). The system stays available when parts fail. Eventual consistency is fine: a new post may take seconds to appear, but a deleted one should vanish promptly.
+**Non-functional (assumptions).** Feed reads are fast (p99 under a few hundred ms). Eventual consistency is fine: a new post may take seconds to appear, but a deleted one should vanish promptly.
 
 **Estimates.** These numbers are illustrative. Assume 100 M daily active users (DAU), 10% of them post once a day, each user follows about 200 accounts, and each reads their feed 10 times a day.
 
@@ -30,10 +30,10 @@ It is interesting because reads and writes pull in opposite directions, and one 
 | Fan-out writes/s | 2 × 10^9 ÷ 86,400 | about 23,000/s; about 70,000/s at 3× |
 | Feed reads per day | 100 M × 10 | 1 × 10^9 |
 | Read QPS | 10^9 ÷ 86,400 | about 11,600/s; about 35,000/s at 3× |
-| Feed cache | 100 M users × 500 ids × 8 B | about 400 GB |
+| Feed cache | 100 M users × 500 ids × 8 B | about 400 GB of raw ids; scores and overhead add several times that |
 | Post storage | 10 M × 1 KB (text and metadata) | about 10 GB/day, 3.7 TB/year |
 
-*Follows versus followers.* The 200 is an average of **follows** per user, but fan-out cost depends on **followers** per author. In a closed graph where everyone is counted, each follow edge adds one to a follower count and one to a follows count, so the two averages are equal. Heavy posters may differ from the average, so treat 200 as a rough planning figure.
+*Follows versus followers.* The 200 is an average of **follows** per user, but fan-out cost depends on **followers** per author. In a closed graph where everyone is counted, each follow edge adds one to a follower count and one to a follows count, so the two averages are equal. Heavy posters may differ, so treat 200 as rough.
 
 Push turns 116 post writes/s into 23,000 feed writes/s, about 200 times more. Pull inverts that: cheap writes, but each read gathers posts from about 200 accounts.
 
@@ -66,23 +66,23 @@ The animation uses a tiny graph. Ana's followers are F1 and F2, Ben's follower i
 - `GET /v1/feed?limit=20&cursor=...` returns posts and a `nextCursor`.
 - `PUT` and `DELETE /v1/follows/{userId}`; `PATCH` and `DELETE /v1/posts/{postId}`.
 
-**Data model.** `posts(post_id, author_id, text, created_at, deleted)`. `follows(follower_id, followee_id)`, readable in both directions (who do I follow, who follows me). A feed entry in the cache is a sorted list per user of `(post_id, score)`, where the score is a timestamp or a rank. Use time-sortable post ids. Shard the post store by `post_id` to spread load evenly, or by `author_id` so one author's timeline is a single-shard read (see [replication & sharding](/system-design/replication-sharding/)). Author sharding makes timelines a single-shard read but risks a hot shard for a popular author; id sharding spreads load but makes a timeline read a scatter-gather.
+**Data model.** `posts(post_id, author_id, text, created_at, deleted)`. `follows(follower_id, followee_id)`, readable in both directions (who do I follow, who follows me). A feed entry in the cache is a sorted list per user of `(post_id, score)`, where the score is a timestamp or a rank. Use time-sortable post ids. Shard the post store by `post_id` to spread load evenly, or by `author_id` (see [replication & sharding](/system-design/replication-sharding/)). Author sharding makes timelines a single-shard read but risks a hot shard for a popular author; id sharding spreads load but makes a timeline read a scatter-gather.
 
 **Push (fan-out on write).** When a post is created, a worker looks up the author's followers and inserts the post id into each follower's cached feed. Reading is one lookup. The price is write amplification: about 23,000 feed writes/s.
 
-**Pull (fan-out on read).** Store the post once; at read time fetch recent posts from each followed account and merge them. Nothing is stored per follower, but a read touches about 200 timelines, so latency grows with the follow count.
+**Pull (fan-out on read).** Fetch recent posts from each followed account and merge them. Nothing is stored per follower, but a read touches about 200 timelines, so latency grows with the follow count.
 
 **Hybrid.** Push for ordinary authors and pull for celebrities. Choose a follower threshold, for example 100,000 (an illustrative figure to tune against measured fan-out cost). Authors above it are not fanned out; a reader merges their timeline with the precomputed feed, as the animation shows. Large systems are often described as mixing the two, but details vary, so choose by your own numbers.
 
 **Feed cache.** Store **post ids only**, not post bodies. Ids are small (8 B), so 500 per user is affordable, and an edit does not touch thousands of feeds. At read time, **hydrate**: batch-fetch the posts by id from a [cache](/system-design/caching/) backed by the post store. Popular posts are read by many users, so the hit ratio is high.
 
-**Fan-out through a queue.** The post service stores the post, publishes an event to a queue ([queues & streams](/system-design/queues-streams/)) and returns. A burst shows up as queue lag, not slow requests. Delivery is at-least-once, so workers must be idempotent: inserting `(post_id)` into a user's sorted feed is a set-style write, so a replay changes nothing. Partition the stream by author, with one consumer group for the fan-out workers. Split a big follower list into chunks so one slow chunk retries alone.
+**Fan-out through a queue.** The post service stores the post, publishes an event to a queue ([queues & streams](/system-design/queues-streams/)) and returns. Delivery is at-least-once, so workers must be idempotent: the post id, assigned by the post service (the producer), is the idempotency key, so inserting it into a feed twice leaves one entry. Partition the stream by author, with one consumer group for the fan-out workers. Split a big follower list into chunks so one slow chunk retries alone.
 
-**Ordering and ranking.** The simplest feed is chronological: sort by post id or time. A ranked feed scores a few hundred merged candidates (recency, affinity, predicted engagement) and returns the top. It adds CPU to the read path, so measure before adding it.
+**Ordering and ranking.** The simplest feed is chronological: sort by post id or time. A ranked feed scores a few hundred merged candidates (recency, affinity, predicted engagement) and returns the top. It adds read-path CPU, so measure first.
 
 **Pagination with cursors.** Return an opaque cursor encoding the last item seen, for example `(score, post_id)`; the next request asks for items strictly after it. An offset (`?page=3`) breaks when the feed changes. A user on page 1 reads items 1 to 20. Ten new posts arrive. Page 2 means "skip 20", but the old items 11 to 20 have shifted to positions 21 to 30, so the user sees those ten items twice. Deleted items cause the opposite: the reader skips some. A cursor is anchored to an item, not a position. The store can also seek straight to it, instead of scanning past an offset.
 
-**Deletes, edits and unfollows.** Because feeds hold ids, an edit only changes the post record, and readers see it on hydration. For a delete, flag the post and **filter at read time**: hydration drops flagged posts, and the reader fetches a few extra ids to fill the page. A background job can purge ids later. Do the same for unfollow: instead of rewriting a feed, filter entries whose author is no longer followed when you build the page. The cost is an occasional short page.
+**Deletes, edits and unfollows.** Because feeds hold ids, an edit only changes the post record, and readers see it on hydration. For a delete, flag the post and **filter at read time**: invalidate the post's cache entry ([caching](/system-design/caching/)),. Hydration drops flagged posts, and the reader fetches a few extra ids to fill the page. A background job can purge ids later. Do the same for unfollow: instead of rewriting a feed, filter entries whose author is no longer followed when you build the page. The cost is an occasional short page.
 
 **Inactive users.** Fan-out to people who have not opened the app in weeks is wasted. Skip them, and on login rebuild the feed with a pull, then resume pushing. The cost is a slower first load.
 

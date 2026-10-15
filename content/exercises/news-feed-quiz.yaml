@@ -6,27 +6,27 @@ ladderOrder: 1
 questions:
   - id: fanout-load
     prompt: "A feed service sees 50 M new posts a day and an average of 100 followers per author. It fans out on write, one feed insert per follower. About how many feed inserts per second is that on average?"
-    choices: ["About 580/s, from 50 M posts ÷ 86,400 s, because each post is one write", "About 5,800/s, from 50 M × 100 ÷ 86,400 with one digit dropped", "About 5 billion/s, because the daily fan-out total is the per-second rate", "About 58,000/s, from 50 M × 100 = 5 × 10^9 inserts a day ÷ 86,400"]
+    choices: ["About 5.8 million/s, from 50 M × 100 followers × 100 follows ÷ 86,400", "About 5,800/s, from 50 M × 100 = 5 × 10^9 inserts a day ÷ 864,000", "About 290,000/s, from 50 M × 100 × 5 for peak traffic ÷ 86,400 s", "About 58,000/s, from 50 M × 100 = 5 × 10^9 inserts a day ÷ 86,400"]
     answer: 3
     explanation: "Fan-out writes per day = 50 M × 100 = 5 × 10^9, and 5 × 10^9 ÷ 86,400 ≈ 58,000/s. The other choices omit the follower multiplier, slip a factor of ten, or skip the division."
   - id: offset-paging
     prompt: "Users page through a feed with ?offset=20&limit=20 while new posts keep arriving at the top. What goes wrong, and what fixes it?"
-    choices: ["New posts shift older items down, so page 2 repeats items from page 1; a cursor anchored to the last item fixes it", "Offsets force the server to cache every page it serves, so memory grows without bound; a shorter cache TTL fixes it", "Offsets cannot be combined with sorting, so pages come back in random order; adding a secondary index fixes it", "New posts make later pages come back empty, so readers miss items entirely; a larger page size fixes it"]
+    choices: ["New posts shift older items down, so page 2 repeats items from page 1; a cursor anchored to the last item fixes it", "Offsets force the server to cache every page it serves, so memory grows without bound; a shorter cache TTL fixes it", "Offsets cannot be combined with sorting, so pages come back in random order; adding a secondary index fixes it", "Readers on the same offset lock the feed row, so requests serialise and latency grows; sharding the feed fixes it"]
     answer: 0
     explanation: "An offset is a position, and new arrivals shift every older item down, so readers see repeats. A cursor names the last item seen, so the next page starts after it whatever arrived meanwhile."
   - id: celebrity-threshold
     prompt: "A team runs push fan-out for every author. Whenever one account with 30 M followers posts, fan-out queue lag spikes for everyone else. What is the best fix?"
-    choices: ["Add more partitions to the queue so the 30 M inserts run in parallel and every account's fan-out finishes sooner", "Skip fan-out for authors above a follower threshold and merge their timeline into feeds at read time", "Switch every author to pull so no feed is ever precomputed, which removes the fan-out lag entirely and cheaply", "Retry failed inserts more aggressively so that the backlog drains at a higher rate than before"]
+    choices: ["Add more partitions to the queue so the 30 M inserts run in parallel and every account's fan-out finishes sooner", "Skip fan-out for authors above a follower threshold and merge their timeline into feeds at read time", "Switch every author to pull so no feed is ever precomputed, so no feed is precomputed and the fan-out lag disappears", "Retry failed inserts more aggressively so that the backlog drains at a higher rate than before"]
     answer: 1
     explanation: "A hybrid design pays for a celebrity post once, at read time, and keeps push for ordinary authors. More partitions or retries still perform 30 M writes, and all-pull makes every read expensive."
   - id: idempotent-workers
     prompt: "The fan-out queue delivers at-least-once, so a worker may process a post event twice after a crash. Which design keeps feeds correct?"
-    choices: ["Delete the event from the queue before inserting it, so that it can never be delivered to a worker twice", "Give each worker its own private copy of the event stream, so that duplicates cancel each other out", "Make the insert a set-style write keyed by post id, so replaying the same event changes nothing", "Run only one worker per author, because duplicates can only come from concurrent consumers"]
+    choices: ["Delete the event from the queue before inserting it, so that it can never be delivered to a worker twice", "Give each worker its own consumer group, so that every event is processed by exactly one worker", "Key the feed insert by post id, so replaying the same event leaves a single entry in the feed", "Run only one worker per author, because duplicates can only come from concurrent consumers"]
     answer: 2
     explanation: "With at-least-once delivery, duplicates are expected, so the write must be idempotent: adding the same post id to a sorted feed twice leaves one entry. Deleting first risks losing the post if the worker crashes."
   - id: deletes-unfollow
     prompt: "An author deletes a post that has already been fanned out to 400,000 cached feeds. Feeds hold post ids only. What is the sensible handling?"
-    choices: ["Flag the post, drop it at hydration, and purge the stale ids from feeds in the background", "Rewrite all 400,000 cached feeds synchronously before acknowledging the delete to the author", "Leave the post visible until the cached feed entries eventually expire on their own schedule", "Copy the post body into each feed with a tombstone field, so that readers can check it locally"]
+    choices: ["Flag the post, evict its cached copy, drop it at hydration, and purge stale ids from feeds later", "Rewrite all 400,000 cached feeds synchronously before acknowledging the delete back to the author", "Leave the post visible until the cached feed entries eventually expire on their own schedule, days later", "Copy the post body into each feed with a tombstone field, so that readers can check it locally"]
     answer: 0
     explanation: "Feeds store ids, so one record change plus read-time filtering removes the post quickly without touching 400,000 feeds. Synchronous rewrites are slow, and waiting for expiry leaves a deleted post visible."
 flashcards:

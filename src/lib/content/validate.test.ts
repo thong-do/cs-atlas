@@ -146,12 +146,21 @@ describe('validateContent', () => {
     expect(errors).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Example"')
   })
 
-  it('V9: a case study may use Design walkthrough in place of Example', () => {
+  it('V9: a lesson in the case-studies module needs the case-study sections', () => {
+    const CS = ['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks']
     const c = valid()
-    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'] })
+    c.tracks[1].modules.push({ slug: 'case-studies', lessons: ['ddd'], comingSoon: [] })
+    c.lessons.push(lesson('ddd', 'system-design', { prerequisites: ['aaa'], headings: CS }))
+    c.exercises.push(exercise('p3', ['ddd'], { leetcodeId: 3 }))
     expect(validateContent(c).filter((e) => e.startsWith('[V9]'))).toEqual([])
-    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ['Intuition', 'Visual', 'Design walkthrough', 'Tips & tricks'] })
-    expect(validateContent(c)).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Pitfalls"')
+    c.lessons[3] = lesson('ddd', 'system-design', { prerequisites: ['aaa'], headings: CS.filter((h) => h !== 'Requirements & estimates') })
+    expect(validateContent(c)).toContain('[V9] content/tracks/system-design/lessons/ddd.mdx: missing section(s) "## Requirements & estimates"')
+  })
+
+  it('V9: a concept lesson with Design walkthrough but no Example still fails', () => {
+    const c = valid()
+    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ['Intuition', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'] })
+    expect(validateContent(c)).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Example"')
   })
 
   it('V9: <Visualizer kind> in the body must be a known kind', () => {

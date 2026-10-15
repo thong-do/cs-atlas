@@ -17,7 +17,7 @@ rubric:
   - id: id-generation
     point: "Generates unguessable IDs from a secure random source with enough bits (for example 128), not a sequential counter, and handles a duplicate with a conditional insert."
   - id: expiry-cleanup
-    point: "Stores an expiry time and checks it on every read, with background cleanup or native TTL for metadata and content, and keeps cache lifetimes within the remaining life."
+    point: "Stores an expiry time and checks it on every read, with cleanup that deletes the content object as well as the metadata, and a CDN max-age no longer than the remaining life (short for 10-minute pastes)."
   - id: read-path
     point: "Computes read load (about 230/s average) and serves reads through a cache or CDN, noting that a paste's content never changes."
   - id: abuse-limits
@@ -43,4 +43,4 @@ reference: |
   time remaining, so a 10-minute paste is not served after expiry. Misses read the metadata, then the object.
 
   **Abuse.** Enforce 1 MB at the edge. Use token-bucket limits per IP and per account, with a tighter quota for anonymous
-  users. Scan for malware and spam, and offer report and delete.
+  users. Scan for malware and spam, and offer report and delete, purging the CDN on delete (abuse or early expiry).

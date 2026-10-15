@@ -1,0 +1,96 @@
+---
+slug: chat
+title: Chat
+level: advanced
+authors: [cs-atlas]
+prerequisites: [queues-streams, load-balancing]
+summary: "Deliver messages between people in near real time over long-lived connections, keeping them in order, never losing one, and surviving users who go offline."
+---
+
+## Intuition
+
+Think of a post office where every resident keeps a phone line open to the sorting desk. When a letter arrives for you, the clerk speaks into your line at once. If your line is dead, the clerk keeps the letter, and hands it over the moment you call back. A **chat service** is that desk: it holds one open connection per online user, pushes messages down it, and stores everything for people who are away.
+
+It is interesting because the usual web model breaks. HTTP is request and response, yet here the server must speak first. Millions of connections stay open at once, so servers become stateful, and the system must still keep messages in order and never lose one.
+
+## Requirements & estimates
+
+**Functional.** One-to-one and small group conversations. Send a message, see it delivered and read, load history, and sync after being offline. Show who is online.
+
+**Non-functional (assumptions).** Delivery to an online user in well under a second. Messages are durable once acknowledged. Order within a conversation is the same for everyone. Delivery is at-least-once, with duplicates removed by the client. Presence may be a little wrong.
+
+**Estimates.** These numbers are illustrative. Assume 20 M daily active users (DAU), about 40 messages sent per user per day, and about 30% of users connected at peak.
+
+| Quantity | Arithmetic | Result |
+|---|---|---|
+| Messages per day | 20 M × 40 | 800 M |
+| Average rate | 800 M ÷ 86,400 | about 9,300/s |
+| Peak rate | 9,300 × 3 | about 28,000/s |
+| Concurrent connections | 20 M × 30% | 6 M |
+| Gateways | 6 M ÷ 100,000 per server | 60, so plan about 80 for headroom |
+| Storage per day | 800 M × 200 B | 160 GB |
+| Storage per year | 160 GB × 365 | about 58 TB, before replication |
+
+The 100,000 connections per server is an illustrative figure; the real limit depends on memory per connection, traffic per connection and the hardware, so measure it. Three replicas turn 58 TB into roughly 175 TB a year. Groups multiply deliveries, not storage: a message is stored once.
+
+## Visual
+
+```text
+ send path
+ sender ──ws──▶ gateway A ──▶ chat service ──▶ message store (by conversation id)
+   ▲                              │  1. dedupe on client message id
+   │                              │  2. assign seq per conversation
+   │ ack(msg id, seq)             │  3. look up recipient in registry
+   └──────────────────────────────┤
+                                  └─▶ pub/sub topic for gateway B ──▶ gateway B ──ws──▶ recipient
+                                                                          recipient ──▶ delivered / read receipts
+                                                                          (the same path in reverse)
+
+ connection registry
+   user 17 ─▶ gateway B        gateway A: 100 k sockets
+   user 42 ─▶ gateway A        gateway B: 100 k sockets     registry entry has a TTL,
+   user 99 ─▶ gateway C        gateway C: 100 k sockets     refreshed by heartbeats
+```
+
+## Design walkthrough
+
+**Transport.** **Long polling** holds a request open until a message arrives, then the client asks again; it works anywhere, but each message costs a full request cycle. **WebSockets** upgrade one HTTP request into a long-lived TCP connection that either side can write to at any time. Use it for online users. For an offline user there is no connection, so the server hands a notification to the platform's push service, and the app opens a connection and syncs when the user taps it. The push only wakes the app; the message itself comes from the store.
+
+**Gateways are stateful.** A WebSocket gateway keeps one socket per user in memory, so a user is tied to one gateway. Connect through a [load balancer](/system-design/load-balancing/): the *first* request needs balancing (least connections works well), and after the upgrade the connection stays put, so no stickiness rule is needed. Keep gateways thin: they authenticate, hold sockets and forward; logic lives in a stateless chat service.
+
+**Connection registry.** To deliver to user 17 you must know their gateway. Keep a registry (user to gateway) in a fast in-memory store ([caching](/system-design/caching/)). A gateway writes the entry on connect and removes it on disconnect, and a TTL covers crashes. The chat service looks up each recipient and publishes the message to that gateway's topic in a pub/sub system; the gateway writes it to the socket. Gateways never talk to each other directly.
+
+**API.** The real-time path is the WebSocket, with frames such as `send`, `ack`, `receipt` and `sync`. Plain HTTP covers the rest: `GET /v1/conversations/{id}/messages?before=...&limit=50` for history, and `POST /v1/devices` to register a push token.
+
+**Message ids and ordering.** The sender's app creates a **client message id** (a UUID) for each message. It is the **idempotency key**: if the ack is lost and the client retries, the service sees the same id and returns the original result without storing a second copy. Order is another matter. Client clocks drift and disagree, so they cannot order messages. Instead the chat service assigns a **sequence number per conversation**, incrementing it where that conversation is written (one partition, one writer at a time). Everyone sorts by sequence. Sequence numbers are only comparable within a conversation, and that is all a chat needs.
+
+**Storage.** Partition the message store by **conversation id** (see [replication & sharding](/system-design/replication-sharding/)), and sort rows by sequence descending inside it. Opening a chat reads the newest page from one partition. A wide-column or key-value store fits ([SQL vs NoSQL](/system-design/sql-vs-nosql/)). Schema: `messages(conversation_id, seq, client_msg_id, sender_id, body, sent_at)`, with a uniqueness check on `(conversation_id, client_msg_id)` for dedupe. The conversation's counter is its highest stored `seq`: the write that inserts row `seq + 1` also updates that counter in one conditional step, and a retry with a known id changes nothing.
+
+**Delivery and receipts.** The flow: the gateway passes the send to the chat service, which dedupes, assigns `seq`, writes the message, and only then acks the sender with `(client id, seq)`. Then it routes. The recipient's client acks receipt, which produces a **delivered** receipt back to the sender; opening the conversation produces a **read** receipt. Receipts are small messages on the same path. Delivery is **at-least-once**: if no client ack arrives, the server resends, so a recipient may see a message twice. The client drops any message whose `(conversation, seq)` it has already stored. The pattern matches the idempotent consumers in [queues & streams](/system-design/queues-streams/).
+
+**Offline users and sync.** An offline user's messages are already in the store. On reconnect, the client sends the last `seq` it holds for each conversation, and the server answers "everything after seq N", oldest first. The client knows what it has, so a lost connection never drops a message, and the same call repairs any gap.
+
+**Group chat.** For a small group (say up to a few hundred members), store the message once under the group's conversation id, with one sequence for the whole group. Then look up each online member in the registry and publish to their gateways; offline members get a push and sync later. Cost is one write plus one delivery per online member.
+
+**Presence.** Clients send a heartbeat every 30 s or so, and each one refreshes a key such as `presence:17` with a TTL of about 90 s. If the key exists, the user is online; if the app dies silently, the key expires. This is approximate by design: a user can look online for up to a TTL after leaving, and flicker under bad networks. Fetch it lazily rather than pushing every change.
+
+**End-to-end encryption.** If you add it, clients encrypt and the servers carry opaque bytes, which limits server-side search and moderation; key management is a deep topic of its own.
+
+**Failure handling.** If a gateway dies, its sockets drop; clients reconnect through the balancer to other gateways, re-register, and sync from their last `seq`. Registry entries expire by TTL. If the chat service restarts mid-send, the client retries with the same id. Replicate the message store, and acknowledge a send only after the write is durable.
+
+## Pitfalls
+
+- **Ordering by client timestamp.** Clocks differ, so two people see different orders. Assign a sequence number on the server.
+- **No client message id.** A retry after a lost ack stores the message twice. Make the id an idempotency key.
+- **Treating the registry as truth.** It can point at a dead gateway. Delivery failures fall back to the store plus push and sync.
+- **Assuming exactly-once.** Redelivery happens; the client must dedupe.
+- **Partitioning by sender or by time.** A conversation is then scattered or all writes hit one range. Partition by conversation id.
+- **Treating presence as exact.** It's a hint; do not build billing or security on it.
+
+## Tips & tricks
+
+- **Structure the answer.** Numbers, transport, gateways and registry, ids and ordering, storage, delivery and sync, groups, presence, then failures.
+- **Say the trade-offs out loud.** WebSockets cost memory per socket and need reconnect logic; long polling is simpler but wasteful; push is for waking offline apps only.
+- **Show the arithmetic.** 28,000 messages/s at peak, but 6 M open connections: the connection count, not the message rate, sizes the fleet.
+- **Commit to one design:** WebSocket gateways, a TTL'd registry, idempotency keys, server-assigned sequence numbers, at-least-once with client dedupe, sync by "after seq N".
+- **Measure** connections per gateway, send-to-deliver latency, reconnect rate, sync size, and push delivery.

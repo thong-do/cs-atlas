@@ -8,7 +8,7 @@ questions:
     prompt: "A feed service sees 50 M new posts a day and an average of 100 followers per author. It fans out on write, one feed insert per follower. About how many feed inserts per second is that on average?"
     choices: ["About 5.8 million/s, from 50 M × 100 followers × 100 follows ÷ 86,400", "About 5,800/s, from 50 M × 100 = 5 × 10^9 inserts a day ÷ 864,000", "About 290,000/s, from 50 M × 100 × 5 for peak traffic ÷ 86,400 s", "About 58,000/s, from 50 M × 100 = 5 × 10^9 inserts a day ÷ 86,400"]
     answer: 3
-    explanation: "Fan-out writes per day = 50 M × 100 = 5 × 10^9, and 5 × 10^9 ÷ 86,400 ≈ 58,000/s. The other choices omit the follower multiplier, slip a factor of ten, or skip the division."
+    explanation: "Fan-out writes per day = 50 M × 100 = 5 × 10^9, and 5 × 10^9 ÷ 86,400 ≈ 58,000/s. The other choices multiply by an extra 100 follows, divide by 864,000 instead of 86,400, or apply a 5× peak factor to an average."
   - id: offset-paging
     prompt: "Users page through a feed with ?offset=20&limit=20 while new posts keep arriving at the top. What goes wrong, and what fixes it?"
     choices: ["New posts shift older items down, so page 2 repeats items from page 1; a cursor anchored to the last item fixes it", "Offsets force the server to cache every page it serves, so memory grows without bound; a shorter cache TTL fixes it", "Offsets cannot be combined with sorting, so pages come back in random order; adding a secondary index fixes it", "Readers on the same offset lock the feed row, so requests serialise and latency grows; sharding the feed fixes it"]
@@ -16,7 +16,7 @@ questions:
     explanation: "An offset is a position, and new arrivals shift every older item down, so readers see repeats. A cursor names the last item seen, so the next page starts after it whatever arrived meanwhile."
   - id: celebrity-threshold
     prompt: "A team runs push fan-out for every author. Whenever one account with 30 M followers posts, fan-out queue lag spikes for everyone else. What is the best fix?"
-    choices: ["Add more partitions to the queue so the 30 M inserts run in parallel and every account's fan-out finishes sooner", "Skip fan-out for authors above a follower threshold and merge their timeline into feeds at read time", "Switch every author to pull so no feed is ever precomputed, so no feed is precomputed and the fan-out lag disappears", "Retry failed inserts more aggressively so that the backlog drains at a higher rate than before"]
+    choices: ["Add more partitions to the queue so the 30 M inserts run in parallel and every account's fan-out finishes sooner", "Skip fan-out for authors above a follower threshold and merge their timeline into feeds at read time", "Switch every author to pull so no feed is ever precomputed and the fan-out lag disappears", "Retry failed inserts more aggressively so that the backlog drains at a higher rate than before"]
     answer: 1
     explanation: "A hybrid design pays for a celebrity post once, at read time, and keeps push for ordinary authors. More partitions or retries still perform 30 M writes, and all-pull makes every read expensive."
   - id: idempotent-workers

@@ -9,6 +9,10 @@ import { houseRobberSteps, lcsTableSteps } from '@/lib/visualizers/table-steps'
 import { subsetsTreeSteps } from '@/lib/visualizers/tree-steps'
 import { dnsResolutionSteps } from '@/lib/visualizers/dns-steps'
 import { loadBalancerSteps } from '@/lib/visualizers/lb-steps'
+import { consistentHashingSteps } from '@/lib/visualizers/ch-steps'
+import { tokenBucketSteps } from '@/lib/visualizers/tb-steps'
+import { ChView } from './ch-view'
+import { TbView } from './tb-view'
 import { CacheView } from './cache-view'
 import { DnsView } from './dns-view'
 import { LbView } from './lb-view'
@@ -83,6 +87,16 @@ function LoadBalancerVisualizer() {
   return <StepPlayer steps={steps} title="8 requests, 3 servers: round-robin vs least-connections" render={(s) => <LbView step={s} />} />
 }
 
+function ConsistentHashingVisualizer() {
+  const steps = useMemo(() => consistentHashingSteps(), [])
+  return <StepPlayer steps={steps} title="Consistent hashing: 5 keys, 3 nodes, then node D joins" render={(s) => <ChView step={s} />} />
+}
+
+function TokenBucketVisualizer() {
+  const steps = useMemo(() => tokenBucketSteps(), [])
+  return <StepPlayer steps={steps} title="Token bucket: capacity 5, refill 1/s — a burst of 8, then steady traffic" render={(s) => <TbView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -99,6 +113,10 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <DnsVisualizer />
     case 'load-balancer':
       return <LoadBalancerVisualizer />
+    case 'consistent-hashing':
+      return <ConsistentHashingVisualizer />
+    case 'token-bucket':
+      return <TokenBucketVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

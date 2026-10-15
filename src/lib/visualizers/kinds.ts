@@ -11,6 +11,8 @@ export const VISUALIZER_KINDS = [
   'cache-lru',
   'dns-resolution',
   'load-balancer',
+  'consistent-hashing',
+  'token-bucket',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

@@ -1,0 +1,56 @@
+slug: rate-limiting-quiz
+type: quiz
+title: "Rate limiting — quiz"
+lessons: [rate-limiting]
+ladderOrder: 1
+questions:
+  - id: fixed-window-boundary
+    prompt: "An API uses a fixed window of 300 requests per minute, reset on the minute. A client sends 300 requests at 12:00:59 and 300 more at 12:01:00. What happens?"
+    choices: ["The second batch is rejected, because the limiter remembers the last 60 s", "The first batch is allowed and the second is queued until 12:02:00", "Only 50 requests of the second batch pass, from a half-window carry-over", "Both batches are allowed, so 600 requests arrive in about one second"]
+    answer: 3
+    explanation: "The counter resets at the window edge, so each side of the edge gets a full allowance. A fixed window can therefore pass up to 2× the limit across a boundary."
+  - id: token-bucket-burst
+    prompt: "A token bucket has capacity 10 and refills 2 tokens/s. It has been idle for a long time, then 30 requests arrive at the same instant. About how many pass?"
+    choices: ["30, because 2 tokens/s accumulate over the idle period without a cap", "10, the full bucket; the other 20 are rejected until more tokens refill", "2, because the refill rate is the most that can pass at one moment", "15, because a burst may use half of the capacity plus one second of refill"]
+    answer: 1
+    explanation: "Tokens stop accumulating at the capacity, so the largest instant burst equals the capacity. After that, only the refill rate lets requests through."
+  - id: redis-race
+    prompt: "Two gateways each read a Redis counter of 299, both add one and write back 300, and both allow the request. Which change fixes the race?"
+    choices: ["Make the read-modify-write one atomic step in Redis, with INCR or a Lua script", "Give each gateway a longer TTL so stale counts expire before the next read arrives", "Wrap GET and SET in a MULTI block so they run together", "Store the count in each gateway's memory so reads never cross the network"]
+    answer: 0
+    explanation: "The read and write are separate steps, so two clients can act on the same old value; an atomic operation removes the gap. MULTI only queues commands, so it cannot branch on a value it read."
+  - id: nat-ip-key
+    prompt: "A public API limits each client IPv4 address to 60 requests per minute. A company with 500 staff behind one NAT address complains. What is the best fix?"
+    choices: ["Raise the per-IP limit to 30,000 per minute, so each of 500 users gets 60 requests", "Block NAT addresses entirely, since one address should be one person", "Limit per API key or user, and keep IP limits only as a coarse fallback", "Limit by the first 64 bits of the address, which splits NAT users apart"]
+    answer: 2
+    explanation: "NAT means the server sees one address for many people, so a per-IP limit is shared unfairly; an API key separates them. A /64 prefix is for IPv6, not NAT."
+  - id: retry-after-backoff
+    prompt: "A client receives 429 Too Many Requests with Retry-After: 7. What should a well-behaved client do?"
+    choices: ["Retry at once, because a 429 only means the server was briefly busy for a moment", "Wait at least 7 seconds, then retry, adding random jitter to later waits", "Retry every 7 seconds forever, because the header sets a fixed retry interval", "Switch to another API key, since the current key is now banned for good"]
+    answer: 1
+    explanation: "Retry-After says when the server expects to accept requests again, as seconds or an HTTP-date. Adding jitter keeps many clients from retrying in lockstep."
+flashcards:
+  - id: token-bucket
+    front: "Token bucket"
+    back: "A bucket holds up to capacity tokens and refills at a fixed rate; each request takes one. Max burst = capacity, long-run average <= refill rate."
+  - id: fixed-window-boundary-burst
+    front: "Fixed-window boundary burst"
+    back: "Counters reset at the window edge, so a client can use a full limit just before it and another just after: up to 2x the limit in a short span."
+  - id: sliding-window-counter
+    front: "Sliding window counter"
+    back: "Estimates the count as previous x (1 - elapsed/W) + current, assuming the previous window was evenly spread. Cheap, approximate."
+  - id: leaky-bucket
+    front: "Leaky bucket"
+    back: "Two meanings: a queue drained at a fixed rate (smooths output), or a meter much like a token bucket. Check which one a source means."
+  - id: http-429-retry-after
+    front: "429 and Retry-After"
+    back: "429 Too Many Requests rejects a limited call. Retry-After says when to try again, as seconds or an HTTP-date. RateLimit headers are an IETF draft."
+  - id: fail-open-closed
+    front: "Fail open vs fail closed"
+    back: "If the limiter store is down: fail open allows traffic (risks overload); fail closed rejects it (risks self-inflicted outage). Choose per endpoint."
+  - id: backoff-jitter
+    front: "Exponential backoff with jitter"
+    back: "Wait a random time up to min(cap, base x 2^attempt) between retries, so many clients do not retry in lockstep."
+  - id: rate-limit-key
+    front: "Rate-limit key"
+    back: "What a limit is counted against. Prefer API key or user. NAT hides many users behind one IPv4; for IPv6 limit by prefix, e.g. /64."

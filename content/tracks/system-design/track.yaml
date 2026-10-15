@@ -8,8 +8,7 @@ modules:
     lessons: [client-server-http, dns-cdn, caching, sql-vs-nosql]
   - slug: scaling
     title: Scaling
-    lessons: [load-balancing]
-    comingSoon: ["Replication & sharding", "Queues & streams", "Rate limiting"]
+    lessons: [load-balancing, replication-sharding, queues-streams, rate-limiting]
   - slug: case-studies
     title: Case Studies
     lessons: []

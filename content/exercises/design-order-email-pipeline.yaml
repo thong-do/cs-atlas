@@ -1,0 +1,45 @@
+slug: design-order-email-pipeline
+type: design-prompt
+title: "Design: order confirmation email pipeline"
+lessons: [queues-streams]
+ladderOrder: 2
+prompt: |
+  After checkout, a shop must **send an order confirmation email** and **generate a PDF receipt**.
+  Peak load is **2,000 orders/min**. The email provider **sometimes times out**, and consumers can **crash mid-task**.
+
+  A customer must **never get two confirmation emails**, and **no order may be skipped**.
+  Describe the queue or stream choice, the outbox, idempotency, retries and dead-letter handling, and the
+  monitoring (lag, DLQ depth). Show the throughput arithmetic, and say honestly what you cannot guarantee.
+hint: "A timeout does not tell you whether the provider sent the email. Decide what you record, and when, so a retry can tell."
+rubric:
+  - id: outbox
+    point: "Writes the order and an outbox event in one DB transaction, with a relay publishing at-least-once, so a committed order is never missing its event."
+  - id: broker
+    point: "Chooses a work queue (or a log with consumer groups) with acks or a visibility timeout, separate tasks for the email and the PDF, and explains that ordering is not needed between orders."
+  - id: idempotency
+    point: "Makes the email handler idempotent: a unique key per order and email type, a sent-state record claimed with a conditional update and lease, and an idempotency key passed to the provider if it supports one."
+  - id: retries-dlq
+    point: "Retries with exponential backoff and jitter, caps attempts, dead-letters poison messages, and alerts on DLQ depth with a replay path."
+  - id: honesty-monitoring
+    point: "Monitors consumer lag, oldest-message age and DLQ depth, and states the residual window: if the provider sends but the reply is lost, a duplicate or a reconciliation step cannot be fully ruled out."
+reference: |
+  **Throughput.** 2,000 orders/min ÷ 60 ≈ 33 orders/s at peak, each producing two tasks (email, PDF), so about
+  67 tasks/s. If an email call takes about 0.5 s (illustrative), one worker does about 2/s, so
+  33 ÷ 2 ≈ 17 email workers; add headroom. A 1 s PDF at 33/s needs about 33 workers.
+
+  **Outbox and broker.** In the checkout transaction, insert the order, an `outbox` row
+  (`order_id`, `type=order_placed`) and the `pending` email row. A relay publishes unsent rows, then marks them sent; a crash between the two means duplicates downstream.
+  Use a work queue (such as SQS or RabbitMQ) with separate `email` and `receipt` queues. No cross-order ordering is needed.
+
+  **Idempotent email send.** Keep a table `emails(order_id, kind, state, lease_until, provider_id)` with a unique key on
+  `(order_id, kind)`. A worker claims the row: `UPDATE emails SET state='sending', lease_until=now()+T WHERE order_id=? AND kind=? AND (state='pending' OR (state='sending' AND lease_until<now()))`, T above the provider timeout; zero rows means already sent (ack) or a live lease (back off). The winner calls the provider with an idempotency key
+  if supported, then sets `state=sent`. A redelivery that
+  sees `sent` just acks. After a crash the lease expires and the next worker retries with the same provider key or checks the provider first.
+
+  **Retries and DLQ.** Back off exponentially with jitter, cap at 5 attempts, then dead-letter. Alert on any DLQ message. Keep visibility timeout above provider timeout.
+
+  **Honest limit.** If the provider sent the email but the response was lost and it offers no idempotency key
+  or lookup, a retry can send a second one. This shrinks the window; it cannot close it. If a
+  duplicate is worse than a missing email, send at-most-once.
+
+  **Monitoring.** Lag and oldest-message age per queue, DLQ depth, and unsent outbox rows.

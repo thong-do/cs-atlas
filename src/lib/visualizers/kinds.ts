@@ -13,6 +13,7 @@ export const VISUALIZER_KINDS = [
   'load-balancer',
   'consistent-hashing',
   'token-bucket',
+  'feed-fanout',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

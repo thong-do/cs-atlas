@@ -47,7 +47,7 @@ flashcards:
     back: "Feed writes = posts × followers per author. 10 M posts × 200 followers = 2 × 10^9 a day, about 23,000/s, before any peak factor."
   - id: feed-cursor
     front: "Cursor-based feed paging"
-    back: "The cursor encodes the last item seen, such as (score, post id). Unlike an offset, new posts at the top cannot cause repeats."
+    back: "The cursor encodes the last item seen, so new posts at the top cannot cause repeats like an offset. For a ranked feed, page over a snapshot of the candidates, keyed by a session id."
   - id: lazy-filtering
     front: "Lazy filtering at read time"
     back: "For deletes and unfollows, drop invalid entries while building the page instead of rewriting feeds. Fetch a few extras to fill the page."

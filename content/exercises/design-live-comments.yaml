@@ -14,7 +14,7 @@ prompt: |
 hint: "Multiply comments per second by viewers in the largest stream, then ask what a person can actually read in two seconds."
 rubric:
   - id: connections
-    point: "Sizes connections: 2 M sockets over gateways at an illustrative per-server figure (about 20 to 30 gateways), with gateways subscribing to a per-stream topic once rather than per viewer."
+    point: "Sizes connections: 2 M sockets over gateways at an illustrative per-server figure (about 40 gateways, plan about 60), with gateways subscribing to a per-stream topic once rather than per viewer."
   - id: fanout-math
     point: "Shows naive fan-out of 5,000 × 500 k = 2.5 × 10^9 deliveries/s is infeasible, and fixes it by capping each viewer to a sample of about 10 comments/s."
   - id: batching
@@ -24,18 +24,18 @@ rubric:
   - id: replay-storage
     point: "Stores every comment once, partitioned by stream and time bucket, and does the arithmetic for the largest stream's storage."
 reference: |
-  **Connections.** 2 M sockets ÷ an illustrative 100,000 per gateway = 20 gateways; plan about 30 for headroom,
-  so the 500 k-viewer stream spreads to about 17,000 viewers per gateway. The comment service assigns a per-stream
+  **Connections.** 2 M sockets ÷ an illustrative 50,000 per gateway = 40 gateways; plan about 60 for headroom,
+  so the 500 k-viewer stream spreads to about 8,300 viewers per gateway. The comment service assigns a per-stream
   sequence number and publishes each comment once to the stream's pub/sub topic. Each gateway subscribes once per stream
-  it hosts, so the topic carries 5,000 comments/s to about 30 gateways, not to 500 k viewers.
+  it hosts, so the topic carries 5,000 comments/s to about 60 gateways, not to 500 k viewers.
 
   **Does every viewer need every comment?** Naive fan-out is 5,000 × 500,000 = 2.5 × 10^9 deliveries/s,
-  about 83 M/s per gateway, which is infeasible, and nobody can read 5,000 comments/s. Cap each viewer at about
+  about 42 M/s per gateway, which is infeasible, and nobody can read 5,000 comments/s. Cap each viewer at about
   10 comments/s: each gateway samples the topic down to that rate and sends the same sample to all its viewers of the stream.
-  Deliveries fall to 500 k × 10 = 5 M/s, 500 times fewer, about 170,000/s per gateway.
+  Deliveries fall to 500 k × 10 = 5 M/s, 500 times fewer, about 83,000/s per gateway.
 
   **Batching.** Send one frame per viewer every 500 ms carrying that tick's 5 comments: 500 k × 2 frames/s = 1 M frames/s,
-  about 33,000/s per gateway. Added delay is at most 0.5 s, inside the 2 s budget.
+  about 17,000/s per gateway. Added delay is at most 0.5 s, inside the 2 s budget.
 
   **Ordering.** Promise only approximate order by stream sequence number; viewers on different gateways may see
   different samples, and that is acceptable.

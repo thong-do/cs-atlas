@@ -72,7 +72,7 @@ content/
 
 ## Add a lesson
 
-1. Copy `templates/lesson.mdx` to `content/tracks/<track>/lessons/<slug>.mdx` and fill it in.
+1. Copy `templates/lesson.mdx` to `content/tracks/<track>/lessons/<slug>.mdx` and fill it in. For a case study (a lesson in the `case-studies` module), replace the Example section with Requirements & estimates, Design walkthrough and the other case-study sections listed under the quality bar below.
 2. Add the slug to a module's `lessons` in `content/tracks/<track>/track.yaml`.
 3. Make sure at least one exercise lists it (add one if needed).
 4. Run `npm run dev` and open `/<track>/<slug>/`.

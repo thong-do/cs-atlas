@@ -8,7 +8,7 @@ questions:
     prompt: "A messenger expects 4 M concurrent connections at peak. Load tests suggest one gateway holds about 80,000 connections comfortably, and the team wants gateways to run at about 70% of that. Roughly how many gateways?"
     choices: ["About 35, from 4 M ÷ 80,000 = 50 gateways, then × 0.7 to leave headroom", "About 72, from 4 M ÷ 80,000 = 50 gateways, then ÷ 0.7 to run at 70% load", "About 50, from 4 M ÷ 80,000, because the load balancer already absorbs headroom", "About 500, from 4 M ÷ 80,000 = 50 gateways, then × 10 for the peak message rate"]
     answer: 1
-    explanation: "Connection count sizes the fleet: 4 M ÷ 80,000 = 50 at full load, and running each at 70% needs 50 ÷ 0.7 ≈ 72. Multiplying by 0.7 shrinks the fleet, and the balancer cannot add socket capacity."
+    explanation: "Connection count sizes the fleet: 4 M ÷ 80,000 = 50 at full load, and running each at 70% needs 50 ÷ 0.7 ≈ 71.4, so 72. Multiplying by 0.7 shrinks the fleet, and the balancer cannot add socket capacity."
   - id: group-ordering
     prompt: "Two members of a group chat send messages at nearly the same moment from phones connected to different gateways. Everyone must see the same order. What provides it?"
     choices: ["Each sender's device timestamp, with phone clocks kept in step over NTP", "A counter in the gateway that first receives each message, merged by readers", "A sequence number from the single writer of the conversation's partition", "The client message id, since random UUIDs are unique and give a stable total order"]
@@ -26,7 +26,7 @@ questions:
     explanation: "The client's contiguous cursor means a second drop just resumes from the last gap-free seq. Deleting on socket write loses messages the client never received, and a fixed replay window can miss a long gap."
   - id: gateway-crash
     prompt: "A gateway holding 70,000 sockets crashes. What best limits the damage?"
-    choices: ["Keep standby gateways that copy each socket's TCP state, so connections move over without a reconnect", "Clients reconnect via the balancer, entries expire by TTL, and clients sync from last contiguous seq", "Pin each user to one gateway through the balancer, so the same machine is used once it restarts", "Fail over the registry to a replica gateway list and wait for the same gateway to return"]
+    choices: ["Keep standby gateways that copy each socket's TCP state, so connections move over without a reconnect", "Clients reconnect via the balancer, entries expire by TTL, and clients sync from last contiguous seq", "Pin each user to one gateway through the balancer, so the same machine is used once it restarts", "Wait for the crashed gateway to restart and let it rebuild its sockets from the registry"]
     answer: 1
     explanation: "Messages are already stored, so reconnecting and syncing after the last contiguous seq repairs everything, and stale entries age out. TCP state cannot realistically move to another machine, and pinning or waiting for the same gateway only delays recovery."
 flashcards:

@@ -63,21 +63,21 @@ The 100,000 connections per server is illustrative; the real limit depends on me
 
 **API.** The real-time path is the WebSocket, with frames such as `send`, `ack`, `receipt` and `sync`. Plain HTTP covers `GET /v1/conversations/{id}/messages?before=...&limit=50` for history and `POST /v1/devices` for push tokens.
 
-**Message ids and ordering.** The sender's app creates a **client message id** (a UUID) for each message. It is the **idempotency key**: if the ack is lost and the client retries, the service sees the same id and returns the original result without storing a second copy. Order is another matter. Client clocks drift and disagree, so they cannot order messages. Instead the chat service assigns a **sequence number per conversation**, incrementing it where that conversation is written (one partition, one writer at a time). Everyone sorts by sequence. Sequence numbers compare only within a conversation, which is all a chat needs.
+**Message ids and ordering.** The sender's app creates a **client message id** (a UUID) for each message. It is the **idempotency key**: if the ack is lost and the client retries, the service sees the same id and returns the original result without storing a second copy. Order is another matter. Client clocks drift and disagree, so they cannot order messages. Instead the chat service assigns a **sequence number per conversation**, incrementing it where that conversation is written (one partition, one writer at a time). Everyone sorts by sequence. Sequences compare only within a conversation, which is enough.
 
 **Storage.** Partition the message store by **conversation id** (see [replication & sharding](/system-design/replication-sharding/)), and sort rows by sequence descending inside it. Opening a chat reads one partition. A wide-column or key-value store fits ([SQL vs NoSQL](/system-design/sql-vs-nosql/)). Schema: `messages(conversation_id, seq, client_msg_id, sender_id, body, sent_at)`, plus a dedupe row `(conversation_id, client_msg_id) → seq` and a counter row, all in the conversation's partition. One conditional write checks that the dedupe row is absent, increments the counter and inserts the message and dedupe rows together. A retry finds the dedupe row and returns its `seq`.
 
 **Delivery and receipts.** The flow: the gateway passes the send to the chat service, which dedupes, assigns `seq`, writes the message, and only then acks the sender with `(client id, seq)`. Then it routes. The recipient's client acks receipt, which produces a **delivered** receipt back to the sender; opening the conversation produces a **read** receipt. Delivery is **at-least-once**: if no client ack arrives, the server resends, so a recipient may see a message twice. The client drops any message whose `(conversation, seq)` it has already stored. This is the idempotent consumer from [queues & streams](/system-design/queues-streams/).
 
-**Offline users and sync.** An offline user's messages are already in the store. On reconnect, the client sends, per conversation, its highest **contiguous** `seq` (the highest with no gap below it), and the server answers "everything after seq N", oldest first. Holding 5 and 7 means N is 5, so 6 is fetched. A live message whose `seq` jumps (5, then 7) triggers the same fetch. A lost connection never drops a message.
+**Offline users and sync.** An offline user's messages are already in the store. On reconnect, the client sends, per conversation, its highest **contiguous** `seq` (the highest with no gap below it), and the server answers "everything after seq N", oldest first. Holding 5 and 7 means N is 5, so 6 is fetched. A live message whose `seq` jumps (5, then 7) triggers the same fetch. No message is lost.
 
 **Group chat.** For a small group (say up to a few hundred members), store the message once under the group's conversation id, with one sequence for the whole group. Then look up each online member in the registry and publish to their gateways; offline members get a push and sync later. Cost is one write plus one delivery per online member.
 
 **Presence.** Clients send a heartbeat every 30 s or so, and each one refreshes a key such as `presence:17` with a TTL of about 90 s. If the key exists, the user is online; if the app dies silently, the key expires. It is approximate by design: a user can look online for up to a TTL after leaving, and flicker on bad networks.
 
-**End-to-end encryption.** If you add it, clients encrypt and the servers carry opaque bytes, which limits server-side search and moderation; key management is a topic of its own.
+**End-to-end encryption.** If you add it, clients encrypt and the servers carry opaque bytes, which limits server-side search and moderation.
 
-**Failure handling.** If a gateway dies, its sockets drop; clients reconnect through the balancer to other gateways, re-register and sync from their last contiguous `seq`. They use jittered exponential backoff to avoid a thundering herd. Registry entries expire by TTL. A mid-send restart is covered by the client's retry. Replicate the message store, and acknowledge a send only after the write is durable.
+**Failure handling.** If a gateway dies, its sockets drop; clients reconnect through the balancer to other gateways, re-register and sync from their last contiguous `seq`. They use jittered exponential backoff to avoid a thundering herd. Registry entries expire by TTL. Replicate the message store, and acknowledge a send only after the write is durable.
 
 ## Pitfalls
 
@@ -85,7 +85,7 @@ The 100,000 connections per server is illustrative; the real limit depends on me
 - **No client message id.** A retry after a lost ack stores the message twice. Make the id an idempotency key.
 - **Treating the registry as truth.** It can point at a dead gateway. Delivery failures fall back to the store plus push and sync.
 - **Assuming exactly-once.** Redelivery happens; the client must dedupe.
-- **Partitioning by sender or by time.** Conversations scatter or writes pile on one range. Partition by conversation id.
+- **Partitioning by sender or by time.** Conversations scatter or writes pile on one range. Partition by conversation id. (A per-user mailbox copy, partitioned by user, is the other valid model: more writes, but an inbox is one read.)
 - **Treating presence as exact.** It is a hint, not a fact.
 
 ## Tips & tricks

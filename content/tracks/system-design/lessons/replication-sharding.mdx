@@ -62,7 +62,7 @@ CREATE TABLE comments (
 -- No extra index: the primary key already serves newest-first (a backward scan).
 ```
 
-**Partition key: `post_id`.** The main query is "most recent 20 comments for a post". With `post_id` as key, that touches **one shard**, using the index above. Sharding by `comment_id` would scatter one post's comments over every shard.
+**Partition key: `post_id`.** The main query is "most recent 20 comments for a post". With `post_id` as key, that touches **one shard**, using the primary key above. Sharding by `comment_id` would scatter one post's comments over every shard.
 
 **Range vs hash on `post_id`.** Range partitioning (ids 1–1M on shard 1, and so on) allows range scans, but new posts all have the highest ids, so the newest range takes nearly all writes. Hash partitioning (`hash(post_id) mod` a fixed number of buckets) spreads posts evenly; you give up scans over adjacent posts. Pick hash here, since no query needs adjacent post ids.
 

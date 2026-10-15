@@ -26,7 +26,7 @@ questions:
     explanation: "3 + 3 - 5 = 1, so the sets overlap in at least one replica. Overlap alone does not make reads linearizable or resolve concurrent write conflicts."
   - id: range-hot
     prompt: "An events table is range-partitioned by created_at, one range per month. What problem appears first under steady write traffic?"
-    choices: ["Queries spanning two months need two-phase commit", "Old months run out of storage before new ones", "The newest range takes nearly all new writes: a hot spot", "Each month needs its own replication leader election"]
+    choices: ["Queries spanning two months need two-phase commit", "Old months run out of storage before new ones", "The newest range receives nearly every new write", "Each month needs its own replication leader election"]
     answer: 2
     explanation: "A monotonic key sends every new row to the latest range. Hashing the key, or adding a bucket prefix, spreads writes at the cost of cheap time-range scans."
 flashcards:

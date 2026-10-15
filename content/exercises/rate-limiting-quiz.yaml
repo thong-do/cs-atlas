@@ -6,28 +6,28 @@ ladderOrder: 1
 questions:
   - id: fixed-window-boundary
     prompt: "An API uses a fixed window of 100 requests per minute, reset on the minute. A client sends 100 requests at 12:00:59 and 100 more at 12:01:00. What happens?"
-    choices: ["The second batch is rejected, because the limiter remembers the last 60 s", "Both batches are allowed, so 200 requests arrive in about one second", "The first batch is allowed and the second is queued until 12:02:00", "Only 50 requests of the second batch pass, from a half-window carry-over"]
-    answer: 1
+    choices: ["The second batch is rejected, because the limiter remembers the last 60 s", "The first batch is allowed and the second is queued until 12:02:00", "Both batches are allowed, so 200 requests arrive in about one second", "Only 50 requests of the second batch pass, from a half-window carry-over"]
+    answer: 2
     explanation: "The counter resets at the window edge, so each side of the edge gets a full allowance. A fixed window can therefore pass up to 2× the limit across a boundary."
   - id: token-bucket-burst
     prompt: "A token bucket has capacity 10 and refills 2 tokens/s. It has been idle for a long time, then 30 requests arrive at the same instant. About how many pass?"
-    choices: ["30, because 2 tokens/s accumulate over the idle period without a cap", "2, because the refill rate is the most that can pass at one moment", "10, the full bucket; the other 20 are rejected until more tokens refill", "15, because a burst may use half of the capacity plus one second of refill"]
-    answer: 2
+    choices: ["10, the full bucket; the other 20 are rejected until more tokens refill", "30, because 2 tokens/s accumulate over the idle period without a cap", "2, because the refill rate is the most that can pass at one moment", "15, because a burst may use half of the capacity plus one second of refill"]
+    answer: 0
     explanation: "Tokens stop accumulating at the capacity, so the largest instant burst equals the capacity. After that, only the refill rate lets requests through."
   - id: redis-race
     prompt: "Two gateways each read a Redis counter of 99, both add one and write back 100, and both allow the request. Which change fixes the race?"
-    choices: ["Give each gateway a longer TTL so stale counts expire before the next read arrives", "Read the counter twice and allow only if both reads match the first value", "Store the count in each gateway's memory so reads never cross the network", "Make the read-modify-write one atomic step in Redis, with INCR or a Lua script"]
+    choices: ["Give each gateway a longer TTL so stale counts expire before the next read arrives", "Wrap GET and SET in a MULTI block so they run together", "Store the count in each gateway's memory so reads never cross the network", "Make the read-modify-write one atomic step in Redis, with INCR or a Lua script"]
     answer: 3
-    explanation: "The bug is that the read and the write are separate steps, so two clients can act on the same old value. An atomic operation on the store removes the gap."
+    explanation: "The read and write are separate steps, so two clients can act on the same old value; an atomic operation removes the gap. MULTI only queues commands, so it cannot branch on a value it read."
   - id: nat-ip-key
     prompt: "A public API limits each client IPv4 address to 60 requests per minute. A company with 500 staff behind one NAT address complains. What is the best fix?"
-    choices: ["Limit per API key or user, and keep IP limits only as a coarse fallback", "Raise the per-IP limit to 30,000 per minute, so each of 500 users gets 60 requests", "Block NAT addresses entirely, since one address should be one person", "Limit by the first 64 bits of the address, which splits NAT users apart"]
-    answer: 0
-    explanation: "NAT means the server sees one address for many people, so a per-IP limit is shared unfairly. An identity the client sends, such as an API key, separates them. A /64 prefix is for IPv6, not NAT."
+    choices: ["Raise the per-IP limit to 30,000 per minute, so each of 500 users gets 60 requests", "Limit per API key or user, and keep IP limits only as a coarse fallback", "Block NAT addresses entirely, since one address should be one person", "Limit by the first 64 bits of the address, which splits NAT users apart"]
+    answer: 1
+    explanation: "NAT means the server sees one address for many people, so a per-IP limit is shared unfairly; an API key separates them. A /64 prefix is for IPv6, not NAT."
   - id: retry-after-backoff
     prompt: "A client receives 429 Too Many Requests with Retry-After: 7. What should a well-behaved client do?"
-    choices: ["Retry at once, because a 429 only means the server was briefly busy for a moment", "Wait at least 7 seconds, then retry, adding random jitter to later waits", "Retry every 7 seconds forever, because the header sets a fixed retry interval", "Switch to another API key, since the current key is now banned for good"]
-    answer: 1
+    choices: ["Retry at once, because a 429 only means the server was briefly busy for a moment", "Retry every 7 seconds forever, because the header sets a fixed retry interval", "Wait at least 7 seconds, then retry, adding random jitter to later waits", "Switch to another API key, since the current key is now banned for good"]
+    answer: 2
     explanation: "Retry-After says when the server expects to accept requests again, as seconds or an HTTP-date. Adding jitter keeps many clients from retrying in lockstep."
 flashcards:
   - id: token-bucket

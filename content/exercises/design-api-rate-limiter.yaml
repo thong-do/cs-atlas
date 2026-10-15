@@ -1,0 +1,46 @@
+slug: design-api-rate-limiter
+type: design-prompt
+title: "Design: API rate limiter"
+lessons: [rate-limiting]
+ladderOrder: 2
+prompt: |
+  A public API allows **100 requests per minute per API key**, with **bursts of up to 20** allowed.
+  It runs behind **6 gateway instances** and handles about **15,000 requests/s in total** across all keys.
+
+  Clients must **know when to retry**, and the limiter must **not become a single point of failure**.
+  Describe the algorithm, where its state lives, how checks stay atomic, the response headers, whether to
+  fail open or closed, and how to avoid a hot Redis key. Show the arithmetic.
+hint: "Turn '100 per minute, burst 20' into a refill rate and a capacity, then ask what each gateway does when the shared store is slow or gone."
+rubric:
+  - id: algorithm
+    point: "Chooses a token bucket (or equivalent) with capacity 20 and a refill of 100/60 ≈ 1.67 tokens/s, and explains why it allows the burst while holding the long-run rate."
+  - id: state-atomicity
+    point: "Keeps one bucket per API key in a shared store such as Redis and updates it atomically (a Lua script or equivalent), never get-then-set, with a key expiry for idle keys."
+  - id: headers
+    point: "Rejects with 429 Too Many Requests and Retry-After computed from the bucket, and mentions informational rate-limit headers, noting that names vary and the IETF headers are a draft."
+  - id: failure-mode
+    point: "Decides fail open vs closed on purpose, with a local per-instance fallback limit, and keeps the store available with replicas or failover."
+  - id: hot-key-load
+    point: "Estimates the load per gateway and on the store, and avoids a hot key by sharding on the API key and rejecting blocked clients locally."
+reference: |
+  **Arithmetic.** 100 requests/min ÷ 60 s ≈ 1.67 tokens/s refill, capacity 20. In any T seconds a key
+  can pass at most about 20 + 1.67 × T: for T = 60 s that is 20 + 100 = 120, and sustained use settles at
+  100/min. Load: 15,000 req/s ÷ 6 gateways = 2,500 req/s per gateway, and 15,000 checks/s on the shared
+  store if every request checks it.
+
+  **State and atomicity.** One bucket per API key in Redis, e.g. a hash `rl:{key}` with `tokens` and `ts`.
+  A gateway runs a **Lua script** that refills from elapsed time (using Redis `TIME`), takes a token if
+  one is available, writes the hash back, sets an expiry for idle keys, and returns allowed plus the wait.
+  A script runs atomically on one node, which a get-then-set from several gateways does not. Use replicas with failover;
+  losing a few recent updates is acceptable for a limiter.
+
+  **Responses.** Allowed: normal response, optionally with informational headers (`X-RateLimit-*` names
+  vary by provider; the IETF `RateLimit` fields are a draft). Rejected: `429 Too Many Requests` with
+  `Retry-After` set to the seconds until one token exists (about 0.6 s per token at 1.67/s, rounded up to 1).
+
+  **Failure mode.** If Redis is slow or down, apply a short timeout, then fail open to a local limit: 100 ÷ 6
+  ≈ 17/min and capacity 20 ÷ 6 ≈ 3 per instance per key. This is approximate (the load balancer does
+  not spread a key evenly) but bounds abuse. Fail closed only for sensitive endpoints.
+
+  **Hot key.** Keys spread over shards by API key, but one chatty key still sends every check to one shard,
+  even rejected ones. Keep a local "blocked until" entry from the last 429 and reject without calling Redis.

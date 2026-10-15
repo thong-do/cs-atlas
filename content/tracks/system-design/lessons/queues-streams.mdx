@@ -1,0 +1,120 @@
+---
+slug: queues-streams
+title: Queues & streams
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [client-server-http]
+summary: "Put a buffer between producers and consumers to absorb spikes and retries, and know what delivery and ordering guarantees you actually get."
+---
+
+## Intuition
+
+A restaurant kitchen does not cook while the waiter stands at the table. The waiter clips an order slip to a rail and goes back to the floor. Cooks take slips when they are free. On a busy Saturday the rail fills up, but the waiters are never blocked, and no slip is lost if a cook drops a pan.
+
+That rail is a **queue**. Going **asynchronous** (answering the user first, doing the slow work later) buys four things:
+- **Smoothing spikes:** a burst of requests becomes a backlog that workers drain at their own pace.
+- **Decoupling:** the producer does not know or care how many consumers exist, or whether they are down for a deploy.
+- **Retries:** a failed task can be tried again without the user waiting.
+- **Fan-out:** one event can feed many independent consumers.
+
+The price is complexity: duplicates, ordering and a new thing to monitor.
+
+**Two shapes.**
+- **Work queue** (Amazon SQS, RabbitMQ queues): each message goes to **one** consumer. When the consumer **acks** (acknowledges) it, the message is deleted. Use it for tasks.
+- **Log / stream** (Apache Kafka): messages are appended to a partitioned log and **retained** for a configured time or size. Each **consumer group** tracks its own **offset** (its position), so several groups read the same data independently, and a group can **replay** by moving its offset back. Use it for events many systems care about.
+
+**Delivery semantics.**
+- **At-most-once:** acknowledge first, then process. A crash loses the message; nothing is duplicated.
+- **At-least-once:** process first, then ack. A crash before the ack means redelivery, so **duplicates happen**. This is the common default.
+- **"Exactly-once"** is not something a broker hands you for arbitrary side effects such as sending an email. In practice it means at-least-once delivery plus **idempotent processing** (a repeat has no extra effect; dedupe on a message id) or a transactional **outbox/inbox**. Some systems offer it within their own boundary (Kafka transactions across topics), but an external email call is outside it.
+
+**Ordering** holds only **within a partition** (or a key routed to one partition). Across partitions there is no order. Even in a work queue, retries and several competing consumers can reorder processing: task 2 may finish before a redelivered task 1.
+
+**Failures.** A consumer that takes a message but never acks must not block everything. SQS uses a **visibility timeout**: the message is hidden while a consumer works, and reappears if not deleted in time. RabbitMQ requeues unacked messages when the consumer's channel closes. A **poison message** (one that always fails) would loop forever, so after N attempts it goes to a **dead-letter queue (DLQ)**, for example via an SQS redrive policy, to be inspected by a human (provider defaults vary).
+
+**Backpressure and lag.** If producers outrun consumers, the backlog grows. **Consumer lag** (how far a group's offset trails the log's end, or how old the oldest queued message is) is the key health signal. Fixes: add consumers (up to the partition count in a log), speed up the work, or slow the producers.
+
+**The outbox.** A service saves an order, then publishes "order created". If it crashes between the two, the DB has the order and nobody hears of it. The **transactional outbox** writes the event into an `outbox` table in the **same DB transaction** as the order. A separate relay reads unsent rows and publishes them, marking them sent. It publishes at-least-once, so consumers must tolerate duplicates.
+
+## Visual
+
+```text
+Work queue: each message to one consumer, then ack
+
+                         ┌──► consumer A ── ack ──► deleted
+ producer ──► [ queue ] ─┼──► consumer B
+                         └──► consumer C (crashes, no ack)
+                                  │ visibility timeout expires
+   message reappears ◄────────────┘   (redelivery, attempt +1)
+   after N failed attempts ──► [ dead-letter queue ] ──► human / replay tool
+```
+
+```text
+Partitioned log: retained; each group has its own offsets
+
+                      partition 0: [m0 m1 m2 m3 m4 m5]
+ producer ──(key)──►  partition 1: [m0 m1 m2 m3]
+  hash(key) picks     partition 2: [m0 m1 m2 m3 m4]
+  the partition
+   group "billing" : p0@4  p1@2  p2@5   (one consumer per partition)
+   group "search"  : p0@1  p1@0  p2@2   (slower; replays from its offset)
+   Order holds within p0, p1, p2 separately, not across them.
+```
+
+## Example
+
+An image-thumbnail pipeline. Uploads write the original to object storage, then enqueue `{image_id}` (using an outbox if the upload record lives in a DB). Workers read the queue, make a 256 px thumbnail and store it.
+
+Sizing, an illustrative scenario: a campaign sends 50 uploads/s for 10 minutes. Each worker takes about 0.5 s per image, so 10 workers handle 10 ÷ 0.5 = 20 images/s.
+- Backlog at the end of the burst: (50 − 20) × 600 s = 18,000 images.
+- Afterwards traffic falls to 5/s, so the net drain is 20 − 5 = 15/s, and 18,000 ÷ 15 = 1,200 s = 20 minutes to clear.
+
+Thumbnails arrive late but the upload API never slows down. A generic consumer sketch follows; the method names are invented and it is not any specific SDK.
+
+```python
+MAX_ATTEMPTS = 5
+
+def run_worker(queue, dlq, store):
+    while True:
+        msg = queue.receive(wait_seconds=20)       # hides msg for a visibility timeout (say 60 s)
+        if msg is None:
+            continue
+        image_id = msg.body["image_id"]
+        try:
+            if store.exists(f"thumbs/{image_id}.jpg"):   # idempotency check: already done
+                queue.ack(msg)
+                continue
+            original = store.get(f"original/{image_id}")
+            store.put(f"thumbs/{image_id}.jpg", make_thumbnail(original, 256))
+            queue.ack(msg)                         # ack only after the result is stored
+        except PermanentError:                     # e.g. corrupt image: retrying cannot help
+            dlq.send(msg.body)
+            queue.ack(msg)
+        except Exception:
+            if msg.attempts >= MAX_ATTEMPTS:       # broker-reported delivery count
+                dlq.send(msg.body)
+                queue.ack(msg)
+            else:                                  # retry with exponential backoff and jitter
+                delay = min(300, 5 * 2 ** msg.attempts) + random.uniform(0, 5)
+                queue.change_visibility(msg, delay)
+```
+
+Why it is safe: if a worker crashes after storing the thumbnail but before the ack, the message is redelivered, finds the thumbnail and just acks. The `put` must publish the whole object at once (object stores typically do), or `exists` could see a partial file. Two workers racing on a redelivery write the same bytes to the same key, which is harmless here. A side effect that is not naturally repeatable needs a stronger guard, as the design prompt shows.
+
+## Pitfalls
+
+- **Assuming exactly-once.** Redelivery, retries and the producer's own timeouts all create duplicates. Make handlers idempotent: dedupe on a message id, or use naturally repeatable writes ("set", not "increment").
+- **Acking before the work is done.** A crash then loses the task silently. Ack after success, and accept duplicates.
+- **A visibility timeout shorter than the task.** The message reappears while the first worker is still running, so two workers process it. Set it above the slowest normal run, or extend it while working.
+- **Poison messages without a DLQ.** One bad message retries forever and burns capacity. Cap attempts, dead-letter, and alert on DLQ depth.
+- **Relying on global order.** Only a partition or key is ordered. Use the entity id as the key (all events of one order go to one partition), and design consumers to cope with reordering where retries are involved.
+- **DB commit, then publish.** A crash between them loses the event; publishing first risks announcing something that rolled back. Use the outbox.
+- **Retry storms.** Instant retries from many workers hammer a struggling dependency. Back off with jitter.
+
+## Tips & tricks
+
+- Choose a work queue for "do this task once, then forget it"; choose a log when several systems consume the same events, or you need replay and audit.
+- In a log, parallelism is capped by the partition count (one consumer per partition within a group). Pick a partition key with many distinct, evenly used values.
+- Use idempotency keys from the earlier HTTP lesson. Pass the message id downstream so retries are recognisable.
+- Measure queue depth, age of the oldest message, consumer lag per group, processing time, retry rate and DLQ depth. Alert on age and DLQ growth, not just depth.
+- Interview phrasing: "I would enqueue after a transactional outbox write, run idempotent at-least-once consumers with capped, backed-off retries, dead-letter after five attempts, and alert on lag and DLQ depth."

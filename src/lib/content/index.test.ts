@@ -68,7 +68,7 @@ describe('content inventory', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
-    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding'])
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding', 'queues-streams'])
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing', 'client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
@@ -88,6 +88,9 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'replication-sharding')).toMatchObject({ track: 'system-design', prerequisites: ['sql-vs-nosql'] })
     expect(getLessonDoc('replication-sharding')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('replication-sharding')).map((e) => e.slug).sort()).toEqual(['design-message-store-sharding', 'replication-sharding-quiz'])
+    expect(lessons.find((l) => l.slug === 'queues-streams')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
+    expect(getLessonDoc('queues-streams')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('queues-streams')).map((e) => e.slug).sort()).toEqual(['design-order-email-pipeline', 'queues-streams-quiz'])
   })
 
   const { lessons, exercises: allExercises } = getCatalog()

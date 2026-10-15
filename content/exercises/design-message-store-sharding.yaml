@@ -22,7 +22,7 @@ rubric:
   - id: capacity
     point: "Does the arithmetic: yearly growth, shard count, per-shard storage and per-shard read and write rates, with headroom."
   - id: hot-users
-    point: "Handles very active users by sub-partitioning their key (for example user_id plus a time bucket), caching, or limits, and accepts the fan-out cost."
+    point: "Handles very active users by salting the keys of flagged hot users (for example user_id plus hash(message_id) mod k) so writes spread, fanning newest-first reads out to the k sub-keys and merging, plus caching or limits. Notes that a time bucket alone only bounds partition size."
 reference: |
   **Key and scheme.** Partition by `user_id` and sort rows by `(conversation_id, sent_at DESC)` inside the
   partition, so "open a conversation, newest first" reads one shard in order. Hash `user_id` into a fixed
@@ -44,9 +44,11 @@ reference: |
   **Adding capacity.** Because data lives in 256 buckets, add servers and move whole buckets in the
   background, copying then switching the routing table. Only the moved buckets' data travels.
 
-  **Very active users.** One account sending a flood of messages makes its partition hot. Split it by
-  time bucket: key `(user_id, month)`, so history spreads over shards, and read "newest first" starting
-  with the latest bucket. Cache the first page and rate-limit abusive senders.
+  **Very active users.** One account with a flood of traffic makes its partition hot. A time bucket such as
+  `(user_id, month)` only bounds partition size and history: the current month still takes all the
+  heat. Instead, flag hot users and salt their key, `(user_id, hash(message_id) mod k)` with k around 8,
+  so writes spread over several buckets. Newest-first reads then fan out to the k sub-keys and merge,
+  and the flag must stay until old sub-keys are drained. Also cache the first page and rate-limit abusive senders.
 
   **Trade-offs.** Cross-user queries (search, a message visible to both sender and recipient) need a copy
   per mailbox or an index, which adds writes. Watch per-shard size, write rate, p99 latency and replication lag.

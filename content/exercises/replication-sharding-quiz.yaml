@@ -6,7 +6,7 @@ ladderOrder: 1
 questions:
   - id: ryw
     prompt: "A user posts a comment, refreshes, and the comment is missing. A minute later it appears. The database uses a leader and asynchronous followers. Which fix targets exactly this symptom?"
-    choices: ["Switch every read to a randomly chosen follower", "Add more followers so each carries less read load", "Serve that user's recent reads from the leader", "Shorten the cache TTL on the comments page"]
+    choices: ["Pin each user to one follower with sticky reads", "Add more followers so each carries less read load", "Serve that user's recent reads from the leader", "Shorten the cache TTL on the comments page"]
     answer: 2
     explanation: "The refresh hit a follower that had not yet applied the write. Reading a user's own recent data from the leader (read-your-writes) avoids the lag for them."
   - id: failover-loss
@@ -26,7 +26,7 @@ questions:
     explanation: "3 + 3 - 5 = 1, so the sets overlap in at least one replica. Overlap alone does not make reads linearizable or resolve concurrent write conflicts."
   - id: range-hot
     prompt: "An events table is range-partitioned by created_at, one range per month. What problem appears first under steady write traffic?"
-    choices: ["Range scans over a single day need to visit every shard", "Old months are rewritten whenever new rows arrive", "The newest range receives nearly all writes and becomes a hot spot", "Each shard holds a different hash of the same rows"]
+    choices: ["Queries spanning two months need two-phase commit", "Old months run out of storage before new ones", "The newest range takes nearly all new writes: a hot spot", "Each month needs its own replication leader election"]
     answer: 2
     explanation: "A monotonic key sends every new row to the latest range. Hashing the key, or adding a bucket prefix, spreads writes at the cost of cheap time-range scans."
 flashcards:

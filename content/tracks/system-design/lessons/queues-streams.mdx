@@ -105,7 +105,7 @@ Why it is safe: if a worker crashes after storing the thumbnail but before the a
 
 ## Pitfalls
 
-- **Assuming exactly-once.** Redelivery, retries and the producer's own timeouts all create duplicates. Make handlers idempotent: dedupe on that event id or business key, or use naturally repeatable writes ("set", not "increment").
+- **Assuming exactly-once.** Redelivery, retries and the producer's own timeouts all create duplicates. Make handlers idempotent: dedupe on a producer-assigned id or business key, or use naturally repeatable writes ("set", not "increment").
 - **Acking before the work is done.** A crash then loses the task silently. Ack after success, and accept duplicates.
 - **A visibility timeout shorter than the task.** The message reappears while the first worker is still running, so two workers process it. Set it above the slowest normal run, or extend it while working.
 - **Poison messages without a DLQ.** One bad message retries forever and burns capacity. Cap attempts, dead-letter, and alert on DLQ depth.

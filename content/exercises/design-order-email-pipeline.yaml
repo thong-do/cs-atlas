@@ -33,7 +33,7 @@ reference: |
   Use a work queue (such as SQS or RabbitMQ) with separate `email` and `receipt` queues. No cross-order ordering is needed.
 
   **Idempotent email send.** Keep a table `emails(order_id, kind, state, provider_id)` with a unique key on
-  `(order_id, kind)`. A worker claims the row: `UPDATE emails SET state='sending', lease_until=now()+T WHERE order_id=? AND kind=? AND (state='pending' OR (state='sending' AND lease_until<now()))`, T above the provider timeout; zero rows means a live lease, so back off. The winner calls the provider with an idempotency key
+  `(order_id, kind)`. A worker claims the row: `UPDATE emails SET state='sending', lease_until=now()+T WHERE order_id=? AND kind=? AND (state='pending' OR (state='sending' AND lease_until<now()))`, T above the provider timeout; zero rows means already sent (ack) or a live lease (back off). The winner calls the provider with an idempotency key
   if supported, then sets `state=sent`. A redelivery that
   sees `sent` just acks. After a crash the lease expires and the next worker retries with the same provider key or checks the provider first.
 

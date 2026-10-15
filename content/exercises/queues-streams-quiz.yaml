@@ -11,7 +11,7 @@ questions:
     explanation: "Without an ack the broker assumes the work may not have happened and redelivers. That is why at-least-once consumers must tolerate duplicates."
   - id: ordering-key
     prompt: "A log topic has 6 partitions. All events for one order must be processed in the order they were produced. What do you do?"
-    choices: ["Key events by order id so all of them land in one partition", "Use a random key per event so load spreads across all partitions", "Give each consumer in the group its own copy of every partition", "Raise the partition count, since order improves with more partitions"]
+    choices: ["Key events by order id so each order's events land in one partition", "Use a random key per event so load spreads across all partitions", "Give each consumer in the group its own copy of every partition", "Raise the partition count, since order improves with more partitions"]
     answer: 0
     explanation: "Order is guaranteed only within a partition. Keying by order id routes all of that order's events to one partition, in sequence."
   - id: exactly-once-email
@@ -21,7 +21,7 @@ questions:
     explanation: "Exactly-once in practice is at-least-once delivery plus idempotent handling. Recording a producer-assigned event id (not the broker's per-send id, which a duplicate publish gets afresh) lets a repeat be recognised and skipped."
   - id: visibility-timeout
     prompt: "A queue uses a 30 s visibility timeout, but a task normally takes 90 s. What is the likely result?"
-    choices: ["Nothing: the broker always waits for the ack before redelivering", "It reappears after 30 s, so a second worker may start it", "The message goes to the dead-letter queue after the first 30 s", "The consumer is paused until the task finishes, then resumes"]
+    choices: ["Nothing: the broker always waits for the ack before redelivering", "It becomes visible after 30 s; a second worker may pick it up", "The message goes to the dead-letter queue after the first 30 s", "The consumer is paused until the task finishes, then resumes"]
     answer: 1
     explanation: "While hidden, the message is invisible; when the timeout expires without a delete, it reappears for another consumer. The timeout must exceed the task time, or be extended."
   - id: outbox

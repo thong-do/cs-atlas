@@ -125,7 +125,7 @@ partition key: user_id        sort key: event_time (newest first)
 
 ## Pitfalls
 
-- **"NoSQL scales, SQL doesn't."** Both scale. SQL systems scale reads with replicas, and writes by sharding (tools like Citus or Vitess) or with distributed SQL (CockroachDB, Spanner). Sharding is a later lesson. What differs is how much work the database does for you.
+- **"NoSQL scales, SQL doesn't."** Both scale. SQL systems scale reads with replicas, and writes by sharding (tools like Citus or Vitess) or with distributed SQL (CockroachDB, Spanner). [Replication & sharding](/system-design/replication-sharding/) covers it. What differs is how much work the database does for you.
 - **"NoSQL means no consistency."** It varies by product. Cassandra has tunable consistency per query. DynamoDB and MongoDB offer strongly consistent reads and transactions, with caveats such as extra cost or limits on scope. Read the guarantees of the exact setting you will use.
 - **"Schemaless means no schema."** The schema moves into your code. Every reader assumes fields and types, so old documents and new code can disagree. Version your documents and validate on write.
 - **"Joins are slow."** A join with a good index is fast. Slow joins usually mean a missing index or a huge scan. Denormalize only after measuring.

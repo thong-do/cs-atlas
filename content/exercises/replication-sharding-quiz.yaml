@@ -6,28 +6,28 @@ ladderOrder: 1
 questions:
   - id: ryw
     prompt: "A user posts a comment, refreshes, and the comment is missing. A minute later it appears. The database uses a leader and asynchronous followers. Which fix targets exactly this symptom?"
-    choices: ["Pin each user to one follower with sticky reads", "Add more followers so each carries less read load", "Serve that user's recent reads from the leader", "Shorten the cache TTL on the comments page"]
-    answer: 2
+    choices: ["Pin each user to one follower with sticky reads", "Serve that user's recent reads from the leader", "Add more followers so each carries less read load", "Shorten the cache TTL on the comments page"]
+    answer: 1
     explanation: "The refresh hit a follower that had not yet applied the write. Reading a user's own recent data from the leader (read-your-writes) avoids the lag for them."
   - id: failover-loss
     prompt: "A leader with asynchronous replication crashes and a follower is promoted. What is the main data risk?"
-    choices: ["Writes the old leader acknowledged but had not yet shipped may be lost", "Every follower must discard its copy of the data and resync", "Reads on the promoted follower become impossible until restart", "Committed writes are silently duplicated onto the new leader"]
-    answer: 0
+    choices: ["Every follower must discard its copy of the data and resync", "Reads on the promoted follower stay impossible until it is restarted", "Committed writes are silently duplicated onto the new leader node", "Acknowledged writes not yet shipped to the new leader may be lost"]
+    answer: 3
     explanation: "With async replication the leader acknowledges before followers have the write, so the newest acknowledged writes may exist only on the dead leader."
   - id: mod-vs-ch
     prompt: "A cache cluster grows from 3 to 4 servers. How do the two placement schemes compare in expected key movement?"
-    choices: ["Both move about 1 in 4 keys, because only one server was added", "hash mod N moves about 1 in 4 keys; consistent hashing moves about 3 in 4", "Both move about 3 in 4 keys, since every server changes position", "hash mod N moves about 3 in 4 keys; consistent hashing moves about 1 in 4 on average"]
-    answer: 3
+    choices: ["mod N moves about 3 in 4 keys; consistent hashing about 1 in 4 on average", "Both move about 1 in 4 keys on average, because only one server was added", "hash mod N moves about 1 in 4 keys; consistent hashing about 3 in 4 on average", "Both move about 3 in 4 keys on average, since every server changes position"]
+    answer: 0
     explanation: "With mod N a key stays only when h mod 3 equals h mod 4, which is 3 of 12 residues. Consistent hashing gives the new node an arc of roughly 1/N of the keys."
   - id: quorum
     prompt: "A leaderless store has N = 5 replicas and uses W = 3 write acks and R = 3 read replicas. What does this setting give you?"
-    choices: ["Linearizable reads, because W + R is greater than N", "Every read set shares at least one replica with every acknowledged write set", "Tolerance of any 3 simultaneous replica failures for reads and writes", "Conflict-free concurrent writes, since a majority always agrees"]
-    answer: 1
+    choices: ["Linearizable reads on every request, because W + R exceeds N", "Tolerance of any 3 simultaneous replica failures for reads and writes", "Each read set shares a replica with every acknowledged write set", "Conflict-free concurrent writes, since a majority always agrees"]
+    answer: 2
     explanation: "3 + 3 - 5 = 1, so the sets overlap in at least one replica. Overlap alone does not make reads linearizable or resolve concurrent write conflicts."
   - id: range-hot
     prompt: "An events table is range-partitioned by created_at, one range per month. What problem appears first under steady write traffic?"
-    choices: ["Queries spanning two months need two-phase commit", "Old months run out of storage before new ones", "The newest range receives nearly every new write", "Each month needs its own replication leader election"]
-    answer: 2
+    choices: ["Queries spanning two months need two-phase commit", "The newest range receives nearly every new write", "Old months run out of storage before new ones", "Each month needs its own replication leader election"]
+    answer: 1
     explanation: "A monotonic key sends every new row to the latest range. Hashing the key, or adding a bucket prefix, spreads writes at the cost of cheap time-range scans."
 flashcards:
   - id: replication-lag

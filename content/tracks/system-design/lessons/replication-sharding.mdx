@@ -48,33 +48,35 @@ With `hash mod N`, going from 3 to 4 servers keeps a key in place only when `h m
 
 ## Example
 
-Plan sharding for a `comments` table: about 600 million rows at roughly 300 bytes each, so 600M × 300 B ≈ 180 GB, plus indexes. This is an illustrative figure.
+Plan sharding for a `comments` table: about 600 million rows at roughly 300 bytes each, so 600M × 300 B ≈ 180 GB, plus indexes (illustrative).
 
 ```sql
 -- Logical schema; shard key = post_id
 CREATE TABLE comments (
-  post_id    BIGINT NOT NULL,
-  comment_id BIGINT NOT NULL,        -- time-ordered id
+  post_id    BIGINT   NOT NULL,
+  bucket     SMALLINT NOT NULL DEFAULT 0,   -- 0 unless the post is salted (below)
+  comment_id BIGINT   NOT NULL,      -- time-ordered id
   author_id  BIGINT NOT NULL,
   body       TEXT   NOT NULL,
-  PRIMARY KEY (post_id, comment_id)
+  PRIMARY KEY (post_id, bucket, comment_id)
 );
--- No extra index: the primary key already serves newest-first (a backward scan).
+-- No extra index: within a bucket the primary key serves newest-first (a backward scan);
+-- a salted hot post merges its buckets (see below).
 ```
 
 **Partition key: `post_id`.** The main query is "most recent 20 comments for a post". With `post_id` as key, that touches **one shard**, using the primary key above. Sharding by `comment_id` would scatter one post's comments over every shard.
 
-**Range vs hash on `post_id`.** Range partitioning (ids 1–1M on shard 1, and so on) allows range scans, but new posts all have the highest ids, so the newest range takes nearly all writes. Hash partitioning (`hash(post_id) mod` a fixed number of buckets) spreads posts evenly; you give up scans over adjacent posts. Pick hash here, since no query needs adjacent post ids.
+**Range vs hash on `post_id`.** Range partitioning (ids 1–1M on shard 1, and so on) allows range scans, but new posts all have the highest ids, so the newest range takes most writes. Hash partitioning (`hash(post_id) mod` a fixed number of buckets) spreads posts evenly; you give up scans over adjacent posts. Pick hash: no query needs adjacent post ids.
 
 **Buckets, not machines.** Hash into 64 fixed buckets and map buckets to servers. With 4 servers, that is 16 buckets each, about 45 GB per server (180 GB ÷ 4). Adding a fifth server moves about 1/5 of the buckets (about 13 of 64) whole, with no rehashing of every row.
 
 **The viral post.** One post draws thousands of reads and writes per second, and all of them hit its single shard. Mitigations:
-- Cache the first page of comments (reads, the usual fix).
-- **Salt** the key for writes: store `(post_id, bucket)` with `bucket = hash(comment_id) mod 8`. Writes spread across up to 8 buckets (and so across the servers). The cost is that "most recent 20" now **fans out** to 8 buckets, merges and sorts. Salt only posts flagged as hot, and keep the flag until the extra buckets are drained: un-flagging would hide comments already written to buckets 1–7.
+- Cache the first page of comments (the usual fix for reads).
+- **Salt** the key for writes: store `(post_id, bucket)` with `bucket = hash(comment_id) mod 8`. Writes spread across up to 8 buckets (and so across the servers). The cost is that "most recent 20" now **fans out** to 8 buckets, merges and sorts. Salt only posts flagged as hot.
 
 ```python
 def shard_key(post_id, comment_id, hot_posts):
-    if post_id in hot_posts:                  # small, explicit, sticky set
+    if post_id in hot_posts:                  # small, explicit set
         return (post_id, hash(comment_id) % 8)
     return (post_id, 0)
 
@@ -95,7 +97,7 @@ def recent(post_id, hot_posts, n=20):
 
 ## Tips & tricks
 
-- Scale in order: indexes, caching, read replicas, then sharding.
+- Scale in order: indexes and query tuning, a bigger machine, caching, read replicas, then sharding.
 - Pick the partition key from the **most frequent query**, and check it has many distinct values with even traffic. A hot key beats any hash function.
 - Use range partitioning when range scans matter and writes are not monotonic; use hash for even spread.
 - Resharding: use many fixed logical buckets mapped to servers, or consistent hashing with virtual nodes, and move data in the background.

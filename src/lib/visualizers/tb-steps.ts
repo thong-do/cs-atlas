@@ -17,6 +17,7 @@ export interface TbStep {
 }
 
 const tokens = (n: number) => `${n} ${n === 1 ? 'token' : 'tokens'}`
+const addedWording = (n: number) => `${n} ${n === 1 ? 'token was' : 'tokens were'} added`
 
 export function tokenBucketSteps(): TbStep[] {
   let bucket = TB_CAPACITY
@@ -32,7 +33,7 @@ export function tokenBucketSteps(): TbStep[] {
   ARRIVALS.forEach((count, t) => {
     if (t > 0) {
       bucket = Math.min(TB_CAPACITY, bucket + TB_REFILL_PER_SECOND)
-      push({ t, kind: 'refill', request: null, allowed: null, caption: `t=${t}: 1 token was added — ${bucket} left` })
+      push({ t, kind: 'refill', request: null, allowed: null, caption: `t=${t}: ${addedWording(TB_REFILL_PER_SECOND)} — ${bucket} left` })
     }
     for (let i = 0; i < count; i++) {
       n++

@@ -51,14 +51,14 @@ export function consistentHashingSteps(): ChStep[] {
   nodes = [...nodes, { ...NODE_D }].sort((a, b) => a.pos - b.pos)
   push('D', `Node D joined at position ${NODE_D.pos}`)
 
-  const moved: string[] = []
-  for (const k of keys) {
-    const owner = ownerOf(k.pos, nodes).id
-    if (owner === k.owner) continue
-    const from = k.owner
-    k.owner = owner
-    moved.push(k.id)
-    push(k.id, `${k.id} (${k.pos}) moved from ${from} to ${owner} — the only key that changed owner`, [k.id])
+  const changes = keys
+    .map((k) => ({ key: k, from: k.owner, to: ownerOf(k.pos, nodes).id }))
+    .filter((c) => c.to !== c.from)
+  const moved = changes.map((c) => c.key.id)
+  const only = changes.length === 1 ? ' — the only key that changed owner' : ''
+  for (const { key: k, from, to } of changes) {
+    k.owner = to
+    push(k.id, `${k.id} (${k.pos}) moved from ${from} to ${to}${only}`, [k.id])
   }
 
   push(null, `Done: adding D moved ${moved.length} of ${keys.length} keys; with hash mod N, going from 3 to 4 servers would move about 3 in 4 keys`, [], true)

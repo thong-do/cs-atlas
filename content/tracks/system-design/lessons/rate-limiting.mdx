@@ -17,8 +17,8 @@ A nightclub doorman does not let everyone in at once, nor lock the door for an h
 - **Cost:** calls to a paid downstream service stay bounded.
 - **Abuse:** password guessing, scraping and credential stuffing become slow.
 
-**The algorithms**, for a limit such as "100 requests per minute":
-- **Fixed window:** count requests in each calendar minute and reset at the edge. Cheap (one counter), but it has a **boundary burst**: a client can send 100 requests in the last second of one window and 100 in the first second of the next. That is up to **2× the limit** within a short span straddling the edge.
+**The algorithms**, for a limit such as "300 requests per minute":
+- **Fixed window:** count requests in each calendar minute and reset at the edge. Cheap (one counter), but it has a **boundary burst**: a client can send 300 requests in the last second of one window and 300 in the first second of the next. That is up to **2× the limit** within a short span straddling the edge.
 - **Sliding window log:** store a timestamp per request and count those in the last 60 s. Exact, but memory grows with the limit, per key.
 - **Sliding window counter:** keep the current and previous window counts and estimate: `previous × (1 − elapsed/W) + current`, where `elapsed` is the time into the current window and `W` the window length. It **approximates** by assuming the previous window's requests were spread evenly.
 - **Token bucket:** a bucket of up to `capacity` tokens refills at `rate` tokens per second. Each request takes one token; with none left it is rejected. The **maximum burst is the capacity**, and the **long-run average cannot exceed the refill rate**. Over T seconds at most about `capacity + rate × T` requests pass.
@@ -28,11 +28,11 @@ A nightclub doorman does not let everyone in at once, nor lock the door for an h
 
 **Where to enforce.** An API gateway or load balancer rejects early and protects every service behind it. The application knows the plan and the endpoint's cost.
 
-**Several instances.** A 100/min counter in each gateway's memory allows up to 100 × (number of instances) if requests spread evenly. Two fixes:
+**Several instances.** A 300/min counter in each gateway's memory allows up to 300 × (number of instances) if requests spread evenly. Two fixes:
 - **Shared store:** a store such as Redis, which every instance asks. Accurate, but adds a hop and a dependency.
 - **Per-instance share:** give each instance `limit ÷ N`. No hop, but approximate: a client pinned to one instance gets only `limit ÷ N`, while one spread across all gets about the full limit. Recompute when N changes (autoscaling).
 
-**Atomicity.** The naive version reads the count, adds one, writes it back. Two gateways can both read 99 and both write 100, letting 101 through. `INCR` is atomic, but `INCR` then `EXPIRE` as two commands has a gap: a crash in between leaves a counter that never expires. `MULTI` (or `SET key 0 EX 60 NX` then `INCR`) closes the `INCR`/`EXPIRE` gap only. To read and branch atomically, use a **Lua script**, which runs atomically on a single Redis node. In a Redis Cluster, all keys a script touches must hash to the same slot.
+**Atomicity.** The naive version reads the count, adds one, writes it back. Two gateways can both read 299 and both write 300, letting 301 through. `INCR` is atomic, but `INCR` then `EXPIRE` as two commands has a gap: a crash in between leaves a counter that never expires. `MULTI` (or `SET key 0 EX 60 NX` then `INCR`) closes the `INCR`/`EXPIRE` gap only. To read and branch atomically, use a **Lua script**, which runs atomically on a single Redis node. In a Redis Cluster, all keys a script touches must hash to the same slot.
 
 **Responses.** Reject with `429 Too Many Requests` and a `Retry-After` header, which is either a number of seconds or an HTTP-date. Informational headers vary: many providers use `X-RateLimit-*` names, but names and meanings differ. An IETF draft defines `RateLimit` and `RateLimit-Policy` header fields; it is still a draft.
 
@@ -45,13 +45,13 @@ The scenario: capacity 5, 1 token added at each whole second (capped at 5), star
 <Visualizer kind="token-bucket" />
 
 ```text
-Fixed window (limit 100 / 60 s)           Sliding window (same limit)
+Fixed window (limit 300 / 60 s)           Sliding window (same limit)
 
  window 1        | window 2                 any 60 s span, ending now
- ........ 100 req|100 req ........
-          ^ 12:00:59 ^ 12:01:00             12:00:59 -> 100 counted
- 200 requests in about 1 second             12:01:00 -> still sees them,
- (counter reset at the edge)                so the next 100 are rejected
+ ........ 300 req|300 req ........
+          ^ 12:00:59 ^ 12:01:00             12:00:59 -> 300 counted
+ 600 requests in about 1 second             12:01:00 -> still sees them,
+ (counter reset at the edge)                so the next 300 are rejected
 ```
 
 ## Example
@@ -88,6 +88,7 @@ buckets = {}  # one bucket per key; evict idle keys
 
 
 def check(key):
+    # single-threaded sketch; guard creation and take() with a lock in a threaded server
     if key not in buckets:
         buckets[key] = TokenBucket()
     ok, wait = buckets[key].allow()
@@ -106,7 +107,7 @@ After 8 quick attempts the bucket is empty, and the ninth gets 429 with `Retry-A
 - **Per-instance counters taken as global:** N gateways allow roughly N× the limit.
 - **No `Retry-After`:** clients guess and retry at once.
 - **Silent limiter failure:** if Redis is down, decide on purpose: **fail open** (allow, risking overload) or **fail closed** (reject, risking an outage you caused). A coarse local fallback limit is a common middle path; for a login endpoint, closed may be safer.
-- **A hot key:** one busy key sends all its checks to one Redis shard; cache rejections locally.
+- **A hot key:** one busy key sends all its checks to one Redis shard, so plan for it before launch.
 
 ## Tips & tricks
 

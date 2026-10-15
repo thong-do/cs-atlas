@@ -25,19 +25,18 @@ rubric:
 reference: |
   **Throughput.** 2,000 orders/min ÷ 60 ≈ 33 orders/s at peak, each producing two tasks (email, PDF), so about
   67 tasks/s. If an email call takes about 0.5 s (illustrative), one worker does about 2/s, so
-  33 ÷ 2 ≈ 17 email workers; add headroom for slow timeouts. If a PDF takes
-  about 1 s, 33 PDFs/s need about 33 workers (illustrative).
+  33 ÷ 2 ≈ 17 email workers; add headroom. A 1 s PDF at 33/s needs about 33 workers.
 
-  **Outbox and broker.** In the checkout transaction, insert the order and an `outbox` row
-  (`order_id`, `type=order_placed`). A relay publishes unsent rows, then marks them sent; a crash between the two means duplicates downstream.
+  **Outbox and broker.** In the checkout transaction, insert the order, an `outbox` row
+  (`order_id`, `type=order_placed`) and the `pending` email row. A relay publishes unsent rows, then marks them sent; a crash between the two means duplicates downstream.
   Use a work queue (such as SQS or RabbitMQ) with separate `email` and `receipt` queues. No cross-order ordering is needed.
 
-  **Idempotent email send.** Keep a table `emails(order_id, kind, state, provider_id)` with a unique key on
+  **Idempotent email send.** Keep a table `emails(order_id, kind, state, lease_until, provider_id)` with a unique key on
   `(order_id, kind)`. A worker claims the row: `UPDATE emails SET state='sending', lease_until=now()+T WHERE order_id=? AND kind=? AND (state='pending' OR (state='sending' AND lease_until<now()))`, T above the provider timeout; zero rows means already sent (ack) or a live lease (back off). The winner calls the provider with an idempotency key
   if supported, then sets `state=sent`. A redelivery that
   sees `sent` just acks. After a crash the lease expires and the next worker retries with the same provider key or checks the provider first.
 
-  **Retries and DLQ.** Back off exponentially with jitter, cap at 5 attempts, then dead-letter. Alert on any DLQ message. Keep the visibility timeout above the provider timeout.
+  **Retries and DLQ.** Back off exponentially with jitter, cap at 5 attempts, then dead-letter. Alert on any DLQ message. Keep visibility timeout above provider timeout.
 
   **Honest limit.** If the provider sent the email but the response was lost and it offers no idempotency key
   or lookup, a retry can send a second one. This shrinks the window; it cannot close it. If a

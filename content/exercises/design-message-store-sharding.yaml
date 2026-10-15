@@ -24,31 +24,26 @@ rubric:
   - id: hot-users
     point: "Handles very active users by salting the keys of flagged hot users (for example user_id plus hash(message_id) mod k) so writes spread, fanning newest-first reads out to the k sub-keys and merging, plus caching or limits. Notes that a time bucket alone only bounds partition size."
 reference: |
-  **Key and scheme.** Partition by `user_id` and sort rows by `(conversation_id, sent_at DESC)` inside the
-  partition, so "open a conversation, newest first" reads one shard in order. Hash `user_id` into a fixed
-  number of logical buckets (say 256) and map buckets to servers. Do not partition by `sent_at`: every new
+  **Key and scheme.** Partition by `user_id`, sorting rows by `(conversation_id, sent_at DESC)` inside the
+  partition, so opening a conversation newest first reads one shard in order. Hash `user_id` into a fixed
+  number of logical buckets (say 256) mapped to servers. Never partition by `sent_at`: every new
   message would hit the newest range.
 
-  **Capacity.** Growth is 50 GB/day × 365 ≈ 18,250 GB ≈ 18 TB/year, so about 22 TB after a year (4 + 18).
-  With an illustrative target of at most about 1.5 TB per node, 22 TB ÷ 1.5 TB ≈ 15, so plan 16 shards
-  (about 250 GB each today, about 1.4 TB after a year). Load per shard: 3,000 ÷ 16 ≈ 190 writes/s and
-  30,000 ÷ 16 ≈ 1,900 reads/s, which one leader plus followers handles comfortably. Keep headroom for skew.
-  Storage is multiplied by the replica count: three copies means roughly 66 TB of raw disk after a year.
+  **Capacity.** Growth is 50 GB/day × 365 ≈ 18 TB/year, so about 22 TB after a year (4 + 18).
+  At an illustrative 1.5 TB per node, 22 ÷ 1.5 ≈ 15, so plan 16 shards (about 250 GB each today, 1.4 TB
+  after a year). Per shard: 3,000 ÷ 16 ≈ 190 writes/s and 30,000 ÷ 16 ≈ 1,900 reads/s, which one leader handles; keep skew headroom.
 
-  **Replication and failover.** Each shard has a leader and two followers in different zones. Writes
-  acknowledge after the leader and one synchronous follower have them, so losing one node loses no
-  acknowledged message. Reads can use followers; a user's own recent reads go to the leader for
-  read-your-writes. If the leader dies, a majority-based election promotes the up-to-date follower, and a
-  fencing token or epoch stops the old leader from writing if it returns.
+  **Replication and failover.** Each shard has a leader and two followers in different zones. A write
+  acknowledges once the leader and one synchronous follower have it, so losing one node loses no
+  acknowledged message. Reads can use followers; a user's own recent reads use the leader. If the leader
+  dies, a majority election promotes the up-to-date follower, and a fencing token stops the old leader
+  writing if it returns.
 
-  **Adding capacity.** Because data lives in 256 buckets, add servers and move whole buckets in the
-  background, copying then switching the routing table. Only the moved buckets' data travels.
+  **Adding capacity.** Add servers and move whole buckets in the background, then switch the routing table.
 
-  **Very active users.** One account with a flood of traffic makes its partition hot. A time bucket such as
-  `(user_id, month)` only bounds partition size and history: the current month still takes all the
-  heat. Instead, flag hot users and salt their key, `(user_id, hash(message_id) mod k)` with k around 8,
-  so writes spread over several buckets. Newest-first reads then fan out to the k sub-keys and merge,
-  and the flag must stay until old sub-keys are drained. Also cache the first page and rate-limit abusive senders.
+  **Very active users.** A time bucket such as `(user_id, month)` only bounds partition size: the current
+  month still takes all the heat. Instead flag hot users and salt their key,
+  `(user_id, hash(message_id) mod k)` with k around 16, so writes spread over several buckets. Newest-first
+  reads fan out to the k sub-keys and merge, and the flag must stay until old sub-keys are drained. Also cache the first page.
 
-  **Trade-offs.** Cross-user queries (search, a message visible to both sender and recipient) need a copy
-  per mailbox or an index, which adds writes. Watch per-shard size, write rate, p99 latency and replication lag.
+  **Trade-offs.** Cross-user queries need a copy per mailbox or an index, which adds writes. Watch per-shard size, write rate and replication lag.

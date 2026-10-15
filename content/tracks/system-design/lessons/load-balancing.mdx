@@ -27,7 +27,7 @@ Spreading work only helps if the balancer picks well, so the algorithm matters.
 | Least-connections | Fewest active requests | Requests of varied duration |
 | Least-response-time | Fastest recent responses, plus few connections | Servers with uneven speed |
 | Power of two choices | Two random servers, the less busy one | Many balancers with no shared view |
-| Consistent hashing | Same key, same server | Caches, sharded data (covered with sharding) |
+| Consistent hashing | Same key, same server | Caches, sharded data (see [replication & sharding](/system-design/replication-sharding/)) |
 
 Least-connections only counts requests, not their cost. Least-response-time also reacts to a slow server, but a server that fails instantly looks fast, so pair it with health checks. **Power of two choices** is a cheap trick: sampling two random servers and taking the less loaded one avoids most of the worst imbalance without tracking every server perfectly.
 

@@ -101,7 +101,7 @@ function TokenBucketVisualizer() {
 
 function FeedFanoutVisualizer() {
   const steps = useMemo(() => feedFanoutSteps(), [])
-  return <StepPlayer steps={steps} title="Feed fan-out: push vs hybrid for a celebrity with 5 followers" captionClassName="min-h-[6.25rem] sm:min-h-[3.75rem]" render={(s) => <FeedView step={s} />} />
+  return <StepPlayer steps={steps} title="Feed fan-out: push vs hybrid for a celebrity with 5 followers" captionClassName="min-h-[7.5rem] sm:min-h-[3.75rem]" render={(s) => <FeedView step={s} />} />
 }
 
 export function Visualizer({ kind }: { kind: VisualizerKind }) {

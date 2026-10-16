@@ -1,0 +1,56 @@
+slug: consistency-models-quiz
+type: quiz
+title: "Consistency models — quiz"
+lessons: [consistency-models]
+ladderOrder: 1
+questions:
+  - id: stale-after-ack
+    prompt: "A feature flag is switched off, and the write is acknowledged at 10:00:00. At 10:00:01 another client starts a read on a different node and still sees the flag on. Which statement is accurate?"
+    choices: ["Serializability is violated, since the read returned a value from before the acknowledged write", "Causal consistency is violated, since the read happened after the write in wall-clock time", "Sequential consistency is violated, since every model must follow the order of real time", "Linearizability is violated, though a sequentially consistent store could still allow this"]
+    answer: 3
+    explanation: "Linearizability requires a completed write to be visible to reads that start later. Sequential consistency needs one agreed order but not real-time order, serializability concerns whole transactions, and causal consistency needs a dependency between the operations."
+  - id: partition-choice
+    prompt: "A booking store runs in two regions. The link between them fails; region B keeps answering seat reads from its local replica while region A still accepts writes. In CAP terms, what did region B choose?"
+    choices: ["Availability: it answers, but reads may not be linearizable", "Consistency: each regional replica is internally consistent, so it is safe", "Partition tolerance: it survived the split by not depending on region A", "Latency: CAP names this trade-off when no partition exists"]
+    answer: 0
+    explanation: "During a partition B can answer with possibly stale data (available, not linearizable) or refuse. Partitions are not something a system opts out of, and the latency trade-off is PACELC's second half."
+  - id: shrinking-feed
+    prompt: "A user's page shows 12 replies; after a refresh it shows 9, and later 12 again. A load balancer spreads reads across replicas with different lag. Which guarantee is broken, and what fixes it?"
+    choices: ["Writes-follow-reads; apply each reply only after the replies it answers", "Read-your-writes; read from the leader for a short window after the user has posted", "Monotonic reads; send the highest version seen as a minimum on later reads", "Monotonic writes; apply each client's writes in the order it issued them"]
+    answer: 2
+    explanation: "The session went backwards in time, which is a monotonic-reads violation; the user wrote nothing, so read-your-writes is not the issue. A version floor (or pinning to one replica) stops the regression."
+  - id: quorum-tuning
+    prompt: "A leaderless store has N = 5 replicas with strict quorums and W = 3, R = 3. To speed up writes, an operator lowers W to 2 and leaves R = 3. What is the consequence?"
+    choices: ["Reads stay overlapping, since R = 3 is still a majority of the 5 replicas", "A read can miss the latest acknowledged write, since 2 + 3 is not greater than 5", "Writes become linearizable, since fewer acknowledgements cut the window for conflicts", "Overlap holds only for reads served by the node that coordinated the write"]
+    answer: 1
+    explanation: "Overlap needs W + R > N, and 2 + 3 = 5 is not enough, so a read set can avoid every replica in a write set. A read majority alone does not help when the write set is smaller than a majority."
+  - id: orphan-reply
+    prompt: "In a chat app, a reply \"Approved\" sometimes appears on a replica before the request it answers. The team wants to fix this and still serve reads during a partition. What is the best fix?"
+    choices: ["Route every read to the leader so that all clients always see one single up-to-date copy of the data", "Sort messages by the arrival time on each replica's local clock", "Store the request's id on the reply and hold the reply back until that request is present", "Switch the replicas to last-writer-wins so the newest message always prevails"]
+    answer: 2
+    explanation: "A dependency check gives causal ordering without global coordination, so replicas can keep serving. Leader-only reads stall during a partition, local clocks can disagree, and last-writer-wins discards data rather than ordering it."
+flashcards:
+  - id: linearizability
+    front: "Linearizability"
+    back: "Each operation appears to take effect at one instant, in an order that respects real time: a completed write is seen by every later read. A single-object recency guarantee."
+  - id: serializability
+    front: "Serializability vs linearizability"
+    back: "Serializability is transaction isolation: the result equals some serial order of transactions, with no real-time rule. Linearizability is about recency of single objects."
+  - id: sequential-consistency
+    front: "Sequential consistency"
+    back: "All processes see one total order that respects each process's program order. The order need not follow real time, so reads can lag a finished write."
+  - id: causal-consistency
+    front: "Causal consistency"
+    back: "Operations linked by happens-before are seen in that order by everyone. Concurrent writes may appear in different orders to different readers."
+  - id: eventual-consistency
+    front: "Eventual consistency"
+    back: "If writes stop, replicas converge. Until then reads may be stale or reordered, and concurrent writes need a conflict rule."
+  - id: session-guarantees
+    front: "Four session guarantees"
+    back: "From Terry et al. (Bayou): read-your-writes, monotonic reads, monotonic writes, writes-follow-reads. Each is promised to one client session."
+  - id: cap-theorem
+    front: "CAP, stated precisely"
+    back: "During a network partition, a service cannot be both linearizable and available at every non-failed node. Partitions are not optional, so it is not a pick-two."
+  - id: pacelc
+    front: "PACELC"
+    back: "If Partition: Availability or Consistency. Else: Latency or Consistency. Even a healthy system trades fast local reads against fresh ones."

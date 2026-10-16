@@ -35,8 +35,8 @@ export function twoPhaseCommitSteps(): TpcStep[] {
     const to = (kind: TpcMsg['kind']): TpcMsg[] => ids.map((id) => ({ from: 'C', to: id, kind }))
 
     push([], kind === 'commit'
-      ? 'Commit run: one transfer touched two databases, and the coordinator had to commit both or neither'
-      : 'Crash run: the same transfer, but the coordinator crashed after the votes')
+      ? 'Commit run: one order touched two databases, and the coordinator had to commit both or neither'
+      : 'Crash run: the same order, but the coordinator crashed after the votes')
 
     coordinator = 'waiting'
     push(to('PREPARE'), `The coordinator sent PREPARE to ${list(ids)}`)

@@ -24,7 +24,7 @@ rubric:
 reference: |
   **Choice.** A saga. The partner is external and cannot join a prepare phase. With 2PC, locks would stay held during every partner delay. By Little's law, a 2 s partner call at 1,000 transfers/s keeps 1,000 × 2 = 2,000 transfers in flight.
 
-  **Steps.** (1) In one local transaction, Accounts moves the amount from available to **held** and writes a PENDING transfer plus an outbox row. Compensation: release the hold. (2) Send the partner credit with idempotency key `transfer_id`. This is the **pivot**: once it succeeds, it cannot be undone. (3) After the partner confirms, Accounts turns the hold into a final debit and marks the transfer DONE. This step is retriable and must eventually succeed.
+  **Steps.** (1) In one local transaction, Accounts moves the amount from available to **held** and writes a PENDING transfer plus an outbox row. Compensation: release the hold and mark the transfer FAILED. (2) Send the partner credit with idempotency key `transfer_id`. This is the **pivot**: once it succeeds, it cannot be undone. (3) After the partner confirms, Accounts turns the hold into a final debit and marks the transfer DONE. This step is retriable and must eventually succeed.
 
   **Timeouts.** A timeout means unknown. Never release the hold on one. Retry with the same key or query the partner by key until it answers. If the partner definitely refused, run the compensation. Illustratively, if 0.5% of calls time out, that is 5 per second to resolve.
 

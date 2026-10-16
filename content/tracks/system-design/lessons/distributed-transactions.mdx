@@ -9,7 +9,7 @@ summary: "When one business action spans several databases or services, choose b
 
 ## Intuition
 
-At a wedding the officiant asks each partner "Do you?" and both say yes. Only then does the officiant declare them married. Once you have said yes you cannot walk away; you must wait for the declaration. If the officiant faints mid-ceremony, both stand stuck until someone revives them. That is **two-phase commit**.
+At a wedding the officiant asks each partner "Do you?" and both say yes. Only then are they declared married. Once you have said yes you must wait for the declaration; if the officiant faints, both stand stuck until revived. That is **two-phase commit**.
 
 Now plan a holiday: hotel, then car, then flight, with three companies. If the flight fails, nobody can roll back the hotel's database; you email to cancel, perhaps paying a fee. That is a **saga**.
 
@@ -19,16 +19,16 @@ Now plan a holiday: hotel, then car, then flight, with three companies. If the f
 1. **Prepare.** Each participant does the work, writes its changes durably, **keeps its locks** and votes YES (a promise that it can commit) or NO.
 2. **Decide.** If all vote YES, the coordinator **durably logs COMMIT**. That log write is the **decision point**: the outcome is fixed even if everything crashes. Then it tells everyone to commit; any NO or missing vote means ABORT.
 
-A participant that voted YES can no longer decide alone. The coordinator may already have logged COMMIT and told another participant, so aborting could split the outcome; it must **wait for the decision**, still holding its locks. So if the coordinator dies, prepared participants block, and other transactions queue behind their locks.
+A participant that voted YES can no longer decide alone. The coordinator may already have logged COMMIT and told another participant, so aborting could split the outcome; it must **wait for the decision**, still holding its locks. So if the coordinator dies, participants block and others queue behind their locks.
 
-On restart, a coordinator with a logged decision re-sends it. With none, many implementations use **presumed abort**: no record means abort. That is a common convention, not a law of the protocol.
+On restart, a coordinator with a logged decision re-sends it. With none, many implementations use **presumed abort**: aborts need not be logged, and any inquiry with no record is answered ABORT. That is a common convention, not a law of the protocol.
 
 2PC solves atomic commit, not consensus, and blocks on coordinator failure; variants such as three-phase commit and Paxos Commit aim to reduce that.
 
-**XA** is a standard interface for running 2PC across databases and brokers; support and performance vary by product. Microservices usually avoid it: **availability** (every participant must be up), **coupling** (each exposes a transactional resource) and **lock time** (locks span round trips and coordinator outages).
+**XA** is a standard interface for running 2PC across databases and brokers; support and performance vary by product. Microservices usually avoid it for **availability** (all participants must be up), **coupling** and **lock time** (locks span round trips and coordinator outages).
 
-**Sagas.** Garcia-Molina and Salem (1987) split a long transaction into **local transactions** T1, T2, … each with a **compensating action** C1, C2, …. If a step fails, run the compensations of the completed steps in **reverse** order.
-- A compensation is a **semantic undo**, not a rollback: the commit already happened and others may have seen it. "Cancel booking" may leave a record or a fee.
+**Sagas.** Garcia-Molina and Salem (1987) split a transaction into **local transactions** T1, T2, … each with a **compensating action** C1, C2, …. If a step fails, run the compensations of the completed steps in **reverse** order.
+- A compensation is a **semantic undo**, not a rollback: the commit happened and others may have seen it. "Cancel booking" may leave a fee.
 - Sagas give **atomicity (eventually), consistency and durability, but no isolation**: ACD without I.
 - A compensation must be **safe to retry** and must **eventually succeed**, or be escalated to a human.
 - The **pivot** is the go/no-go step. Steps before it are compensatable; steps after it are **retriable** and must eventually succeed. Put the hard-to-undo step as late as possible.
@@ -37,15 +37,15 @@ In **orchestration**, a central service tells each participant what to do next. 
 
 Each step carries a **producer-assigned idempotency key**, and commands leave a service through the **outbox** from [Queues & streams](/system-design/queues-streams/), so a crash cannot lose them.
 
-**The isolation problem.** Between steps, others see partial results, such as a hotel booked for a trip that later fails. Mitigate with a **pending** status (a **semantic lock**): other flows treat the record as provisional until the saga ends.
+**The isolation problem.** Between steps, others see partial results, such as a hotel booked for a trip that fails. Mitigate with a **pending** status (a **semantic lock**): others treat the record as provisional.
 
-**TCC (try-confirm-cancel)** is a related pattern: each service offers a *try* that tentatively claims capacity, then a *confirm* or *cancel*. It builds in the pending state, but every service must implement all three idempotently and expire unconfirmed tries.
+**TCC (try-confirm-cancel)** is a related pattern. In most descriptions, each service offers a *try* that tentatively claims capacity, then a *confirm* or *cancel*. It builds in the pending state, but services must implement all three idempotently and expire unconfirmed tries (details vary).
 
 ## Visual
 
 <Visualizer kind="two-phase-commit" />
 
-P1 is the Orders DB and P2 the Payments DB. In the **commit run**, both vote YES, the coordinator logs COMMIT, and both commit and release their locks. In the **crash run**, the coordinator dies after both YES votes, before logging a decision. Both stay prepared, holding locks. On restart it finds no logged decision and sends ABORT.
+P1 is the Orders DB and P2 the Payments DB. In the **commit run**, both vote YES, the coordinator logs COMMIT, and both commit and release their locks. In the **crash run**, the coordinator dies after both YES votes, before logging a decision; both stay prepared, holding locks, until it restarts, finds no logged decision and sends ABORT.
 
 ```text
 Saga: trip booking, compensations run in reverse
@@ -56,24 +56,26 @@ Saga: trip booking, compensations run in reverse
   C1 cancel hotel   C2 cancel car
 
  Happy path:  T1 → T2 → T3 → T4
- Car fails:   T1 ok, T2 fails → C1       saga ends "failed"
+ Car fails:   T1 ok, T2 fails or times out → C2 (no-op if never booked), C1
  After pivot: T3 ok, T4 fails → retry T4 until it succeeds (never undo T3)
 ```
 
 ## Example
 
-A trip-booking saga with an orchestrator. Hotel and car have free cancellation and the flight ticket is non-refundable, so the ticket is the pivot and comes third. The repeatable itinerary email follows.
+A trip-booking saga with an orchestrator. Hotel and car cancel freely and the ticket is non-refundable, so the ticket is the pivot, third; the repeatable itinerary email follows.
 
 | Step | Action | Compensation |
 |---|---|---|
 | T1 | Book hotel | Cancel hotel |
 | T2 | Book car | Cancel car |
-| T3 | Issue ticket (pivot) | none: forward only |
-| T4 | Send itinerary | none: retry until sent |
+| T3 | Issue ticket (pivot) | none |
+| T4 | Send itinerary | none: retry |
 
-**When the car booking fails.** T1 has committed and T2 is refused. The orchestrator marks the saga `compensating`, runs C2 (a harmless no-op if the car was never booked, so a cancel of nothing must succeed) then C1, and ends in `failed`; no ticket was issued. If the car call *times out*, the outcome is unknown, which is why C2 runs anyway.
+**When the car booking fails.** T1 has committed and T2 is refused. The orchestrator marks the saga `compensating`, runs C2 (a no-op if the car was never booked) then C1, and ends in `failed`; no ticket was issued. A car *timeout* is handled the same way. The service must remember a cancel against that key, so a late booking with the same key is rejected.
 
-The sketch is generic, with placeholder helpers, and is not any framework.
+A timeout on the **pivot** is different: the ticket may exist, so the orchestrator never compensates blindly. It queries the ticket's status by key, or marks the saga `unknown` and escalates.
+
+The sketch is generic, not any framework.
 
 ```python
 import time
@@ -86,60 +88,70 @@ def retry(fn, attempts=8):
         try:
             return fn()
         except TransientError:
+            if i == attempts - 1:
+                raise                    # still unknown: caller escalates
             time.sleep(min(30, 2 ** i))
-    raise StepFailed("retries exhausted; escalate to a human")
 
 def run_saga(sid, before_pivot, pivot, after_pivot, store):
     """before_pivot: [(name, do, undo)]; pivot, after_pivot: (name, do)."""
     s = store.load(sid) or {"started": [], "done": [], "status": "running"}
-    if s["status"] in ("failed", "completed"):
+    if s["status"] in ("failed", "completed", "unknown"):
         return s
     key = lambda name, sfx="": f"{sid}:{name}{sfx}"  # one key per step
 
+    def step(name, do):
+        if name not in s["started"]:
+            s["started"].append(name)
+        store.save(sid, s)               # persist BEFORE the call
+        retry(lambda: do(idempotency_key=key(name)))
+        s["done"].append(name)
+        store.save(sid, s)
+
     if s["status"] == "running":
         try:
-            for name, do, _ in before_pivot + [(*pivot, None)]:
-                if name in s["done"]:
-                    continue                     # resumed after a crash
-                s["started"].append(name)
-                store.save(sid, s)               # persist BEFORE the call
-                retry(lambda: do(idempotency_key=key(name)))
-                s["done"].append(name)
-                store.save(sid, s)
-        except StepFailed:
+            for name, do, _ in before_pivot:
+                if name not in s["done"]:
+                    step(name, do)
+            if pivot[0] not in s["done"]:
+                try:
+                    step(*pivot)
+                except TransientError:   # ticket may exist
+                    s["status"] = "unknown"   # query by key, or escalate
+                    store.save(sid, s)
+                    return s
+        except (StepFailed, TransientError):  # refusal or unknown
             s["status"] = "compensating"
             store.save(sid, s)
 
     if s["status"] == "compensating":
         undo = {n: u for n, _, u in before_pivot}
-        for name in reversed(s["started"]):      # reverse order, failed step included
+        for name in reversed(s["started"]):  # reverse order
             if name in undo:
                 retry(lambda: undo[name](idempotency_key=key(name, ":undo")))
         s["status"] = "failed"
         store.save(sid, s)
         return s
 
-    for name, do in after_pivot:                 # retriable steps
+    for name, do in after_pivot:             # retriable
         retry(lambda: do(idempotency_key=key(name)))
     s["status"] = "completed"
     store.save(sid, s)
     return s
 ```
 
-State is saved before every call, so a restart resumes. Each step has one fixed key, so a retry is recognised, not applied twice. A real orchestrator would publish commands through an outbox.
+State is saved before every call, so a restart resumes, and each step's fixed key means a retry is not applied twice. 
 
 ## Pitfalls
 
-- **Treating 2PC as free.** A coordinator outage freezes locks across services. Fix: use it among systems you control, with short transactions.
+- **Treating 2PC as free.** A coordinator outage freezes locks. Fix: use it among systems you control, with short transactions.
 - **Assuming a saga is isolated.** Readers see steps that later compensate. Fix: a pending status or semantic lock.
 - **Compensating as if it were rollback.** Others saw the effect. Fix: design each compensation as a business action that may leave a trace.
-- **Non-idempotent or silently failing compensations.** Fix: idempotent undo, backoff, and a human alert after a limit.
-- **Pivot too early.** A later failure cannot undo it. Fix: compensatable steps first, only retriable steps after the pivot.
-- **A fresh idempotency key per retry.** The service applies it again. Fix: assign one key per step before the first attempt and persist it.
+- **Non-idempotent or silently failing compensations.** Fix: idempotent undo, backoff, human alert.
+- **Pivot too early.** Fix: compensatable steps first, only retriable steps after.
+- **A fresh idempotency key per retry.** The service applies it again. Fix: one persisted key per step.
 
 ## Tips & tricks
 
-- First ask whether data that must change together belongs in one service.
-- Rule of thumb: 2PC for a few systems you control; a saga where services are independent and availability matters.
+- Rule of thumb: 2PC for a few systems you control; a saga for independent services. First ask whether the data belongs in one service.
 - Per step, write down its compensation, its key and its side of the pivot. Measure saga duration, stuck sagas, compensation failures and the oldest pending record.
-- Interview phrasing: "A saga with an orchestrator: compensatable steps first, pivot late, retriable steps after. Idempotency key per step, outbox for messages, a pending status, because sagas give no isolation."
+- Interview phrasing: "A saga with an orchestrator: compensatable steps, a late pivot, then retriable steps, an idempotency key per step, and a pending status because sagas lack isolation."

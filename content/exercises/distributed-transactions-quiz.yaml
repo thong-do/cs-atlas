@@ -11,14 +11,14 @@ questions:
     explanation: "After voting YES a participant cannot decide alone: the coordinator may have logged COMMIT and told others. Aborting on a timeout, committing on a guess, or taking a peer majority can each split the outcome."
   - id: step-order
     prompt: "A saga has four steps. A can be undone freely, B can be undone for a fee, C cannot be undone once done, and D is an idempotent notification that can be repeated safely. Which order is best?"
-    choices: ["C, A, B, D, so the riskiest step runs first and any failure shows up early", "D, A, B, C, so the user hears about progress before the slower steps", "A, C, B, D, so the free undo goes first and the fee-bearing step is delayed", "A, B, C, D, so C is the pivot, with only the repeatable D after it"]
+    choices: ["C, A, B, D, so the riskiest step runs first and any failure shows up early", "D, A, B, C, so the user hears early and C is the pivot", "A, C, B, D, so C is the pivot after the free step but before the fee", "A, B, C, D, so C is the pivot, with only the repeatable D after it"]
     answer: 3
-    explanation: "Compensatable steps come first, the irreversible step is the pivot as late as possible, and only repeatable steps follow it. Running C first or before B leaves a later failure with nothing to undo it, and notifying early announces work that may be cancelled."
+    explanation: "Compensatable steps come first, the irreversible step is the pivot as late as possible, and only repeatable steps follow it. Running C first, or before B, leaves a later failure with nothing to undo it, and notifying early announces work that may be cancelled."
   - id: failing-undo
     prompt: "A saga is compensating and the undo of step 3 times out repeatedly. What should the orchestrator do?"
-    choices: ["Mark the saga failed and move on, as the forward step already failed and the undo is best effort", "Retry the undo with a new key each time, so a stuck earlier attempt cannot block it", "Retry with the same key and backoff, escalating to a person if it still keeps failing", "Restore the service's database from its last backup, since the undo is no longer reliable"]
+    choices: ["Mark the saga failed and move on, as the forward step already failed and the undo is best effort", "Retry the undo with a new key each time, so a stuck earlier attempt cannot block it", "Retry with the same key and backoff, escalating to a person if it still keeps failing", "Skip step 3's undo and continue compensating steps 2 and 1, retrying step 3 at the end"]
     answer: 2
-    explanation: "A compensation must be safe to retry and must eventually succeed, so the orchestrator retries with its one key and escalates. A fresh key can apply the undo twice, and dropping it or restoring a backup leaves the saga half-done or discards other work."
+    explanation: "A compensation must be safe to retry and must eventually succeed, so the orchestrator retries with its one key and escalates. A fresh key can apply the undo twice, dropping it leaves the saga half-done, and deferring it only delays the retry that is still needed."
   - id: dirty-read
     prompt: "In a saga, seat 14B is booked in step 1 and the payment in step 2 later fails, so the seat is released. Meanwhile a seat-map page showed 14B as taken. What explains this, and what is the standard mitigation?"
     choices: ["Orchestration lets steps interleave, so switch the saga to choreography to restore ordering", "The outbox delayed the release event, so shorten the relay's polling interval", "Sagas expose intermediate states, so mark the seat pending until the saga finishes", "The local database ran below serializable isolation, so raise it in each service"]

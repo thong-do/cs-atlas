@@ -39,13 +39,13 @@ describe('twoPhaseCommitSteps', () => {
 
   it('writes the captions', () => {
     expect(steps.map((s) => s.caption)).toEqual([
-      'Commit run: one transfer touched two databases, and the coordinator had to commit both or neither',
+      'Commit run: one order touched two databases, and the coordinator had to commit both or neither',
       'The coordinator sent PREPARE to P1 and P2',
       'P1 wrote its changes durably, kept its locks and voted YES',
       'P2 wrote its changes durably, kept its locks and voted YES',
       'Both voted YES, so the coordinator logged COMMIT — the decision point',
       'P1 and P2 committed and released their locks',
-      'Crash run: the same transfer, but the coordinator crashed after the votes',
+      'Crash run: the same order, but the coordinator crashed after the votes',
       'The coordinator sent PREPARE to P1 and P2',
       'P1 wrote its changes durably, kept its locks and voted YES',
       'P2 wrote its changes durably, kept its locks and voted YES',

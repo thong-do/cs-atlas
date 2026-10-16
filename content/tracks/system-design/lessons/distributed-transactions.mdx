@@ -71,7 +71,7 @@ A trip-booking saga with an orchestrator. Hotel and car cancel freely and the ti
 | T3 | Issue ticket (pivot) | none |
 | T4 | Send itinerary | none: retry |
 
-**When the car booking fails.** T1 has committed and T2 is refused. The orchestrator marks the saga `compensating`, runs C2 (a no-op if the car was never booked) then C1, and ends in `failed`; no ticket was issued. A car *timeout* is handled the same way. The service must remember a cancel against that key, so a late booking with the same key is rejected.
+**When the car booking fails.** T1 has committed and T2 is refused. The orchestrator marks the saga `compensating`, runs C2 (a no-op if the car was never booked) then C1, and ends in `failed`; no ticket was issued. A car *timeout* is handled the same way. The service must remember a cancel against the step's booking key (the `:undo` key derives from it), so a late booking with that key is rejected.
 
 A timeout on the **pivot** is different: the ticket may exist, so the orchestrator never compensates blindly. It queries the ticket's status by key, or marks the saga `unknown` and escalates.
 
@@ -139,7 +139,7 @@ def run_saga(sid, before_pivot, pivot, after_pivot, store):
     return s
 ```
 
-State is saved before every call, so a restart resumes, and each step's fixed key means a retry is not applied twice. 
+State is saved before every call, so a restart resumes, and each step's fixed key means a retry is not applied twice.
 
 ## Pitfalls
 

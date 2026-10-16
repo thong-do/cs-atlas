@@ -12,6 +12,7 @@ const PAGES = [
   { path: '/system-design/news-feed/', final: 'Done: push made 8 feed writes and 1 read; hybrid made 3 writes and 2 reads — with millions of followers, skipping the celebrity\'s fan-out saves the most' },
   { path: '/system-design/rate-limiting/', final: 'Done: 9 requests allowed, 4 rejected — bursts drained the bucket, steady traffic refilled it' },
   { path: '/system-design/consensus-raft/', final: 'Done: S2 won term 2 with a majority, and x=1 committed on 2 of 3 nodes while S3 was down' },
+  { path: '/system-design/distributed-transactions/', final: 'Done: 2PC kept both databases in agreement, but a coordinator crash left them blocked, holding locks, until it recovered' },
 ]
 const VIEWPORTS = [
   { width: 375, height: 812 },

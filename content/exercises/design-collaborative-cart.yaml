@@ -23,8 +23,7 @@ rubric:
   - id: partition-behaviour
     point: "States what the user sees during a partition: editing continues locally with a pending or offline indicator, views may be stale and are labelled, and checkout waits or fails clearly until it can reach the authority."
 reference: |
-  **Arithmetic.** 5,000 edits/s ÷ 2,000,000 carts = 0.0025 edits/s per cart, one edit per 400 s. Conflicts come
-  from offline devices, not traffic. Shard by `cart_id` over 8 shards (about 625 edits/s each), 3 replicas.
+  **Arithmetic.** 5,000 edits/s ÷ 2,000,000 carts = 0.0025 edits/s per cart, one edit per 400 s. Shard by `cart_id` over 8 shards, 3 replicas.
 
   **Per operation.** Add, remove and view are available and converge: a device applies the edit locally, queues it
   and syncs. Checkout is linearizable, run on the cart shard's leader plus a conditional stock write.
@@ -32,15 +31,15 @@ reference: |
   **Merge.** Each add creates a unique tag (device id, counter). A remove records the tags it has seen in a removed
   set. Visible = added tags minus removed tags, so a concurrent add, unseen by the remover, survives. Quantity is
   per-device increment and decrement totals scoped to the tag, so it can go down and is discarded with the tag;
-  a re-add gets a new tag. Merge = union of added sets, union of removed sets, per-device maximum of each total.
+  a re-add gets a new tag. An item's quantity is the sum over its live tags; an edit applies to a tag the device sees. Merge = union of added sets, union of removed sets, per-device maximum of each total.
 
   **Read-your-writes.** The device shows its edit at once. The server returns the cart version after each merge
   (previous + 1); the device keeps the highest and sends it with reads. A replica below it forwards to the leader.
 
   **Checkout.** Read the latest cart from the leader and re-read prices; if any changed, show the diff and ask to
-  confirm. Then, in one transaction on the stock store, run `UPDATE stock SET qty = qty - n WHERE sku = ? AND qty >= n`
-  per line and insert the order; if stock spans shards, reserve per shard and release on failure. The client
-  generates a checkout key once and reuses it on retries; a unique constraint on it covers decrements and order.
+  confirm. Stock lives in one transactional store. In one transaction there, run `UPDATE stock SET qty = qty - n WHERE sku = ? AND qty >= n`
+  per line and insert the order. The client generates a checkout key once and reuses it on retries; a unique
+  constraint on it, in that store, covers decrements and order.
 
   **Partition.** Editing continues locally with a "syncing" badge; views are labelled possibly out of date; checkout
-  is disabled until the authority is reachable. On heal, edits merge.
+  is disabled until the authority is reachable.

@@ -13,7 +13,7 @@ questions:
     prompt: "A booking store runs in two regions. The link between them fails; region B keeps answering seat reads from its local replica while region A still accepts writes. In CAP terms, what did region B choose?"
     choices: ["Availability: it answers locally, though reads may not be linearizable", "Consistency: each regional replica is internally consistent, so it is safe", "Partition tolerance: it survived the split by not depending on region A", "Consistency: it wrote nothing locally, so its replica cannot diverge"]
     answer: 0
-    explanation: "During a partition B can answer with possibly stale data (available, not linearizable) or refuse. Partitions are not something a system opts out of, and the latency trade-off is PACELC's second half."
+    explanation: "During a partition B can answer with possibly stale data (available, not linearizable) or refuse. Partitions are not something a system opts out of, and refusing to write locally does not make stale reads consistent."
   - id: shrinking-feed
     prompt: "A user's page shows 12 replies; after a refresh it shows 9, and later 12 again. A load balancer spreads reads across replicas with different lag. The user has not posted anything. Which guarantee is broken, and what fixes it?"
     choices: ["Writes-follow-reads; apply each reply only after the replies it answers", "Read-your-writes; read from the leader for a short window after the user has posted", "Monotonic reads; send the highest version seen as a minimum on later reads", "Monotonic writes; apply each client's writes in the order it issued them"]
@@ -28,7 +28,7 @@ questions:
     prompt: "A document service has replicas in two regions. An admin removes Bob's access, then edits the document to add a salary table. Bob's client reads from a replica that has the new edit but not yet the removal, and Bob sees the table. The service must keep answering reads during a regional partition. What is the best fix?"
     choices: ["Send every read, including document bodies, to the leader so clients see one current copy", "Order all changes by the timestamp from each replica's own clock", "Tag the edit with the access change it follows; hold it back until that change arrives", "Resolve the two changes with last-writer-wins so the newest one prevails"]
     answer: 2
-    explanation: "The edit causally depends on the removal, so a replica can hold the edit back until its dependency arrives and stay available. Leader-only reads stall in a partition, local clocks can disagree, and last-writer-wins discards data rather than ordering it."
+    explanation: "The edit causally depends on the removal, so a replica can hold the edit back until its dependency arrives and stay available. Leader-only reads stall in a partition, local clocks can disagree, and last-writer-wins settles conflicting writes to one object; it does not order changes across objects."
 flashcards:
   - id: linearizability
     front: "Linearizability"

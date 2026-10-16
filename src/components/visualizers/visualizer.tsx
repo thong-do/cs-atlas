@@ -12,6 +12,10 @@ import { loadBalancerSteps } from '@/lib/visualizers/lb-steps'
 import { consistentHashingSteps } from '@/lib/visualizers/ch-steps'
 import { tokenBucketSteps } from '@/lib/visualizers/tb-steps'
 import { feedFanoutSteps } from '@/lib/visualizers/feed-steps'
+import { raftSteps } from '@/lib/visualizers/raft-steps'
+import { twoPhaseCommitSteps } from '@/lib/visualizers/tpc-steps'
+import { RaftView } from './raft-view'
+import { TpcView } from './tpc-view'
 import { FeedView } from './feed-view'
 import { ChView } from './ch-view'
 import { TbView } from './tb-view'
@@ -104,6 +108,16 @@ function FeedFanoutVisualizer() {
   return <StepPlayer steps={steps} title="Feed fan-out: push vs hybrid for a celebrity with 5 followers" captionClassName="min-h-[7.5rem] sm:min-h-[3.75rem]" render={(s) => <FeedView step={s} />} />
 }
 
+function RaftVisualizer() {
+  const steps = useMemo(() => raftSteps(), [])
+  return <StepPlayer steps={steps} title="Raft: electing a leader and committing x=1 with one node down" render={(s) => <RaftView step={s} />} />
+}
+
+function TwoPhaseCommitVisualizer() {
+  const steps = useMemo(() => twoPhaseCommitSteps(), [])
+  return <StepPlayer steps={steps} title="Two-phase commit: a clean commit, then a coordinator crash" captionClassName="min-h-[6.25rem] sm:min-h-[3.75rem]" render={(s) => <TpcView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -126,6 +140,10 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <TokenBucketVisualizer />
     case 'feed-fanout':
       return <FeedFanoutVisualizer />
+    case 'raft':
+      return <RaftVisualizer />
+    case 'two-phase-commit':
+      return <TwoPhaseCommitVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

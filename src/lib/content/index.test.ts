@@ -70,7 +70,7 @@ describe('content inventory', () => {
     const sd = tracks[1]
     expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'url-shortener', 'news-feed', 'chat'])
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
-    expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['arrays-hashing', 'client-server-http'] })
+    expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(lessons.find((l) => l.slug === 'client-server-http')).toMatchObject({ track: 'system-design', prerequisites: [] })
     expect(getLessonDoc('client-server-http')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])

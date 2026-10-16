@@ -1,0 +1,110 @@
+---
+slug: observability
+title: Observability
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [load-balancing]
+summary: "Use metrics, logs and traces to ask questions about a running system, turn user pain into SLOs and error budgets, and alert on budget burn rather than on causes."
+---
+
+## Intuition
+
+A car dashboard shows speed, fuel and a warning light. When the engine stutters, the mechanic wants more: what the computer recorded, and a way to follow one fault through the parts. **Observability** is being able to ask new questions about a running system from the data it emits, without shipping new code first.
+
+**The three signals** each answer a different question:
+- **Metrics:** numbers aggregated over time, such as requests per second. Cheap to store and ideal for dashboards and alerts. They tell you *that* something is wrong.
+- **Logs:** discrete events. Write them as **structured** key-value records (JSON) that include a **trace id**, so you can search by field and jump to the matching trace.
+- **Traces:** one request's path through many services, as a tree of **spans** (a span is one timed operation). They tell you *where* the time went.
+
+**Context propagation.** Each service must pass the trace id along. The W3C Trace Context standard defines the `traceparent` header for this: `00-<trace-id>-<parent-span-id>-<flags>`, where the trace id is 32 hex digits, the span id 16, and the lowest flag bit means "sampled". OpenTelemetry is the vendor-neutral set of APIs, SDKs and a collector for producing and shipping all three signals; it uses W3C Trace Context by default.
+
+**What to measure.** Two checklists:
+- **RED** (popularised by Tom Wilkie) is for services: **R**ate, **E**rrors, **D**uration.
+- **USE** (from Brendan Gregg) is for resources such as disks, queues or connection pools: **U**tilization, **S**aturation (work waiting), **E**rrors.
+
+**Percentiles, not averages.** An average hides the slow tail, so track p50, p95 and p99. But you **cannot average percentiles across hosts**. Take host A with 9,900 requests and a p99 of 100 ms, and host B with 200 requests that all take 2 s. Averaging the two p99s gives 1.05 s; weighting by requests gives about 0.14 s. The true combined p99 is 2 s, because the slow 200 are about 2% of 10,100 requests. The fix is to have each host report a **histogram**: counts per latency bucket. Histograms add together across hosts, and you then estimate the percentile from the merged buckets. The estimate is only as accurate as the bucket boundaries, so place them near your thresholds.
+
+**SLIs, SLOs and error budgets.**
+- An **SLI** (indicator) is a measured ratio of good events to all events.
+- An **SLO** (objective) is the target for it over a window.
+- The **error budget** is what the SLO allows to go wrong: `1 − SLO`.
+
+Arithmetic for 99.9% over 30 days: the window is 30 × 24 × 60 = 43,200 minutes, and 43,200 × 0.001 = **43.2 minutes** of full outage, or the equivalent in failed requests. When it is spent, slow risky releases and fix reliability.
+
+**Burn rate and alerting.** Alert on **symptoms** users feel, such as SLO burn, not on causes. The **burn rate** is how fast you consume the budget relative to the SLO: 1 means the whole budget lasts exactly the window, and 10 exhausts a 30-day budget in 30 ÷ 10 = **3 days**. The Google SRE workbook recommends combining several burn rates and windows: a fast burn over a short window **pages** someone, and a slow burn over a long window opens a **ticket**. Requiring a long and a short window together cuts false alarms and lets the alert reset quickly. Treat thresholds as tuning choices.
+
+**Cardinality.** Each distinct combination of label values is a separate time series, so series = the product of each label's distinct values. A counter with `method` (4), `route` (50) and `status` (5) has 4 × 50 × 5 = 1,000 series per instance; across 20 instances that is 20,000. Add a `user_id` label with 100,000 values and the product reaches 1,000 × 100,000 = 100,000,000 possible series per instance (only observed combinations are stored, but that is still far too many). Keep high-cardinality values such as user ids in logs and traces, never in metric labels.
+
+**Sampling traces.** Storing every trace is costly.
+- **Head sampling** decides at the start of a request, for example keep 1%. It is simple and cheap, but it cannot know yet whether the request will fail or be slow, so it throws away many interesting traces.
+- **Tail sampling** decides after the trace completes, so it can keep all errors and slow traces. It needs **buffering** of spans until the trace finishes, and all spans of a trace must reach the same collector, so it costs memory and routing effort.
+
+**Dashboards.** Show the SLIs and the budget remaining first, then RED per service, then USE for the resources it depends on, with deploy markers on the graphs.
+
+Balancers emit useful signals too; see [Load balancing](/system-design/load-balancing/) for health checks and [Caching](/system-design/caching/) for hit rates.
+
+## Visual
+
+```text
+One request crossing three services; the trace id travels in traceparent
+
+ trace 4bf92f35...  (total 240 ms)
+ gateway   |=================================================| 240 ms  span A
+   search  |   =========================================    |  200 ms  span B (parent A)
+     index |       ==============================          |  150 ms  span C (parent B)
+
+ gateway -> search : traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-<spanA>-01
+ search  -> index  : traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-<spanB>-01
+ (same trace id everywhere; each hop sends its own span id as the parent)
+
+Which signal answers which question
+ metrics : "Is it broken, how badly, since when?"   (aggregated, cheap)
+ logs    : "What exactly happened to request X?"    (events, search by trace id)
+ traces  : "Which hop was slow or failed?"          (per-request tree)
+```
+
+## Example
+
+A single **search API**. Its SLIs: a request is *good* if it returns a non-5xx status **and** takes at most 300 ms. The SLO is 99.9% good over 30 days.
+
+At an illustrative 200 requests/s, 30 days is 2,592,000 s × 200 = 518,400,000 requests. The budget is 0.1%: 518,400 bad requests, or 43.2 minutes of total outage.
+
+The service exposes a latency histogram with a bucket boundary at exactly 0.3 s, so the SLI uses real counts. An illustrative Prometheus-style alert for a fast burn (14.4× is a commonly cited starting point from the Google SRE workbook; tune it for your service):
+
+```yaml
+- alert: SearchFastBurn
+  # bad ratio = 1 - good/total; threshold = 14.4 * (1 - 0.999) = 0.0144
+  expr: |
+    (1 - sum(rate(http_request_duration_seconds_bucket{job="search",le="0.3",code!~"5.."}[1h]))
+         / sum(rate(http_request_duration_seconds_count{job="search"}[1h]))) > 0.0144
+    and
+    (1 - sum(rate(http_request_duration_seconds_bucket{job="search",le="0.3",code!~"5.."}[5m]))
+         / sum(rate(http_request_duration_seconds_count{job="search"}[5m]))) > 0.0144
+  labels: { severity: page }
+```
+
+At 14.4× the whole 30-day budget would last 720 h ÷ 14.4 = 50 h, and one hour at that rate spends 14.4 ÷ 720 = 2% of it. A slow-burn rule over a long window (say 3 days at a burn rate near 1) would use `severity: ticket`.
+
+One structured log line from the search service, carrying the same trace id as the trace above:
+
+```json
+{"ts":"2026-03-02T10:15:04.112Z","level":"warn","service":"search","trace_id":"4bf92f3577b34da6a3ce929d0e0e4736","span_id":"00f067aa0ba902b7","route":"/search","status":200,"duration_ms":412,"msg":"slow query"}
+```
+
+A spike on the dashboard leads to logs by `route`, then to this `trace_id`, then to the trace showing the slow span.
+
+## Pitfalls
+
+- **Averaging percentiles across hosts:** the result is meaningless. Merge histograms, then compute the percentile.
+- **Buckets that miss the threshold:** with no boundary at 300 ms, the SLI is only an estimate. Add one at the SLO value.
+- **Unbounded labels:** user ids or raw URLs in metric labels explode the series count. Use route templates; keep ids in logs.
+- **Cause-based alerts:** paging on a resource threshold rather than user-visible symptoms wakes people for non-problems. Alert on SLO burn and keep cause metrics on dashboards.
+- **Broken propagation:** one service that drops `traceparent` splits the trace in two. Propagate in every client, queue message and background job.
+- **Tail sampling without enough memory:** buffered spans are lost if a collector overflows. Size the buffer for your slowest requests.
+
+## Tips & tricks
+
+- Start from "what would a user notice?", write that as an SLI, then pick tools.
+- An SLO of 100% leaves no budget for change; choose the loosest target users accept.
+- Measure: SLI, budget remaining, burn rate, series per metric, share of traces kept.
+- In interviews, say you alert on burn rate and debug with traces.

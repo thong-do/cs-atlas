@@ -1,0 +1,49 @@
+slug: design-checkout-slos
+type: design-prompt
+title: "Design: checkout SLOs and alerting"
+lessons: [observability]
+ladderOrder: 2
+prompt: |
+  A shop's **checkout** crosses **5 services**: cart, pricing, inventory, payment and order. It peaks at
+  **300 checkouts/s** and averages about **8 million checkouts/day**. The payment provider's p99 latency is
+  **sometimes 2 s**, and the on-call engineer is **paged too often by CPU alerts** on individual services,
+  most of which users never notice.
+
+  Design the observability plan. Define **journey-level SLIs and SLOs** (use 99.95% over 28 days as the
+  availability target) and compute the **error budget** with numbers. Say **what pages and what only opens a
+  ticket**, how a request is **traced across all five services, including sampling**, and how you would
+  **find which service is burning the budget**.
+hint: "Measure the journey from the user's side, not each service's; then ask what a page should mean and how a failed checkout can be pinned on one service."
+rubric:
+  - id: journey-sli-slo
+    point: "Defines SLIs on the whole checkout as the user sees it (completed without a server error, and fast enough), counts card declines as not bad, and sets 99.95% over 28 days plus a latency target."
+  - id: budget-arithmetic
+    point: "Computes the budget: 28 d = 40,320 min × 0.0005 = about 20.2 minutes of full outage, or about 112,000 failed checkouts out of 224 million."
+  - id: alert-policy
+    point: "Pages on multi-window burn-rate alerts for the journey SLO (fast and moderate burns), opens tickets for slow burn, and demotes per-service CPU alerts to dashboards or tickets."
+  - id: tracing-sampling
+    point: "Propagates a trace context (traceparent) through all five services and any async hops, uses tail sampling to keep errors and slow traces plus a small head-sampled baseline, and sizes the buffer."
+  - id: attribution
+    point: "Finds the culprit by attributing each bad checkout to the service whose span failed or dominated latency, using per-service RED metrics and trace queries, and checks the payment provider's tail against its own SLO."
+reference: |
+  **SLIs and SLOs.** Measure at the edge of the journey. Availability: share of checkout attempts that finish
+  without a 5xx or timeout; a card decline is a correct outcome, not a bad event. Latency: share completing
+  within 3 s (illustrative). SLOs: 99.95% availability over 28 days and 99% under 3 s.
+
+  **Budget.** 28 days = 40,320 min; 40,320 × 0.0005 = 20.16 min of full outage. In requests: 8M × 28 =
+  224M checkouts; × 0.0005 = 112,000 failed ones. The 99% latency target allows 2.24M slow checkouts.
+
+  **Alerts.** Burn rate 1 spends the budget in 28 days. Illustrative multi-window rules in the style of the
+  Google SRE workbook: **page** at 14.4× over 1 h and 5 min (error ratio above 14.4 × 0.0005 = 0.72%;
+  budget gone in 672 ÷ 14.4 ≈ 47 h) and at 6× over 6 h and 30 min (0.3%; about 4.7 days). **Ticket** at 1×
+  over 3 days. Per-service CPU alerts stop paging: keep them as dashboard USE panels or tickets, because
+  users feel the journey SLO, not CPU.
+
+  **Tracing.** Every service forwards `traceparent`, including through queues. Use a small head sample
+  (say 1%) for baseline plus **tail sampling** in collectors, routed by trace id, keeping all errors and
+  traces over 3 s. Rough size: 300 traces/s × 10 s decision wait = 3,000 buffered traces, each about five
+  to ten spans. Compute metrics before sampling.
+
+  **Attribution.** Tag each bad checkout with the service owning the failing or slowest span. Count bad
+  events per service against the 112,000 budget, backed by per-service RED metrics. Also track the payment
+  provider's own latency SLI: a p99 of 2 s fits 3 s only if the other four services fit in 1 s on that path.

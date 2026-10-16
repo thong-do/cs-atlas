@@ -11,7 +11,7 @@ modules:
     lessons: [load-balancing, replication-sharding, queues-streams, rate-limiting]
   - slug: advanced
     title: Advanced
-    lessons: [consistency-models, consensus-raft, distributed-transactions]
+    lessons: [consistency-models, consensus-raft, distributed-transactions, observability]
   - slug: case-studies
     title: Case Studies
     lessons: [url-shortener, news-feed, chat]

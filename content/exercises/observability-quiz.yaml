@@ -26,7 +26,7 @@ questions:
     explanation: "A template has one value per route, so series stay a small product of a few labels. Hashing shortens a value but keeps one value per id, and filtering to slow requests still lets ids pile up."
   - id: keep-error-traces
     prompt: "A team traces 1% of requests chosen when each request arrives, but nearly every trace they need for outages was discarded. What change targets the problem?"
-    choices: ["Sample by a hash of the trace id so every span of a trace is kept or dropped together, at 1%", "Mark spans as errors in the service code, which makes head sampling retroactively keep them", "Add tail sampling in a collector that buffers each trace and keeps errors and slow ones", "Raise the head sampling rate to 5%, so the share of failing traces kept grows fivefold"]
+    choices: ["Sample by a hash of the trace id so every span of a trace is kept or dropped together, at 1%", "Mark spans as errors in the service code, which makes head sampling retroactively keep them", "Add tail sampling in a collector that buffers each trace and keeps errors and slow ones", "Raise the head sampling rate to 5%, so most failing traces are now kept"]
     answer: 2
     explanation: "A decision made at the start cannot know the outcome, so hashing the trace id, tagging errors later or changing the rate only changes how many random traces survive. Tail sampling decides after completion, at the cost of buffering and routing a trace's spans to one place."
 flashcards:

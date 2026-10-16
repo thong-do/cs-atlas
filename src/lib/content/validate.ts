@@ -4,6 +4,8 @@ import { VISUALIZER_KINDS } from '@/lib/visualizers/kinds'
 /** Track slugs become top-level routes, so they must not shadow a page or a redirected v1 path. */
 export const RESERVED_TRACK_SLUGS = ['tracks', 'exercises', 'roadmap', 'train', 'stats', 'settings', 'patterns', 'problems', 'static', '404']
 export const REQUIRED_SECTIONS = ['Intuition', 'Visual', 'Pitfalls', 'Tips & tricks']
+const CASE_STUDIES = 'case-studies'
+const CASE_STUDY_SECTIONS = ['Requirements & estimates', 'Design walkthrough']
 export const ALGORITHMS = 'algorithms'
 
 export interface TrackInput {
@@ -102,7 +104,11 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
       if (l.triggers.length === 0) err('V8', lessonFile(l), 'algorithms lessons need at least one trigger')
       if (!l.complexity) err('V8', lessonFile(l), 'algorithms lessons need a complexity')
     }
-    const required = [...REQUIRED_SECTIONS, l.track === ALGORITHMS ? 'Template' : 'Example']
+    // Lessons in a module with slug "case-studies" use the case-study structure; other non-algorithms lessons need Example.
+    const isCaseStudy = tracks.some((t) => t.slug === l.track && t.modules.some((m) => m.slug === CASE_STUDIES && m.lessons.includes(l.slug)))
+    const required = l.track === ALGORITHMS
+      ? [...REQUIRED_SECTIONS, 'Template']
+      : isCaseStudy ? [...REQUIRED_SECTIONS, ...CASE_STUDY_SECTIONS] : [...REQUIRED_SECTIONS, 'Example']
     const missing = required.filter((h) => !l.headings.includes(h))
     if (missing.length > 0) err('V9', lessonFile(l), `missing section(s) ${missing.map((h) => `"## ${h}"`).join(', ')}`)
     for (const m of l.raw.matchAll(/<Visualizer\s[^>]*?\bkind=["']([^"']*)["']/g)) {

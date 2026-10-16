@@ -11,6 +11,8 @@ import { dnsResolutionSteps } from '@/lib/visualizers/dns-steps'
 import { loadBalancerSteps } from '@/lib/visualizers/lb-steps'
 import { consistentHashingSteps } from '@/lib/visualizers/ch-steps'
 import { tokenBucketSteps } from '@/lib/visualizers/tb-steps'
+import { feedFanoutSteps } from '@/lib/visualizers/feed-steps'
+import { FeedView } from './feed-view'
 import { ChView } from './ch-view'
 import { TbView } from './tb-view'
 import { CacheView } from './cache-view'
@@ -97,6 +99,11 @@ function TokenBucketVisualizer() {
   return <StepPlayer steps={steps} title="Token bucket: capacity 5, refill 1/s — a burst of 8, then steady traffic" render={(s) => <TbView step={s} />} />
 }
 
+function FeedFanoutVisualizer() {
+  const steps = useMemo(() => feedFanoutSteps(), [])
+  return <StepPlayer steps={steps} title="Feed fan-out: push vs hybrid for a celebrity with 5 followers" captionClassName="min-h-[7.5rem] sm:min-h-[3.75rem]" render={(s) => <FeedView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -117,6 +124,8 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <ConsistentHashingVisualizer />
     case 'token-bucket':
       return <TokenBucketVisualizer />
+    case 'feed-fanout':
+      return <FeedFanoutVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

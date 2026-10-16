@@ -1,0 +1,109 @@
+---
+slug: url-shortener
+title: URL shortener
+level: advanced
+authors: [cs-atlas]
+prerequisites: [caching, sql-vs-nosql]
+summary: "Turn long links into short codes, redirect millions of clicks a day, and keep the read path fast."
+---
+
+## Intuition
+
+A coat-check desk hands you a small numbered ticket for a bulky coat, and the ticket is all you need to get it back. A **URL shortener** is that desk for links: give it `https://example.com/a/very/long/path?with=many&params=true` and get back `https://sho.rt/aZ3k9Qx`. Opening the short link redirects to the original.
+
+It looks trivial, yet it is small enough to finish in an interview and still touches most building blocks. The core is one key-value lookup, so the interest is around it: generating short unique codes, the redirect status and its effect on analytics, serving a read-heavy load, expiry and abuse.
+
+## Requirements & estimates
+
+**Functional.** Create a short link for a URL, optionally with a custom alias and expiry. Redirect on open. Count clicks per link. Delete a link.
+
+**Non-functional (assumptions).** Redirects are fast and highly available, since a dead shortener breaks every link it ever issued. Counts may lag by minutes. A new link must work immediately for its creator.
+
+**Estimates.** These numbers are illustrative.
+
+| Quantity | Arithmetic | Result |
+|---|---|---|
+| New links | 50 M/month ÷ (30 × 86,400 s) | about 19 writes/s |
+| Peak writes | 19.3 × 3 (peak factor) | about 58/s |
+| Reads | 100:1, so 5 B redirects/month ÷ 2,592,000 s | about 1,900/s average |
+| Peak reads | 1,930 × 3 | about 5,800/s, say 6,000/s |
+| Storage per link | code + URL + owner + timestamps, roughly | 500 B |
+| Storage per year | 600 M links × 500 B | about 300 GB, before indexes and replicas |
+
+**Code length.** A base62 digit uses `a–z`, `A–Z`, `0–9`. Seven digits give 62^7 = 3,521,614,606,208 ≈ 3.5 × 10^12 codes. At 600 M links per year that lasts 3.5 × 10^12 ÷ (6 × 10^8) ≈ 5,900 years. Six digits (62^6 ≈ 5.7 × 10^10) would last about 95 years, so seven is plenty. The data fits on a few machines; the challenge is reads.
+
+## Visual
+
+```text
+                          write path
+  client ──▶ load balancer ──▶ API servers ──▶ ID generator (ranges)
+                │                  │    └────▶ link store (code → URL)
+                │                  │ check abuse rules, rate limit
+                │
+                │            read path
+                └─▶ API servers ──▶ cache ──miss──▶ link store
+                         │
+                         ├──▶ 302 + Location: long URL ──▶ client follows it
+                         └──▶ click event ──▶ queue ──▶ workers ──▶ analytics store
+                                     (asynchronous, off the redirect path)
+```
+
+## Design walkthrough
+
+**API.**
+
+- `POST /v1/links` with `{url, alias?, expiresAt?}` returns `201` and `{code, shortUrl}`; a taken alias gets `409`.
+- `GET /{code}` redirects via a `Location` header; unknown codes get `404`, expired ones can get `410 Gone`.
+- `DELETE /v1/links/{code}` lets the owner remove a link.
+
+**Data model.** One record per link: `code` (primary key), `long_url`, `owner_id`, `created_at`, `expires_at`, and a `flagged` marker for abuse. Every read is a key-value lookup by code, so SQL or NoSQL both work (see [SQL vs NoSQL](/system-design/sql-vs-nosql/)). [Sharding](/system-design/replication-sharding/) is easy too: hash the code and each request goes to exactly one shard, with no joins.
+
+**Generating codes.** There are three common options, and each has a cost.
+
+| Approach | How | Trade-off |
+|---|---|---|
+| Hash of the URL | Hash, take modulo 62^7, encode in base62 | No coordination, but truncation collides and the same URL gives the same code |
+| Counter or ID range | Base62-encode a counter; servers lease id blocks | No collisions, but sequential codes are predictable |
+| Random code | Draw 7 random base62 digits, insert if absent | Not guessable by pattern, but needs a uniqueness check on every write |
+
+*Hashing.* Shrinking a hash to 3.5 × 10^12 values makes collisions certain at scale. By the birthday estimate, 3 billion links would contain on the order of n² ÷ 2N ≈ (3 × 10^9)² ÷ (2 × 3.5 × 10^12) ≈ 1.3 million colliding pairs. When a conditional insert fails, compare the stored URL: if it is the same URL, return the existing code; if not, retry with a salt. Determinism cuts both ways. Two people shortening one URL share a code, which saves space but shares click counts, expiry and ownership. For separate links, add the user or a nonce to the hash input, giving up deduplication.
+
+*Counter.* One database counter is a bottleneck and a single point of failure. Instead, a coordinator leases each API server a range such as 1,000 ids, and the server encodes them locally. A crash wastes the rest of a range, which is harmless. The catch: consecutive links get consecutive codes, so anyone can walk the sequence, scrape every link or track your growth. Scrambling the number before encoding hides the order, but it is obfuscation, not a secret.
+
+*Random.* A conditional insert ("create only if the key is absent") makes the uniqueness check atomic. A draw collides with probability equal to how full the space is: after 3 billion links, 3 × 10^9 ÷ (3.5 × 10^12) ≈ 0.09% per write, and one retry nearly always succeeds.
+
+**Custom aliases.** Treat an alias like a code chosen by the user and run it through the same conditional insert. That way neither can overwrite the other. Limit length and characters, and reserve words like `api`.
+
+**Write path.** An API server validates the URL, applies abuse checks, gets a code, inserts the record and returns the short link.
+
+**Read path.** The server reads the cache first and falls back to the store on a miss, as in [caching](/system-design/caching/) with cache-aside, then answers with a redirect. Traffic is skewed toward popular links, so a modest cache absorbs most reads: 10 M hot links at 500 B is 5 GB. Hit ratio sets database load: at 6,000 reads/s peak, 90% hits leave 600 reads/s for the store, 99% leaves 60. Many misses on one popular key are a thundering herd, so use request coalescing.
+
+**301 or 302.** A `301 Moved Permanently` tells clients the move is permanent, so browsers (and other caches) may remember it and skip your server next time. That saves load, but later clicks from that browser can go uncounted, and you cannot change or expire the destination for anyone who cached it. A `302 Found` or `307 Temporary Redirect` is not stored unless you add caching headers, so each click reaches you. For analytics, editable targets or expiry, use 302 or 307 and let your cache absorb the load.
+
+**Expiry.** Store `expires_at` and check it on every read, so correctness never depends on cleanup timing. Cap the cache TTL at the remaining lifetime. A background job or the store's native TTL feature (provider defaults vary; deletion may lag) removes old rows. Do not reuse expired codes right away, or old links open someone else's page.
+
+**Analytics.** A counter write on every click would slow redirects. Instead the server emits a click event, with a producer-assigned event id, to a queue ([queues & streams](/system-design/queues-streams/)). Workers aggregate counts. Delivery is at-least-once, so dedupe by event id or accept small overcounts. If the queue is down, drop or buffer events; redirects must not fail with analytics.
+
+**Abuse.** Shorteners hide destinations, which suits phishing and malware. Rate-limit creation per account and IP with a [token bucket](/system-design/rate-limiting/). Accept only `http` and `https` URLs of capped length, and refuse links to your own domain. Check destinations against a blocklist or URL-reputation service at creation and again later, since a page can turn malicious afterwards. Set `flagged` on the record and evict the cache entry, so redirects stop quickly.
+
+**Read-your-writes.** The creator opens the new link at once. A replica that has not caught up, or a cached "not found", gives them a 404 (see [replication & sharding](/system-design/replication-sharding/)). Write the entry to the cache on creation, fall back to the primary when a replica says not found, and keep negative entries short-lived.
+
+**Failure handling.** Run API servers behind a [load balancer](/system-design/load-balancing/) across zones and replicate the store. If the cache dies, reads fall to the store, so size for a cold cache.
+
+## Pitfalls
+
+- **A 301 with low click counts.** Browsers cached the redirect. Use 302 or 307 when you need every click.
+- **Assuming a truncated hash is unique.** Insert conditionally and handle conflicts.
+- **One shared counter.** It caps write throughput and fails as a unit. Lease id ranges.
+- **Sequential public codes.** They can be enumerated. Scramble or randomize.
+- **Counting on the redirect path.** A slow analytics store slows every click. Queue the event.
+- **Trusting any URL.** Without scheme checks and scanning, you host phishing links under your domain. Validate and re-scan.
+- **Relying on cleanup for expiry.** Expired links stay live until the job runs. Check `expires_at` on read.
+
+## Tips & tricks
+
+- **Structure the answer.** Requirements and numbers, API and data model, code generation, read path and cache, then analytics, abuse and failure.
+- **Say the trade-offs out loud.** Hashes collide, counters are guessable, random codes need a check, and 301 saves load but loses counts.
+- **Show the arithmetic.** 19 writes/s against 1,900 reads/s (6,000 at peak) says this is a read-heavy cache problem, not a storage problem.
+- **Commit to one design:** scrambled ID ranges in base62, 302, cache-aside, a click queue.
+- **Measure** cache hit ratio, redirect p99, 404 and 410 rates, insert conflicts, queue lag and creations per account.

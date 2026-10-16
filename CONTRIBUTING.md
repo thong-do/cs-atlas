@@ -72,7 +72,7 @@ content/
 
 ## Add a lesson
 
-1. Copy `templates/lesson.mdx` to `content/tracks/<track>/lessons/<slug>.mdx` and fill it in.
+1. Copy `templates/lesson.mdx` to `content/tracks/<track>/lessons/<slug>.mdx` and fill it in. For a case study (a lesson in the `case-studies` module), replace the Example section with Requirements & estimates, Design walkthrough and the other case-study sections listed under the quality bar below.
 2. Add the slug to a module's `lessons` in `content/tracks/<track>/track.yaml`.
 3. Make sure at least one exercise lists it (add one if needed).
 4. Run `npm run dev` and open `/<track>/<slug>/`.
@@ -85,7 +85,7 @@ content/
 
 ## The quality bar (checked by the build)
 
-Every lesson must have these `##` sections: **Intuition**, **Visual**, **Pitfalls**, **Tips & tricks**, plus **Template** (Algorithms) or **Example** (other tracks). Every lesson needs at least one exercise.
+Every lesson must have these `##` sections: **Intuition**, **Visual**, **Pitfalls**, **Tips & tricks**, plus **Template** (Algorithms) or **Example** (other tracks). A lesson listed in a module with slug `case-studies` uses the case-study structure instead: **Intuition**, **Requirements & estimates**, **Visual**, **Design walkthrough**, **Pitfalls**, **Tips & tricks**. Every lesson needs at least one exercise.
 
 If something is wrong, `npm test` and `npm run build` fail with a message like:
 
@@ -103,7 +103,7 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V6 | Prerequisites have no cycles |
 | V7 | `ladderOrder` is unique within a primary lesson |
 | V8 | Algorithms lessons have `triggers` and `complexity` |
-| V9 | Required sections are present; every `<Visualizer kind>` is a known kind |
+| V9 | Required sections are present (Template for Algorithms, Example for other lessons, the case-study sections for lessons in a `case-studies` module); every `<Visualizer kind>` is a known kind |
 | V10 | Every lesson has at least one exercise |
 | V11 | LeetCode exercises: unique slugs, LeetCode ids and leetcode.com URLs (every exercise's file name equals its slug) |
 | V12 | Quiz: unique question and flashcard ids; each answer is one of its choices |

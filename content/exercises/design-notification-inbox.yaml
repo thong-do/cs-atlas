@@ -1,0 +1,46 @@
+slug: design-notification-inbox
+type: design-prompt
+title: "Design: a notification inbox"
+lessons: [news-feed]
+ladderOrder: 2
+prompt: |
+  Design the in-app notification inbox for a social product with **30 M daily active users**. Each active user receives
+  about **20 notifications/day**. Some accounts trigger a notification to up to **5 M followers at once**.
+
+  Users see a badge with the **number of new items**, and a list **newest first**. They can **mark everything as read**
+  and can **mute a source**. Notifications are **kept for 90 days**.
+  Describe the data model, how you fan out mass notifications, how the badge number stays correct, how muting works,
+  and how old data is cleaned up. Show the arithmetic.
+hint: "Think about which operations touch one user's data and which touch millions, and what a number shown on screen costs to keep correct as items arrive and are read."
+rubric:
+  - id: data-model
+    point: "Models an inbox keyed by user id and sorted newest first (with notification id, source, type, target and time), partitioned by user, and estimates load: 30 M × 20 = 600 M/day, about 6,900/s on average."
+  - id: mass-fanout
+    point: "Handles a 5 M-recipient notification without a synchronous loop: a queue with chunked, idempotent workers (or a shared record merged at read time) so retries cannot duplicate entries."
+  - id: unread-count
+    point: "Keeps the badge number cheap and correct: a per-user counter or a last-read marker, updated idempotently, reset by mark-all-read, and reconciled by recounting if it drifts."
+  - id: mute
+    point: "Stores each user's muted sources, skips them at delivery, filters the list at read time, and recounts and overwrites the badge counter when a mute is added so earlier items no longer count."
+  - id: retention
+    point: "Expires entries after 90 days using a TTL or time-partitioned storage that can be dropped whole, and checks age on read so late cleanup is harmless."
+reference: |
+  **Arithmetic.** 30 M × 20 = 600 M notifications/day; ÷ 86,400 ≈ 6,900/s average, about 21,000/s at a 3× peak.
+  At roughly 100 B each, that is 60 GB/day; × 90 days ≈ 5.4 TB before replication.
+
+  **Data model.** One row per (user, notification): `user_id` (partition key), `notif_id` (the producer-assigned, time-sortable event id, newest
+  first), `source_id`, `type`, `target_id`, `created_at`. A per-user record holds `last_read_id`. Reads are one
+  partition scan with a cursor.
+
+  **Mass fan-out.** Do not insert 5 M rows in the request. Publish one event; workers take chunks of, say,
+  10,000 recipients and write rows keyed by (user, `notif_id`). That id is the idempotency key, so a redelivered chunk overwrites instead of
+  duplicating and workers never mint ids. At 50,000 inserts/s the 5 M finish in about 100 s, while other traffic keeps its own queue.
+  Alternatively, store one shared record per mass event and merge it at read time.
+
+  **Badge number.** Keep a counter per user, incremented once per new row (guarded by the same `notif_id`) and set to
+  zero by mark-all-read, which also advances `last_read_id`. If it drifts, recount rows newer than `last_read_id`
+  (cap the display, for example at 99+) and overwrite the counter.
+
+  **Muting.** Store muted `source_id`s per user. Skip muted sources at delivery. The list also filters them at read time. On a new mute, recount rows newer than `last_read_id`, excluding muted sources (cap 99+), and overwrite the counter.
+
+  **Retention.** Set a TTL of 90 days or use daily partitions and drop the oldest whole. Reads also ignore anything
+  older than 90 days, so late cleanup does not change what users see.

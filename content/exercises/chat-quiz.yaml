@@ -1,0 +1,56 @@
+slug: chat-quiz
+type: quiz
+title: "Chat — quiz"
+lessons: [chat]
+ladderOrder: 1
+questions:
+  - id: gateway-sizing
+    prompt: "A messenger expects 4 M concurrent connections at peak. Load tests suggest one gateway holds about 80,000 connections comfortably, and the team wants gateways to run at about 70% of that. Roughly how many gateways?"
+    choices: ["About 35, from 4 M ÷ 80,000 = 50 gateways, then × 0.7 to leave headroom", "About 72, from 4 M ÷ 80,000 = 50 gateways, then ÷ 0.7 to run at 70% load", "About 50, from 4 M ÷ 80,000, because the load balancer already absorbs headroom", "About 500, from 4 M ÷ 80,000 = 50 gateways, then × 10 for the peak message rate"]
+    answer: 1
+    explanation: "Connection count sizes the fleet: 4 M ÷ 80,000 = 50 at full load, and running each at 70% needs 50 ÷ 0.7 ≈ 71.4, so 72. Multiplying by 0.7 shrinks the fleet, and the balancer cannot add socket capacity."
+  - id: group-ordering
+    prompt: "Two members of a group chat send messages at nearly the same moment from phones connected to different gateways. Everyone must see the same order. What provides it?"
+    choices: ["Each sender's device timestamp, with phone clocks kept in step over NTP", "A counter in the gateway that first receives each message, merged by readers", "A sequence number from the single writer of the conversation's partition", "The client message id, since random UUIDs are unique and give a stable total order"]
+    answer: 2
+    explanation: "One writer per conversation partition can hand out increasing numbers, so every reader sorts identically. Device clocks drift, gateway counters and clocks disagree and merging them on every reader is costly and still skewed, and UUIDs are unique but carry no send order."
+  - id: lost-ack
+    prompt: "A sender's phone loses signal just after the server stored a message but before the ack arrived. The app retries after reconnecting. How should the server avoid a duplicate in the chat?"
+    choices: ["Use the client message id as an idempotency key, returning the stored result on retry", "Dedupe on (sender, body hash) within a 60 s window and drop any later matches", "Have the server assign a fresh seq per retry and let clients hide adjacent copies", "Disable client retries and rely on the connection layer to report every send exactly once"]
+    answer: 0
+    explanation: "An id made by the producer survives the retry, so the server can recognise the repeat and answer with the original result. A fresh seq per retry stores a second copy, and matching on body hashes swallows genuine repeats such as two identical short replies."
+  - id: reconnect-sync
+    prompt: "A user's phone was offline for six hours across 40 conversations. Which reconnect design is most robust against a connection that drops again during the catch-up?"
+    choices: ["Keep a per-device outbox on the server and delete each entry when it is written to the socket", "Replay the last 200 messages of every conversation, since recent history will cover the gap", "Put the full missed messages in the push notification, so the app already has them when opened", "The client sends its highest contiguous seq per chat, and the server returns what follows it"]
+    answer: 3
+    explanation: "The client's contiguous cursor means a second drop just resumes from the last gap-free seq. Deleting on socket write loses messages the client never received, and a fixed replay window can miss a long gap."
+  - id: gateway-crash
+    prompt: "A gateway holding 70,000 sockets crashes. What best limits the damage?"
+    choices: ["Keep standby gateways that copy each socket's TCP state, so connections move over without a reconnect", "Clients reconnect via the balancer, entries expire by TTL, and clients sync from last contiguous seq", "Pin each user to one gateway through the balancer, so the same machine is used once it restarts", "Wait for the crashed gateway to restart and let it rebuild its sockets from the registry"]
+    answer: 1
+    explanation: "Messages are already stored, so reconnecting and syncing after the last contiguous seq repairs everything, and stale entries age out. TCP state cannot realistically move to another machine, and pinning or waiting for the same gateway only delays recovery."
+flashcards:
+  - id: chat-websocket
+    front: "WebSocket for chat"
+    back: "One long-lived TCP connection per online client, upgraded from HTTP, that either side can write to at any time. The server can push without waiting for a request."
+  - id: chat-long-polling
+    front: "Long polling"
+    back: "The client holds a request open until the server has something, then asks again. Works anywhere, but each message costs a full request cycle."
+  - id: chat-push-offline
+    front: "Push notification for offline users"
+    back: "The server asks the platform's push service to wake the app. The push only signals; the app then connects and syncs the messages from the store."
+  - id: chat-registry
+    front: "Connection registry"
+    back: "A fast store mapping user to gateway, written on connect and given a TTL so entries from crashed gateways expire. Used to route a message."
+  - id: chat-seq
+    front: "Per-conversation sequence number"
+    back: "Assigned by the server where the conversation is written. Client clocks cannot order messages; readers sort by sequence within a conversation."
+  - id: chat-client-id
+    front: "Client message id"
+    back: "A client-generated id that acts as the idempotency key: a retry after a lost ack is recognised and does not create a second message."
+  - id: chat-sync
+    front: "Sync on reconnect"
+    back: "The client sends its highest contiguous seq per conversation (no gap below it); the server returns everything after it. A seq jump on a live message triggers the same fetch."
+  - id: chat-presence
+    front: "Presence with heartbeats"
+    back: "Clients send periodic heartbeats that refresh a key with a TTL. It is approximate: a user can look online for up to a TTL after leaving."

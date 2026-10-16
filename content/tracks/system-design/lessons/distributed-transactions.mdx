@@ -71,7 +71,7 @@ A trip-booking saga with an orchestrator. Hotel and car cancel freely and the ti
 | T3 | Issue ticket (pivot) | none |
 | T4 | Send itinerary | none: retry |
 
-**When the car booking fails.** T1 has committed and T2 is refused. The orchestrator marks the saga `compensating`, runs C2 (a no-op if the car was never booked) then C1, and ends in `failed`; no ticket was issued. A car *timeout* is handled the same way. The service must remember a cancel against the step's booking key (the `:undo` key derives from it), so a late booking with that key is rejected.
+**When the car booking fails.** T1 has committed and T2 is refused. The orchestrator marks the saga `compensating`, runs C2 (a no-op if the car was never booked) then C1, and ends in `failed`; no ticket was issued. A car *timeout* is handled the same way. The service must remember a cancel against the step's booking key (`:undo` derives from it), so a late booking is rejected.
 
 A timeout on the **pivot** is different: the ticket may exist, so the orchestrator never compensates blindly. It queries the ticket's status by key, or marks the saga `unknown` and escalates.
 
@@ -152,6 +152,6 @@ State is saved before every call, so a restart resumes, and each step's fixed ke
 
 ## Tips & tricks
 
-- Rule of thumb: 2PC for a few systems you control; a saga for independent services. First ask whether the data belongs in one service.
+- 2PC for a few systems you control; a saga for independent services. First ask whether the data belongs in one service.
 - Per step, write down its compensation, its key and its side of the pivot. Measure saga duration, stuck sagas, compensation failures and the oldest pending record.
 - Interview phrasing: "A saga with an orchestrator: compensatable steps, a late pivot, then retriable steps, an idempotency key per step, and a pending status because sagas lack isolation."

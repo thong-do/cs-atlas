@@ -8,7 +8,7 @@ questions:
     prompt: "Three API hosts report p95 latencies of 80 ms, 90 ms and 400 ms. The third host serves far fewer requests. How should the dashboard show the fleet-wide p95?"
     choices: ["Export histograms with shared buckets from each host, sum the counts, then estimate the p95 from the sums", "Average the three p95 values, weighted by each host's request count, since busier hosts matter more to users", "Take the largest of the three host p95 values, because the fleet is only as fast as its slowest host is", "Take the median of the three p95 values, which discards the one outlier host and its small traffic share"]
     answer: 0
-    explanation: "A percentile cannot be rebuilt from other percentiles, so averaging, maxing or taking the median of host p95s gives numbers with no stated relation to the fleet's p95. Histograms add across hosts, and the estimate is limited by bucket boundaries."
+    explanation: "A percentile cannot be rebuilt from other percentiles: the maximum is only an upper bound, and the average and median have no fixed relation to the fleet p95. Histograms add across hosts, and the estimate is limited by bucket boundaries."
   - id: error-budget-size
     prompt: "A service has an SLO of 99.5% of requests succeeding over a rolling 14 days. About how many minutes of total outage does the error budget allow?"
     choices: ["About 201.6 minutes, which is 0.01 of the 20,160 minutes in the window as a whole", "About 10.1 minutes, which is 0.0005 of the 20,160 minutes in the window", "About 100.8 minutes, which is 0.005 of the 20,160 minutes in the window", "About 40.3 minutes, which is 0.002 of the 20,160 minutes in the window"]
@@ -16,19 +16,19 @@ questions:
     explanation: "The window is 14 × 24 × 60 = 20,160 minutes and the allowed failure share is 1 − 0.995 = 0.005, giving 100.8 minutes. The other choices use a different failure share."
   - id: burn-rate-reading
     prompt: "An API has a 99.9% SLO over 30 days. Since a bad deploy, 0.5% of requests have been failing steadily. If nothing changes, roughly when is the whole budget gone?"
-    choices: ["After about 30 days, because the SLO window is 30 days long regardless of failures", "After about 15 days, because 0.5% is half of the 1% total error allowed", "After about 12 hours, because a deploy-time spike consumes the budget immediately", "After about 6 days, because the burn rate is 0.5% ÷ 0.1% = 5 and 30 ÷ 5 = 6"]
-    answer: 3
-    explanation: "The budget is 0.1% of requests; failing at 0.5% burns it 5 times faster than the sustainable rate, so it lasts a fifth of the window. The window length alone does not set how fast the budget is spent."
+    choices: ["After about 150 days, because 0.5% ÷ 0.1% = 5 and the budget lasts 30 × 5 days", "After about 15 days, because the 0.5% failure rate is half of an assumed 1% error allowance", "After about 6 days, since the burn rate is 0.5% ÷ 0.1% = 5 and 30 ÷ 5 = 6 days left", "After about 60 days, because the failures are 0.5% and 0.5% × 30 days ÷ 0.25% = 60"]
+    answer: 2
+    explanation: "The budget is 0.1% of requests; failing at 0.5% burns it 5 times faster than the sustainable rate, so it lasts a fifth of the window. Multiplying by 5 would lengthen the time, but a higher burn shortens it."
   - id: label-choice
     prompt: "A team wants per-endpoint request metrics for an API with routes like /orders/8841 and /orders/9027. Which label choice keeps the number of series bounded?"
-    choices: ["Label by the raw request path, and let the metrics store drop the oldest series when it fills", "Label by the route template /orders/{id}, plus method and status class, and keep raw ids in logs", "Label by a hash of the full path, so each label value stays a short fixed-length string", "Label by the raw path, but only for requests slower than the SLO threshold"]
+    choices: ["Label by the raw request path, and let the metrics store drop the oldest series when it fills", "Label by the route template /orders/{id}, plus method and status class, with ids in logs", "Label by a hash of the full path, so each label value stays a short fixed-length string", "Label by the raw path, but only for requests slower than the SLO threshold"]
     answer: 1
     explanation: "A template has one value per route, so series stay a small product of a few labels. Hashing shortens a value but keeps one value per id, and filtering to slow requests still lets ids pile up."
   - id: keep-error-traces
     prompt: "A team traces 1% of requests chosen when each request arrives, but nearly every trace they need for outages was discarded. What change targets the problem?"
-    choices: ["Lower the sampling rate to 0.1% so the collector keeps up and fewer traces are lost in transit", "Mark spans as errors in the service code, which makes head sampling retroactively keep them", "Add tail sampling in a collector, which buffers each trace and keeps the errors and slow ones", "Raise the head sampling rate to 5%, which guarantees every failing trace is now kept"]
+    choices: ["Sample by a hash of the trace id so every span of a trace is kept or dropped together, at 1%", "Mark spans as errors in the service code, which makes head sampling retroactively keep them", "Add tail sampling in a collector that buffers each trace and keeps errors and slow ones", "Raise the head sampling rate to 5%, so the share of failing traces kept grows fivefold"]
     answer: 2
-    explanation: "A decision made at the start cannot know the outcome, so tagging errors later or changing the rate only changes how many random traces survive. Tail sampling decides after completion, at the cost of buffering and routing a trace's spans to one place."
+    explanation: "A decision made at the start cannot know the outcome, so hashing the trace id, tagging errors later or changing the rate only changes how many random traces survive. Tail sampling decides after completion, at the cost of buffering and routing a trace's spans to one place."
 flashcards:
   - id: three-signals
     front: "Metrics, logs and traces"

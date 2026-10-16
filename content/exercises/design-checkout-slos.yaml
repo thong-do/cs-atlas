@@ -22,28 +22,24 @@ rubric:
   - id: alert-policy
     point: "Pages on multi-window burn-rate alerts for the journey SLO (fast and moderate burns), opens tickets for slow burn, and demotes per-service CPU alerts to dashboards or tickets."
   - id: tracing-sampling
-    point: "Propagates a trace context (traceparent) through all five services and any async hops, uses tail sampling to keep errors and slow traces plus a small head-sampled baseline, and sizes the buffer."
+    point: "Propagates a trace context (traceparent) through all five services and any async hops, has SDKs export all spans and a tail sampler keep errors, slow traces and a small probabilistic baseline, and sizes the buffer."
   - id: attribution
     point: "Finds the culprit by attributing each bad checkout to the service whose span failed or dominated latency, using per-service RED metrics and trace queries, and checks the payment provider's tail against its own SLO."
 reference: |
-  **SLIs and SLOs.** Measure at the edge of the journey. Availability: share of checkout attempts that finish
-  without a 5xx or timeout; a card decline is a correct outcome, not a bad event. Latency: share completing
-  within 3 s (illustrative). SLOs: 99.95% availability over 28 days and 99% under 3 s.
+  **SLIs and SLOs.** Measure at the journey's edge. Availability: checkout attempts finishing without a 5xx or
+  timeout; a card decline is not a bad event. Latency: share within 3 s. SLOs: 99.95% availability over 28 days and 99% under 3 s.
 
   **Budget.** 28 days = 40,320 min; 40,320 × 0.0005 = 20.16 min of full outage. In requests: 8M × 28 =
-  224M checkouts; × 0.0005 = 112,000 failed ones. The 99% latency target allows 2.24M slow checkouts.
+  224M checkouts; × 0.0005 = 112,000 failed ones. At the 300/s peak a full outage spends all of them in 112,000 ÷ 300 ≈ 373 s (6.2 min); the 20.16 min assumes the average 92.6/s. The 99% latency target allows 2.24M slow checkouts.
 
-  **Alerts.** Burn rate 1 spends the budget in 28 days. Illustrative multi-window rules in the style of the
-  Google SRE workbook: **page** at 14.4× over 1 h and 5 min (error ratio above 14.4 × 0.0005 = 0.72%;
+  **Alerts.** Illustrative multi-window rules, SRE-workbook style: **page** at 14.4× over 1 h and 5 min (error ratio above 14.4 × 0.0005 = 0.72%;
   budget gone in 672 ÷ 14.4 ≈ 47 h) and at 6× over 6 h and 30 min (0.3%; about 4.7 days). **Ticket** at 1×
   over 3 days. Per-service CPU alerts stop paging: keep them as dashboard USE panels or tickets, because
   users feel the journey SLO, not CPU.
 
-  **Tracing.** Every service forwards `traceparent`, including through queues. Use a small head sample
-  (say 1%) for baseline plus **tail sampling** in collectors, routed by trace id, keeping all errors and
-  traces over 3 s. Rough size: 300 traces/s × 10 s decision wait = 3,000 buffered traces, each about five
-  to ten spans. Compute metrics before sampling.
+  **Tracing.** Every service forwards `traceparent`, including through queues. SDKs export 100% of
+  spans to collectors, routed by trace id, where **tail sampling** keeps all errors, all traces over 3 s
+  and a 1% random baseline. Buffer: 300 traces/s × 10 s decision wait = 3,000 traces. Compute metrics before sampling.
 
-  **Attribution.** Tag each bad checkout with the service owning the failing or slowest span. Count bad
-  events per service against the 112,000 budget, backed by per-service RED metrics. Also track the payment
-  provider's own latency SLI: a p99 of 2 s fits 3 s only if the other four services fit in 1 s on that path.
+  **Attribution.** Tag each bad checkout with the service owning the failing or slowest span. Count failures per service against the 112,000 availability budget (slow ones against the 2.24M latency budget), backed by per-service RED metrics. Also track the payment
+  provider's own latency SLI: as a rough per-hop budget, a 2 s payment call leaves about 1 s of the 3 s for the other four hops.

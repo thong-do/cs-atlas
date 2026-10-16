@@ -48,10 +48,10 @@ Balancers emit useful signals too; see [Load balancing](/system-design/load-bala
 ```text
 One request crossing three services; the trace id travels in traceparent
 
- trace 4bf92f35...  (total 240 ms)
- gateway   |=================================================| 240 ms  span A
-   search  |   =========================================    |  200 ms  span B (parent A)
-     index |       ==============================          |  150 ms  span C (parent B)
+ trace 4bf92f35...  (total 450 ms)
+ gateway   |=================================================| 450 ms  span A
+   search  |  =============================================  | 412 ms  span B (parent A)
+     index |     =======================================     | 360 ms  span C (parent B)
 
  gateway -> search : traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-<spanA>-01
  search  -> index  : traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-<spanB>-01
@@ -91,7 +91,7 @@ One structured log line from the search service, carrying the same trace id as t
 {"ts":"2026-03-02T10:15:04.112Z","level":"warn","service":"search","trace_id":"4bf92f3577b34da6a3ce929d0e0e4736","span_id":"00f067aa0ba902b7","route":"/search","status":200,"duration_ms":412,"msg":"slow query"}
 ```
 
-A spike on the dashboard leads to logs by `route`, then to this `trace_id`, then to the trace showing the slow span.
+A spike on the dashboard leads to logs by `route`, then to this `trace_id`, then to the trace, where the 360 ms index span stands out.
 
 ## Pitfalls
 

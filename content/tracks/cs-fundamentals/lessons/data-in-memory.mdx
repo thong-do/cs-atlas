@@ -13,7 +13,7 @@ Memory is a very long street of identical mailboxes, each holding one byte and e
 
 **Arrays are contiguous.** Items sit side by side, so the address of item `i` is `base + i × size`. With 4-byte items at base `0x1000`, item 250 lives at `0x1000 + 250 × 4 = 4096 + 1000 = 5096 = 0x13E8`. That is one multiply and one add, no searching, which is why indexing is O(1). **Linked nodes** are the opposite: each node is allocated separately, wherever there was room, and holds a **pointer** (an address) to the next. Reaching node `k` means following `k` pointers.
 
-**Stack and heap (language-dependent).** In many compiled languages, local variables live on the **stack**, a region that grows and shrinks as functions are called and return, so their lifetime is the call. Data that must outlive the call, or whose size is unknown until runtime, goes on the **heap**, where it lives until you free it (C), a garbage collector reclaims it (Java, Go, Python), or ownership rules end it (Rust). Languages differ in what they put where: Go decides by escape analysis, and in CPython essentially every object is heap-allocated while the interpreter's own call frames are separate.
+**Stack and heap (language-dependent).** In many compiled languages, local variables live on the **stack**, a region that grows and shrinks as functions are called and return, so their lifetime is the call. Data that must outlive the call, or whose size is unknown until runtime, goes on the **heap**, where it lives until you free it (C), a garbage collector reclaims it (Java and Go trace; CPython mainly counts references, plus a cycle collector), or ownership rules end it (Rust). Languages differ in what they put where: Go decides by escape analysis, and in CPython essentially every object is heap-allocated while the interpreter's own call frames are separate.
 
 **Value versus reference.** A *value* variable holds the data itself; a *reference* variable holds an address of data elsewhere. In Python, Java objects and JavaScript objects, assignment copies a reference, not the object. After `b = a` there is one list and two names for it:
 
@@ -26,7 +26,7 @@ print(a)   # [1, 2, 3, 4]: one list, two names
 
 **Alignment and padding.** Many CPUs read memory most efficiently when an *n*-byte value sits at an address divisible by *n*, and some architectures require it, so compilers insert unused **padding** bytes. Rules differ per platform; the numbers below are for common x86-64 ABIs, where `char` is 1 byte and `int` is 4 bytes aligned to 4.
 
-**Endianness.** A multi-byte number needs an order. The integer `0x12345678` is four bytes, and a *little-endian* machine stores the least significant byte first: `78 56 34 12` at rising addresses. Most common CPUs (x86-64 and typical ARM configurations) are little-endian; network protocols use *big-endian*, called network byte order, so data crossing a socket or file format is converted explicitly.
+**Endianness.** A multi-byte number needs an order. The integer `0x12345678` is four bytes, and a *little-endian* machine stores the least significant byte first: `78 56 34 12` at rising addresses. Most common CPUs (x86-64 and typical ARM configurations) are little-endian; Internet protocol headers (IP, TCP, UDP) use *big-endian*, called network byte order, while many file and wire formats are little-endian, so multi-byte data crossing a socket or file must be converted explicitly.
 
 **Strings are bytes.** A string is text encoded into bytes. UTF-8 uses 1 to 4 bytes per character, with plain ASCII at 1 byte. So **byte length and character count differ**:
 
@@ -92,7 +92,6 @@ Reordering saves 40 MB, a third of the memory, with no change to the data. Sorti
 
 ## Tips & tricks
 
-- **Rule of thumb:** a pointer hop usually costs more than an adjacent read, because it can miss the cache.
 - **What to measure:** `sizeof` and `offsetof` in C, `sys.getsizeof` and `tracemalloc` in Python, resident memory in a process monitor. Memory per record times record count gives the footprint, so multiply before you build.
 - **Interview phrasing:** "A contiguous array gives O(1) indexing by address arithmetic; a linked list needs pointer chasing. For 10 million records, 12-byte versus 8-byte structs is 120 MB versus 80 MB on typical x86-64, so I would reorder fields."
 - **Strings:** decide bytes or characters before validating length, and name the encoding.

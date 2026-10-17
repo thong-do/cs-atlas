@@ -14,13 +14,14 @@ prompt: |
   async def handle(user):
       resp = dict(TEMPLATE)          # shallow copy per request
       resp["user"] = user.id
-      async for it in load_items(user):   # awaits I/O between items
+      async for it in load_items(user):   # cache hit: no yield; miss: awaits the DB
           resp["items"].append(it)
       body = serialize(resp)
       TEMPLATE["items"].clear()      # "reset" after sending
       return body
   ```
 
+  About **1.5%** of calls miss the in-process cache and await the database for about **5 ms**; cache hits never yield.
   Explain the bug in terms of references, and why it is intermittent and depends on concurrency. Say how you would
   confirm the cause. Propose fixes (a deep copy, an immutable template, or building a fresh object per request) and
   the cost of each.
@@ -29,9 +30,9 @@ rubric:
   - id: reference-explained
     point: "Explains that the shallow copy duplicates only the top-level dict, so `resp[\"items\"]` is the same list object as `TEMPLATE[\"items\"]`; every request appends into one shared list."
   - id: intermittent-concurrency
-    point: "Explains why it is intermittent: a lone request appends then clears, so it looks right, and only requests whose lifetimes overlap (interleaved at awaits or threads) see each other's items; the leak rate grows with request rate and handler duration."
+    point: "Explains why it is intermittent: a lone request appends then clears, so it looks right, and only requests whose lifetimes overlap (interleaved at an await on a cache miss) see each other's items; the leak rate grows with request rate and handler duration."
   - id: arithmetic
-    point: "Gives a rough rate: 3% of 200 requests/s is 6 leaked responses per second, or 21,600 per hour, consistent with a short overlap window."
+    point: "Gives a rough rate: 3% of 200 requests/s is 6 leaked responses per second, or 21,600 per hour, consistent with 1.5% cache misses (3 per second) each yielding about 5 ms, during which about 1 other request arrives."
   - id: confirm
     point: "Confirms by checking identity (`resp[\"items\"] is TEMPLATE[\"items\"]` or equal `id()` values) and by reproducing with concurrent test requests that tag items by user."
   - id: fixes-and-costs
@@ -40,13 +41,14 @@ reference: |
   **Cause.** `dict(TEMPLATE)` copies the top-level mapping only. Its values are references, so
   `resp["items"]` and `TEMPLATE["items"]` name the same list, and every request appends to it.
 
-  **Intermittent.** A request running alone appends its items, serializes, and clears the list, so the output is
-  correct. If another request starts before the first clears, both append into one list and each serializes the
-  other's items; `clear()` can also wipe a neighbour's items. The leak needs overlap, so its rate grows with request
-  rate and with how long a handler holds the list.
+  **Intermittent.** A request that never yields (a cache hit) appends, serializes and clears without interruption,
+  so it is correct. On a cache miss it awaits the database while holding items in the shared list, and other requests
+  run meanwhile, appending into the same list and serializing each other's items; `clear()` can also wipe a
+  neighbour's items. The leak needs overlap, so it grows with request rate and miss time.
 
-  **Arithmetic.** 3% of 200 requests/s = 6 leaked responses/s, and 6 × 3,600 = 21,600 per hour. If a handler holds
-  the list about 75 µs, a request overlaps another when one arrives within ±75 µs: 2 × 200 × 0.000075 = 0.03, so 3%.
+  **Arithmetic.** 3% of 200 requests/s = 6 leaked responses/s, and 6 × 3,600 = 21,600 per hour. Check: 1.5% misses
+  = 200 × 0.015 = 3 misses/s. Each yields 5 ms, in which 200 × 0.005 = 1 other request arrives on average, so each
+  miss affects about 1 + 1 = 2 responses: 3 × 2 = 6 per second. That matches.
 
   **Confirm.** Log `id(resp["items"])` and `id(TEMPLATE["items"])`, or assert `is`. Fire concurrent requests
   for different users with user-tagged items and check each response.

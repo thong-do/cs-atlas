@@ -15,20 +15,20 @@ questions:
     answer: 1
     explanation: "8 × 10⁸ ÷ 10⁷ = 80 s. Four workers would still need about 20 s, and counting cycles ignores that each interpreted comparison costs many of them; 0.8 s comes from misplacing a factor of 100."
   - id: array-append-cost
-    prompt: "An empty dynamic array with capacity 1 doubles whenever it is full. You append 100 items. Which statement about the cost is correct?"
-    choices: ["Every append may copy the whole array, so 100 appends cost about 100 × 100 = 10,000 copies", "Only 7 resizes happen (1, 2, 4, …, 64), so each append costs O(log n) amortized", "Every append is O(1) even in the worst case, because spare capacity is always ready in advance", "Resizes copy 1 + 2 + … + 64 = 127 in total, under 2 × 100, so append is O(1) amortized"]
-    answer: 3
-    explanation: "Resizes occur at sizes 1, 2, 4, …, 64 and copy 127 elements in total. Seven resizes is the right count but not the cost per append, and the 65th append really does copy 64 items, so the worst case is not O(1)."
-  - id: log-base
-    prompt: "A colleague says an algorithm taking log₂ n steps and one taking log₁₀ n steps belong to different Big-O classes. What is the accurate view?"
-    choices: ["Same class: log₂ n is about 3.3 × log₁₀ n at every n, a constant factor", "Different classes: the base sets how quickly the curve grows as n gets large", "Same class, so the base can never matter for real running time", "Same class up to about a million items; past that, base 10 grows more slowly"]
+    prompt: "A dynamic array starts with capacity 2 and triples its capacity whenever it is full, copying the old elements across. You append 50 items. What does the cost look like?"
+    choices: ["2 + 6 + 18 = 26 element copies in total, so the per-append average stays constant as n grows", "Resizes happen at 2, 6 and 18 items, so there are only 3 of them and each append costs O(log n) amortized", "The 19th append copies 18 items, so one costly append means append cannot be called O(1) in any sense", "Tripling means about 50 + 50/3 + 50/9 + … ≈ 75 copies, so it costs more than doubling would"]
     answer: 0
-    explanation: "Changing log base multiplies by a fixed constant, which Big-O drops, so the ratio stays about 3.3 at all n. A constant still shows up on a stopwatch, and nothing changes at a million items."
+    explanation: "Resizes at sizes 2, 6 and 18 copy 26 elements for 50 appends, and the same geometric argument holds for any growth factor above 1. Three resizes is the right count but not the cost per append; the 19th append is expensive, yet amortized cost averages over the whole sequence; and the geometric sum quoted for tripling is not how copies are counted."
+  - id: log-base
+    prompt: "A capacity plan assumes a lookup in a sorted array of 1,000,000 ids costs about 20 probes (binary search). A colleague proposes a 4-way search structure with about 10 levels, where each level may take up to 3 comparisons. How should the plan treat it?"
+    choices: ["Yes, a new class: log₄ n grows more slowly than log₂ n, so it wins at every input size", "No new class, and it is certainly faster, since depth halves from 20 levels to 10 levels", "Both are O(1) in practice, since 20 and 10 are tiny constants, so the plan needs no change at all", "Same O(log n) class: up to 30 comparisons against 20, so measure before assuming it is faster"]
+    answer: 3
+    explanation: "log₄ n is log₂ n halved, a constant factor, so the class does not change, and 10 levels with up to 3 comparisons each can cost more than 20 single probes. Depth alone does not decide speed, and calling both O(1) mislabels a cost that still grows with n."
   - id: crossover
-    prompt: "Algorithm A takes about 50n steps and algorithm B about n² steps. Your input is always around n = 20 items. Which is cheaper, and what does Big-O say?"
-    choices: ["A, because a linear algorithm always beats a quadratic one, whatever the input size", "A, because by n = 20 the linear cost has already fallen below the quadratic one", "B: about 400 steps against 1,000, as the two curves only cross at n = 50, not 20", "Neither: Big-O ignores constants, so the two always cost the same number of steps"]
-    answer: 2
-    explanation: "At n = 20, 50 × 20 = 1,000 and 20² = 400, and the curves cross at n = 50. Big-O is asymptotic, so it does not rank the two below that point, and 'ignoring constants' does not make them cost the same."
+    prompt: "Algorithm A takes about 50n steps and algorithm B about n² steps. Your input is always around n = 20 items. Which is cheaper, and what does Big-O say about it?"
+    choices: ["A, because a linear algorithm always beats a quadratic one, whatever the input size", "B (400 against 1,000 steps); Big-O favours A only past n = 50, so constants decide here", "A, because by n = 20 the linear cost has already fallen below the quadratic one", "B, because Big-O says a quadratic algorithm is cheaper than a linear one when inputs are small"]
+    answer: 1
+    explanation: "At n = 20, 20² = 400 beats 50 × 20 = 1,000, and the curves cross at n = 50. Big-O describes growth for large n, so it neither claims linear always wins nor predicts anything about small inputs."
 flashcards:
   - id: big-o
     front: "Big-O"

@@ -7,12 +7,17 @@ export interface PtRow {
   frame: number | null
   present: boolean
 }
+export interface PtDiskPage {
+  page: number
+  loadedInto: number | null // frame the OS read it into, null while swapped out
+}
 export interface PtStep {
   va: number | null
   page: number | null
   offset: number | null
   tlb: PtTlbEntry[] // most recently used last
   table: PtRow[]
+  disk: PtDiskPage[]
   pa: number | null
   hits: number
   misses: number
@@ -37,6 +42,7 @@ export function pageTableSteps(): PtStep[] {
     { page: 2, frame: null, present: false },
     { page: 3, frame: 7, present: true },
   ]
+  const disk: PtDiskPage[] = table.filter((r) => !r.present).map((r) => ({ page: r.page, loadedInto: null }))
   const freeFrames = [3]
   let tlb: PtTlbEntry[] = [{ page: 0, frame: 5 }]
   let va: number | null = null
@@ -48,7 +54,7 @@ export function pageTableSteps(): PtStep[] {
   let faults = 0
 
   const push = (focus: PtStep['focus'], caption: string, done?: boolean) => {
-    steps.push({ va, page, offset, tlb: structuredClone(tlb), table: structuredClone(table), pa, hits, misses, faults, focus, caption, ...(done ? { done: true } : {}) })
+    steps.push({ va, page, offset, tlb: structuredClone(tlb), table: structuredClone(table), disk: structuredClone(disk), pa, hits, misses, faults, focus, caption, ...(done ? { done: true } : {}) })
   }
   const translate = (frame: number) => frame * PAGE_SIZE + offset!
   const cache = (p: number, frame: number) => {
@@ -92,6 +98,7 @@ export function pageTableSteps(): PtStep[] {
     if (frame === undefined) throw new Error('no free frame to load the faulting page')
     row.frame = frame
     row.present = true
+    disk.find((d) => d.page === page)!.loadedInto = frame
     push('disk', `The OS read page ${page} from disk into free frame ${frame} and updated the page table`)
     const evicted = cache(page, frame)
     pa = translate(frame)

@@ -8,6 +8,8 @@ const T0 = [
   { page: 3, frame: 7, present: true },
 ]
 const T2 = T0.map((r) => (r.page === 2 ? { page: 2, frame: 3, present: true } : r))
+const D0 = [{ page: 2, loadedInto: null }]
+const D3 = [{ page: 2, loadedInto: 3 }]
 const A = [{ page: 0, frame: 5 }]
 const B = [{ page: 0, frame: 5 }, { page: 1, frame: 2 }]
 const C = [{ page: 1, frame: 2 }, { page: 2, frame: 3 }]
@@ -58,6 +60,10 @@ describe('pageTableSteps', () => {
 
   it('writes the captions', () => {
     expect(steps.map((s) => s.caption)).toEqual(CAPTIONS)
+  })
+
+  it('pins the disk contents at every step', () => {
+    expect(steps.map((s) => s.disk)).toEqual([...Array(9).fill(D0), ...Array(3).fill(D3)])
   })
 
   it('returns independent snapshots', () => {

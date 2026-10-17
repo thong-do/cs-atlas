@@ -6,13 +6,13 @@ const box = (active: boolean) => cn('min-w-0 space-y-1 rounded-md border-2 p-2 t
 const n = (x: number) => x.toLocaleString('en-US')
 
 export function PtView({ step }: { step: PtStep }) {
-  const { va, page, offset, tlb, table, pa, hits, misses, faults, focus } = step
-  const onDisk = table.filter((r) => !r.present)
+  const { va, page, offset, tlb, table, disk, pa, hits, misses, faults, focus } = step
   const split = va === null ? 'no address yet' : `address ${n(va)} = page ${page}, offset ${offset}`
   const summary = [
     `Virtual memory, page size ${n(PAGE_SIZE)} bytes: ${split}`,
     `TLB ${tlb.length ? tlb.map((e) => `page ${e.page} to frame ${e.frame}`).join(', ') : 'empty'}`,
     `page table ${table.map((r) => `page ${r.page} ${r.present ? `frame ${r.frame}` : 'on disk'}`).join(', ')}`,
+    `disk ${disk.map((d) => `page ${d.page} ${d.loadedInto === null ? 'swapped out' : `read into frame ${d.loadedInto}`}`).join(', ')}`,
     `physical address ${pa === null ? 'not yet known' : n(pa)}`,
     `${hits} hits, ${misses} misses, ${faults} faults`,
     focus ? `focus ${focus}` : 'no focus',
@@ -37,10 +37,10 @@ export function PtView({ step }: { step: PtStep }) {
         <div className={box(focus === 'disk')}>
           <p className="font-semibold">Disk</p>
           {Array.from({ length: TLB_CAPACITY }, (_, i) => {
-            const r = onDisk[i]
+            const r = disk[i]
             return (
               <p key={i} className={cn('truncate rounded border px-1 py-0.5 font-mono tabular-nums', !r && 'border-dashed text-muted-foreground')}>
-                {r ? `page ${r.page} · swapped out` : '—'}
+                {r ? (r.loadedInto === null ? `p${r.page} · swapped out` : `p${r.page} → frame ${r.loadedInto}`) : '—'}
               </p>
             )
           })}

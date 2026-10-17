@@ -64,6 +64,12 @@ describe('content accessors', () => {
 })
 
 describe('content inventory', () => {
+  it('defaults design prompts to the design kind', () => {
+    const { exercises } = getCatalog()
+    const designs = exercises.filter((x) => x.type === 'design-prompt')
+    expect(designs.length).toBeGreaterThan(0)
+    expect(designs.every((x) => x.type === 'design-prompt' && x.kind === 'design')).toBe(true)
+  })
   it('has a System Design track with the Caching lesson and coming-soon outline', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design'])

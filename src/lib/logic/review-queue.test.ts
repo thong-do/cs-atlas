@@ -4,7 +4,7 @@ import { resolveDue } from './review-queue'
 
 const problem: ProblemExercise = { slug: 'p', title: 'P', lessons: ['l'], ladderOrder: 1, type: 'external-problem', leetcodeId: 1, url: 'u', difficulty: 'easy', recognitionPrompt: '', hint: '' }
 const quiz: QuizExercise = { slug: 'q', title: 'Q', lessons: ['l'], ladderOrder: 2, type: 'quiz', questionCount: 5, flashcardIds: ['c1'] }
-const design: DesignExercise = { slug: 'd', title: 'D', lessons: ['l'], ladderOrder: 3, type: 'design-prompt', rubric: ['a'] }
+const design: DesignExercise = { slug: 'd', title: 'D', lessons: ['l'], ladderOrder: 3, type: 'design-prompt', kind: 'design', rubric: ['a'] }
 const bySlug = new Map<string, ExerciseMeta>([problem, quiz, design].map((e) => [e.slug, e]))
 const card: FlashcardEntry = { front: 'f', back: 'b', quiz: 'q', lesson: 'l' }
 const cards = { 'q#c1': card }

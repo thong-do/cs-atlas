@@ -89,7 +89,7 @@ export function ExercisesTable() {
             <span className="hidden text-xs text-muted-foreground sm:inline">
               {p.lessons.map((s) => lessonBySlug.get(s)?.title ?? s).join(', ')}
             </span>
-            <ExerciseTypeBadge type={p.type} />
+            <ExerciseTypeBadge exercise={p} />
             {isProblem(p) && (
               <>
                 <DifficultyBadge difficulty={p.difficulty} />

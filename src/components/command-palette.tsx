@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { TYPE_LABEL } from '@/components/exercises/exercise-type-badge'
+import { exerciseLabel } from '@/lib/logic/exercise-label'
 import {
   Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
@@ -75,7 +75,7 @@ export function CommandPalette() {
             <CommandItem key={p.slug} value={`exercise ${isProblem(p) ? p.leetcodeId : ''} ${p.title}`} onSelect={() => go(exerciseHref(p.slug))}>
               {isProblem(p)
                 ? <span className="text-muted-foreground">{p.leetcodeId}. </span>
-                : <span className="text-muted-foreground">{TYPE_LABEL[p.type]} · </span>}{p.title}
+                : <span className="text-muted-foreground">{exerciseLabel(p)} · </span>}{p.title}
             </CommandItem>
           ))}
         </CommandGroup>

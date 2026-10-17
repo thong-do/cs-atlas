@@ -5,7 +5,8 @@ title: "Diagnose: the response with someone else's items"
 lessons: [data-in-memory]
 ladderOrder: 2
 prompt: |
-  After a refactor, about **3%** of API responses at **200 requests/s** contain items that belong to another user.
+  After a refactor, about **1%** of API responses at **200 requests/s** contain items that belong to another user, and some users
+  also report their own items missing.
   The refactor builds one response object at startup and copies it with a shallow copy for each request:
 
   ```python
@@ -32,7 +33,7 @@ rubric:
   - id: intermittent-concurrency
     point: "Explains why it is intermittent: a lone request appends then clears, so it looks right, and only requests whose lifetimes overlap (interleaved at an await on a cache miss) see each other's items; the leak rate grows with request rate and handler duration."
   - id: arithmetic
-    point: "Gives a rough rate: 3% of 200 requests/s is 6 leaked responses per second, or 21,600 per hour, consistent with 1.5% cache misses (3 per second) each yielding about 5 ms, during which about 1 other request arrives."
+    point: "Gives a rough rate: 1% of 200 requests/s is about 2 leaked responses per second (7,200 per hour), consistent with 3 misses per second each yielding 5 ms, where P(at least one arrival) is 1 − e^-1 ≈ 0.63, giving ≈ 1.9/s; names the wiped own-items response as a separate symptom."
   - id: confirm
     point: "Confirms by checking identity (`resp[\"items\"] is TEMPLATE[\"items\"]` or equal `id()` values) and by reproducing with concurrent test requests that tag items by user."
   - id: fixes-and-costs
@@ -42,13 +43,15 @@ reference: |
   `resp["items"]` and `TEMPLATE["items"]` name the same list, and every request appends to it.
 
   **Intermittent.** A request that never yields (a cache hit) appends, serializes and clears without interruption,
-  so it is correct. On a cache miss it awaits the database while holding items in the shared list, and other requests
-  run meanwhile, appending into the same list and serializing each other's items; `clear()` can also wipe a
-  neighbour's items. The leak needs overlap, so it grows with request rate and miss time.
+  so it is correct. On a cache miss, request A awaits the database while its items sit in the shared list. A request B
+  that arrives meanwhile appends its own items, serializes A's items too (the leak), then clears the list. That
+  clear is the second symptom: A resumes with its earlier items wiped, so A's response is missing items rather than
+  leaking. Only the first arrival in the window sees A's items, because it clears the list. The bug needs overlap, so
+  it grows with request rate and miss time.
 
-  **Arithmetic.** 3% of 200 requests/s = 6 leaked responses/s, and 6 × 3,600 = 21,600 per hour. Check: 1.5% misses
-  = 200 × 0.015 = 3 misses/s. Each yields 5 ms, in which 200 × 0.005 = 1 other request arrives on average, so each
-  miss affects about 1 + 1 = 2 responses: 3 × 2 = 6 per second. That matches.
+  **Arithmetic.** Misses: 200 × 0.015 = 3 per second. Arrivals in A's 5 ms window: 200 × 0.005 = 1 on average, so
+  P(at least one) = 1 − e^(−1) ≈ 0.63. Leaked responses ≈ 3 × 0.63 ≈ 1.9 per second, and 1.9 ÷ 200 ≈ 0.95%, about 1%.
+  Per hour: 1.9 × 3,600 ≈ 6,800 (about 7,200 at exactly 1%). About as many A responses (≈1.9 per second) come back with items missing; those are not leaks.
 
   **Confirm.** Log `id(resp["items"])` and `id(TEMPLATE["items"])`, or assert `is`. Fire concurrent requests
   for different users with user-tagged items and check each response.

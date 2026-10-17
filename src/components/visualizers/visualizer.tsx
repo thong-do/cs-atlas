@@ -14,6 +14,10 @@ import { tokenBucketSteps } from '@/lib/visualizers/tb-steps'
 import { feedFanoutSteps } from '@/lib/visualizers/feed-steps'
 import { raftSteps } from '@/lib/visualizers/raft-steps'
 import { twoPhaseCommitSteps } from '@/lib/visualizers/tpc-steps'
+import { pageTableSteps } from '@/lib/visualizers/pt-steps'
+import { mutexSteps } from '@/lib/visualizers/mutex-steps'
+import { PtView } from './pt-view'
+import { MutexView } from './mutex-view'
 import { RaftView } from './raft-view'
 import { TpcView } from './tpc-view'
 import { FeedView } from './feed-view'
@@ -118,6 +122,16 @@ function TwoPhaseCommitVisualizer() {
   return <StepPlayer steps={steps} title="Two-phase commit: a clean commit, then a coordinator crash" captionClassName="min-h-[6.25rem] sm:min-h-[3.75rem]" render={(s) => <TpcView step={s} />} />
 }
 
+function PageTableVisualizer() {
+  const steps = useMemo(() => pageTableSteps(), [])
+  return <StepPlayer steps={steps} title="Virtual memory: a TLB hit, a TLB miss and a page fault" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <PtView step={s} />} />
+}
+
+function MutexVisualizer() {
+  const steps = useMemo(() => mutexSteps(), [])
+  return <StepPlayer steps={steps} title="Mutex: two threads increment a counter, without and with a lock" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <MutexView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -144,6 +158,10 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <RaftVisualizer />
     case 'two-phase-commit':
       return <TwoPhaseCommitVisualizer />
+    case 'page-table':
+      return <PageTableVisualizer />
+    case 'mutex':
+      return <MutexVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

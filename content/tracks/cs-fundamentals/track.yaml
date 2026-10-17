@@ -5,7 +5,7 @@ order: 3
 modules:
   - slug: foundations
     title: Foundations
-    lessons: [complexity]
+    lessons: [complexity, data-in-memory]
   - slug: operating-systems
     title: Operating systems
     lessons: []

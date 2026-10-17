@@ -1,0 +1,56 @@
+slug: data-in-memory-quiz
+type: quiz
+title: "Data in memory — quiz"
+lessons: [data-in-memory]
+ladderOrder: 1
+questions:
+  - id: reorder-fields
+    prompt: "A telemetry service keeps 50 million records of `uint16 sensor; double reading; uint16 flags` in one array. On typical x86-64 (double aligned to 8) each record takes 24 bytes, about 1.2 GB. Which change shrinks it without losing data?"
+    choices: ["Change both uint16 fields to uint32, so every field is a multiple of 4 bytes and the padding disappears", "Hold the records as separate small nodes in a linked list, since each node is allocated only as large as its contents need", "Allocate the records on the heap instead of the stack, because heap blocks are packed without alignment padding", "Reorder to `double reading; uint16 sensor; uint16 flags`: the double stays aligned at offset 0 and the small fields pack, giving 16 bytes"]
+    answer: 3
+    explanation: "Reordering gives 8 + 2 + 2 = 12 bytes of fields rounded up to 16, versus 24 now. Widening the small fields still leaves the double needing 8-byte alignment (4 + pad 4 + 8 + 4 + pad 4 = 24), nodes add pointers on top of the fields, and the heap does not change struct layout."
+  - id: byte-limit-check
+    prompt: "A signup form stores display names in a database column limited to 40 bytes of UTF-8. The Python check is `len(name) <= 40`, and some users with accented or non-Latin names get insert errors. What is the right validation?"
+    choices: ["Lowercase the name before checking, since uppercase letters take more bytes in UTF-8 than lowercase ones", "Normalize to NFC and then keep `len(name) <= 40`, because normalization makes the character count equal the byte count", "Check `len(name.encode(\"utf-8\")) <= 40`, since the column counts encoded bytes and one character can take up to 4", "Check `sys.getsizeof(name) <= 40`, since it reports the memory the stored text occupies"]
+    answer: 2
+    explanation: "The limit is on bytes, so measure the encoded bytes. Case does not change UTF-8 width by itself, NFC changes how accents are composed but a character like é still takes 2 bytes, and `sys.getsizeof` includes the string object's own header, so it exceeds the text size and is not what the column stores."
+  - id: array-address
+    prompt: "A game stores 16-byte entities in one contiguous array whose first entity starts at address 0x8000. How does the engine locate entity 300?"
+    choices: ["Directly: 0x8000 + 300 × 16 = 0x92C0, one multiply and one add whatever the index", "At 0x8000 + 300 = 0x812C, because an index is a byte offset into the array", "By walking from the first entity, since the array records only where entity 0 starts and each entity has to be stepped over in turn", "Through a lookup table kept beside the array, because each entity is its own allocation and sits wherever the allocator found room"]
+    answer: 0
+    explanation: "In a contiguous array every entity is the same size, so its address is base + index × size: 0x8000 + 4,800 = 0x92C0. An index counts items, not bytes; a walk or a lookup table describes linked or separately allocated nodes, not an array."
+  - id: wire-byte-order
+    prompt: "A C service on x86-64 writes a 32-bit counter holding 500 (0x000001F4) straight from memory into a packet. The partner decodes the 4 bytes as network byte order, as its spec says. What does the partner read?"
+    choices: ["500, because the network stack converts integer payloads to network byte order when it sends them", "0xF4010000 = 4,093,706,240: the little-endian sender put F4 first, which the decoder reads as most significant", "500, because a value this small fits in two bytes and so has no byte order to disagree about", "32,768,000 (0x01F40000), because the decoder moves the two non-zero bytes to the top half and fills the rest with zeros"]
+    answer: 1
+    explanation: "The sender's memory holds F4 01 00 00, and reading that as big-endian gives 0xF4010000. Sockets send bytes exactly as given, so conversion such as `htonl` is the program's job; any multi-byte number has an order, and the decoder reads bytes in order rather than shifting them around."
+  - id: packed-readings
+    prompt: "A Python job must hold 100 million sensor readings, each between 0 and 60,000, in a machine with 2 GB of RAM. Which plan fits?"
+    choices: ["A plain list of ints: each reading is stored as a 2-byte value inside the list, about 200 MB", "A tuple of ints: tuples are immutable, so CPython stores the values inline at 2 bytes each", "An `array(\"H\")` or NumPy `uint16` array: one contiguous block at 2 bytes per reading, 100,000,000 × 2 B = 200 MB", "A plain list of ints: CPython shares one int object per distinct value, so only the 8-byte references cost memory, about 800 MB"]
+    answer: 2
+    explanation: "A packed array stores raw 2-byte values. A list or tuple holds 8-byte references to separate int objects, so the container alone is 800 MB and most values above 256 are objects of their own, and neither container stores values inline; CPython preallocates only a few small ints rather than sharing every distinct value."
+flashcards:
+  - id: bit-byte
+    front: "Bit and byte"
+    back: "A bit is a 0 or 1. A byte is 8 bits, so 256 possible values, and is the unit memory is addressed in."
+  - id: array-address
+    front: "Address of array item i"
+    back: "base + i × size. One multiply and one add, so indexing a contiguous array is O(1)."
+  - id: linked-nodes
+    front: "Linked nodes in memory"
+    back: "Each node is allocated separately and holds a pointer to the next, so reaching node k means following k pointers."
+  - id: stack-heap
+    front: "Stack versus heap"
+    back: "Stack data lives for one call; heap data outlives it until freed, collected or released by ownership. Which goes where is language-dependent."
+  - id: padding
+    front: "Alignment and padding"
+    back: "Compilers insert unused bytes so values start at aligned addresses. On typical x86-64, {char; int; char} is 12 bytes and {int; char; char} is 8."
+  - id: endianness
+    front: "Endianness"
+    back: "Byte order of multi-byte numbers. x86-64 and typical ARM are little-endian (low byte first); network byte order is big-endian."
+  - id: utf8-length
+    front: "UTF-8 bytes versus characters"
+    back: "UTF-8 uses 1 to 4 bytes per character, so byte length can exceed character count. Python len counts code points; encode first to count bytes."
+  - id: object-overhead
+    front: "Object overhead in managed languages"
+    back: "A small Python int is an object far larger than 4 bytes (28 on 64-bit CPython 3.12; varies by version). A list also stores 8-byte references."

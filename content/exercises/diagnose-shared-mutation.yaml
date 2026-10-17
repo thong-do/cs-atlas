@@ -1,0 +1,58 @@
+slug: diagnose-shared-mutation
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the response with someone else's items"
+lessons: [data-in-memory]
+ladderOrder: 2
+prompt: |
+  After a refactor, about **3%** of API responses at **200 requests/s** contain items that belong to another user.
+  The refactor builds one response object at startup and copies it with a shallow copy for each request:
+
+  ```python
+  TEMPLATE = {"user": None, "items": []}
+
+  async def handle(user):
+      resp = dict(TEMPLATE)          # shallow copy per request
+      resp["user"] = user.id
+      async for it in load_items(user):   # awaits I/O between items
+          resp["items"].append(it)
+      body = serialize(resp)
+      TEMPLATE["items"].clear()      # "reset" after sending
+      return body
+  ```
+
+  Explain the bug in terms of references, and why it is intermittent and depends on concurrency. Say how you would
+  confirm the cause. Propose fixes (a deep copy, an immutable template, or building a fresh object per request) and
+  the cost of each.
+hint: "Ask what `dict(TEMPLATE)` duplicates, and whether `resp[\"items\"]` and `TEMPLATE[\"items\"]` are the same list."
+rubric:
+  - id: reference-explained
+    point: "Explains that the shallow copy duplicates only the top-level dict, so `resp[\"items\"]` is the same list object as `TEMPLATE[\"items\"]`; every request appends into one shared list."
+  - id: intermittent-concurrency
+    point: "Explains why it is intermittent: a lone request appends then clears, so it looks right, and only requests whose lifetimes overlap (interleaved at awaits or threads) see each other's items; the leak rate grows with request rate and handler duration."
+  - id: arithmetic
+    point: "Gives a rough rate: 3% of 200 requests/s is 6 leaked responses per second, or 21,600 per hour, consistent with a short overlap window."
+  - id: confirm
+    point: "Confirms by checking identity (`resp[\"items\"] is TEMPLATE[\"items\"]` or equal `id()` values) and by reproducing with concurrent test requests that tag items by user."
+  - id: fixes-and-costs
+    point: "Names the fixes with costs: deep copy (correct but copies all nested data per request), immutable template (no copying but needs discipline or frozen types), fresh object per request (simplest, a small allocation each time)."
+reference: |
+  **Cause.** `dict(TEMPLATE)` copies the top-level mapping only. Its values are references, so
+  `resp["items"]` and `TEMPLATE["items"]` name the same list, and every request appends to it.
+
+  **Intermittent.** A request running alone appends its items, serializes, and clears the list, so the output is
+  correct. If another request starts before the first clears, both append into one list and each serializes the
+  other's items; `clear()` can also wipe a neighbour's items. The leak needs overlap, so its rate grows with request
+  rate and with how long a handler holds the list.
+
+  **Arithmetic.** 3% of 200 requests/s = 6 leaked responses/s, and 6 × 3,600 = 21,600 per hour. If a handler holds
+  the list about 75 µs, a request overlaps another when one arrives within ±75 µs: 2 × 200 × 0.000075 = 0.03, so 3%.
+
+  **Confirm.** Log `id(resp["items"])` and `id(TEMPLATE["items"])`, or assert `is`. Fire concurrent requests
+  for different users with user-tagged items and check each response.
+
+  **Fixes and costs.**
+  - Deep copy per request: correct, but copies all nested data each time, so cost grows with template size.
+  - Immutable template (tuple or frozen types): nothing shared is ever mutated, no copying, but the handler must
+    build its own list and discipline is needed.
+  - Fresh object per request: simplest and clear, one small allocation per request.

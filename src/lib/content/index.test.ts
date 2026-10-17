@@ -135,6 +135,7 @@ describe('content inventory', () => {
     // Append one entry per new lesson, in track order.
     const CSF: Record<string, { prerequisites: string[]; exercises: string[] }> = {
       complexity: { prerequisites: [], exercises: ['complexity-quiz', 'diagnose-slow-growth'] },
+      'data-in-memory': { prerequisites: ['complexity'], exercises: ['data-in-memory-quiz', 'diagnose-shared-mutation'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
     expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)

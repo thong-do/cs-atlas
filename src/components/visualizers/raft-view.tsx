@@ -8,9 +8,9 @@ const ROLE_BG: Record<Role, string> = { follower: 'bg-[#2563eb]', candidate: 'bg
 
 export function RaftView({ step }: { step: RaftStep }) {
   const { nodes, messages, focus } = step
-  const summary = nodes.map((n) => `${n.id} ${ROLE_LABEL[n.role]} term ${n.term} commit ${n.commitIndex}`).join('; ')
+  const summary = nodes.map((n) => `${n.id} ${ROLE_LABEL[n.role]} term ${n.term} voted ${n.votedFor ?? 'none'} log ${n.log.length} commit ${n.commitIndex}`).join('; ')
   return (
-    <div className="space-y-3" role="group">
+    <div className="space-y-3">
       <div className="grid grid-cols-3 gap-1.5 sm:gap-3" role="img" aria-label={`Raft cluster: ${summary}`}>
         {nodes.map((n) => (
           <div

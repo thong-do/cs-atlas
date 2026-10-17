@@ -64,6 +64,7 @@ export function raftSteps(): RaftStep[] {
   const votes = nodes.filter((n) => n.votedFor === candidate).length
   push(candidate, others.map((o) => msg(o, candidate, 'Vote')), `${list(others)} moved to term ${term} and voted for ${candidate} — ${votes} of ${total} votes, and a majority needs ${need}`)
 
+  if (votes < need) throw new Error(`${candidate} has ${votes} of ${total} votes but needs ${need}`)
   c.role = 'leader'
   push(candidate, [], `${candidate} became the leader for term ${term}`)
 
@@ -84,8 +85,8 @@ export function raftSteps(): RaftStep[] {
   const stored = nodes.filter((n) => n.log.length >= index).length
   push(live, [msg(live, candidate, 'Ack')], `${live} stored index ${index} and acknowledged — ${stored} of ${total} nodes had it, a majority`)
 
-  // Commit (stored >= need was true above)
-  const committedOn = stored >= need ? stored : 0
+  // Commit only on a majority
+  if (stored < need) throw new Error(`index ${index} is on ${stored} of ${total} nodes but needs ${need}`)
   c.commitIndex = index
   push(candidate, [], `${candidate} committed index ${index} and applied ${entry.cmd}; the client got its reply`)
 
@@ -99,6 +100,6 @@ export function raftSteps(): RaftStep[] {
   r.commitIndex = index
   push(crashed, [msg(candidate, crashed, 'AppendEntries'), msg(crashed, candidate, 'Ack')], `${crashed} restarted, received the leader's entries and caught up: it stored and committed index ${index}`)
 
-  push(null, [], `Done: ${candidate} won term ${term} with a majority, and ${entry.cmd} committed on ${committedOn} of ${total} nodes while ${crashed} was down`, true)
+  push(null, [], `Done: ${candidate} won term ${term} with a majority, and ${entry.cmd} committed on ${stored} of ${total} nodes while ${crashed} was down`, true)
   return steps
 }

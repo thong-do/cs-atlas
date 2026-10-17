@@ -24,41 +24,45 @@ describe('raftSteps', () => {
     expect(steps[0].focus).toBeNull()
   })
 
-  it('traces the election', () => {
-    expect(node(steps[1], 'S2')).toMatchObject({ role: 'candidate', term: 2, votedFor: 'S2' })
-    expect(node(steps[1], 'S1')).toMatchObject({ role: 'follower', term: 1, votedFor: null })
-    expect(steps[1].focus).toBe('S2')
-    expect(msgs(steps[2])).toEqual(['S2>S1:RequestVote', 'S2>S3:RequestVote'])
-    for (const id of ['S1', 'S3'] as const) expect(node(steps[3], id)).toMatchObject({ role: 'follower', term: 2, votedFor: 'S2' })
-    expect(msgs(steps[3])).toEqual(['S1>S2:Vote', 'S3>S2:Vote'])
-    expect(node(steps[4], 'S2').role).toBe('leader')
-    expect(steps[4].messages).toEqual([])
-    expect(steps.slice(1, 5).map((s) => s.focus)).toEqual(['S2', 'S2', 'S2', 'S2'])
+  it('pins every node field on every step', () => {
+    const row = (s: RaftStep) => s.nodes.map((n) => [n.id, n.role, n.term, n.votedFor, n.log.length, n.commitIndex])
+    const f1 = (id: string) => [id, 'follower', 1, null, 0, 0]
+    const f2 = (id: string, extra: Partial<Record<number, unknown>> = {}) => Object.assign([id, 'follower', 2, 'S2', 0, 0], extra)
+    const cand = ['S2', 'candidate', 2, 'S2', 0, 0]
+    const lead = (log: number, commit: number) => ['S2', 'leader', 2, 'S2', log, commit]
+    const down = ['S3', 'down', 2, 'S2', 0, 0]
+    const expected: unknown[][][] = [
+      [f1('S1'), f1('S2'), f1('S3')],
+      [f1('S1'), cand, f1('S3')],
+      [f1('S1'), cand, f1('S3')],
+      [f2('S1'), cand, f2('S3')],
+      [f2('S1'), lead(0, 0), f2('S3')],
+      [f2('S1'), lead(1, 0), f2('S3')],
+      [f2('S1'), lead(1, 0), down],
+      [f2('S1'), lead(1, 0), down],
+      [f2('S1', { 4: 1 }), lead(1, 0), down],
+      [f2('S1', { 4: 1 }), lead(1, 1), down],
+      [f2('S1', { 4: 1, 5: 1 }), lead(1, 1), down],
+      [f2('S1', { 4: 1, 5: 1 }), lead(1, 1), ['S3', 'follower', 2, 'S2', 1, 1]],
+      [f2('S1', { 4: 1, 5: 1 }), lead(1, 1), ['S3', 'follower', 2, 'S2', 1, 1]],
+    ]
+    expected.forEach((e, i) => expect(row(steps[i]), `step ${i}`).toEqual(e))
+    // log contents: empty until the write, then exactly x=1 in term 2
+    const logsOf = (s: RaftStep) => s.nodes.map((n) => n.log)
+    for (const i of [0, 1, 2, 3, 4]) expect(logsOf(steps[i])).toEqual([[], [], []])
+    for (const i of [5, 6, 7]) expect(logsOf(steps[i])).toEqual([[], [X], []])
+    for (const i of [8, 9, 10]) expect(logsOf(steps[i])).toEqual([[X], [X], []])
+    for (const i of [11, 12]) expect(logsOf(steps[i])).toEqual([[X], [X], [X]])
   })
 
-  it('traces replication with S3 down', () => {
-    expect(node(steps[5], 'S2').log).toEqual([X])
-    expect(node(steps[5], 'S2').commitIndex).toBe(0)
-    expect(node(steps[6], 'S3')).toMatchObject({ role: 'down', term: 2, votedFor: 'S2', log: [], commitIndex: 0 })
-    expect(steps[6].focus).toBe('S3')
-    expect(msgs(steps[7])).toEqual(['S2>S1:AppendEntries', 'S2>S3:AppendEntries'])
-    expect(node(steps[8], 'S1').log).toEqual([X])
-    expect(msgs(steps[8])).toEqual(['S1>S2:Ack'])
-    expect(steps[8].focus).toBe('S1')
-    expect(node(steps[9], 'S2').commitIndex).toBe(1)
-    expect(node(steps[9], 'S1').commitIndex).toBe(0)
-    expect(node(steps[10], 'S1').commitIndex).toBe(1)
-    expect(msgs(steps[10])).toEqual(['S2>S1:AppendEntries'])
-    expect(steps.slice(5, 11).map((s) => s.focus)).toEqual(['S2', 'S3', 'S2', 'S1', 'S2', 'S1'])
-  })
-
-  it('catches S3 up', () => {
-    expect(node(steps[11], 'S3')).toMatchObject({ role: 'follower', term: 2, log: [X], commitIndex: 1 })
-    expect(msgs(steps[11])).toEqual(['S2>S3:AppendEntries', 'S3>S2:Ack'])
-    expect(steps[11].focus).toBe('S3')
+  it('traces focus and messages', () => {
+    expect(steps.map((s) => s.focus)).toEqual([null, 'S2', 'S2', 'S2', 'S2', 'S2', 'S3', 'S2', 'S1', 'S2', 'S1', 'S3', null])
+    expect(steps.map(msgs)).toEqual([
+      [], [], ['S2>S1:RequestVote', 'S2>S3:RequestVote'], ['S1>S2:Vote', 'S3>S2:Vote'], [], [], [],
+      ['S2>S1:AppendEntries', 'S2>S3:AppendEntries'], ['S1>S2:Ack'], [], ['S2>S1:AppendEntries'],
+      ['S2>S3:AppendEntries', 'S3>S2:Ack'], [],
+    ])
     expect(steps[12].nodes).toEqual(steps[11].nodes)
-    expect(steps[12].messages).toEqual([])
-    expect(steps[12].focus).toBeNull()
   })
 
   it('writes the captions', () => {

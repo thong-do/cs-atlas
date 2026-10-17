@@ -23,7 +23,7 @@ rubric:
   - id: partition-behaviour
     point: "States what the user sees during a partition: editing continues locally with a pending or offline indicator, views may be stale and are labelled, and checkout waits or fails clearly until it can reach the authority."
 reference: |
-  **Arithmetic.** 5,000 edits/s ÷ 2,000,000 carts = 0.0025 edits/s per cart, one edit per 400 s. Shard by `cart_id` over 8 shards, 3 replicas.
+  **Arithmetic.** 5,000 edits/s ÷ 2,000,000 carts = 0.0025 edits/s per cart, one edit per 400 s. Shard by `cart_id`, 3 replicas.
 
   **Per operation.** Add, remove and view are available and converge: a device applies the edit locally, queues it
   and syncs. Checkout is linearizable, run on the cart shard's leader plus a conditional stock write.

@@ -10,7 +10,7 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1)
 export function TpcView({ step }: { step: TpcStep }) {
   const { run, coordinator, participants, messages } = step
   const summary = `${run === 'commit' ? 'Commit run' : 'Crash run'}: coordinator ${COORD_LABEL[coordinator]}; ${participants
-    .map((p) => `${p.id} ${p.state}, ${p.locked ? 'locked' : 'unlocked'}`)
+    .map((p) => `${p.id} ${p.state}, ${p.locked ? 'locked' : 'unlocked'}, vote ${p.vote ?? 'none'}${p.state === 'prepared' && coordinator === 'down' ? ', blocked' : ''}`)
     .join('; ')}`
   return (
     <div className="space-y-3">
@@ -24,13 +24,13 @@ export function TpcView({ step }: { step: TpcStep }) {
           {participants.map((p) => {
             const blocked = p.state === 'prepared' && coordinator === 'down'
             return (
-              <div key={p.id} className={cn('min-w-0 space-y-1 rounded-md border-2 p-2 text-xs', blocked && 'border-[#b91c1c] bg-[#b91c1c]/10')}>
+              <div key={p.id} className={cn('min-w-0 space-y-1 rounded-md border-2 p-2 text-xs', blocked && 'border-[#b91c1c] bg-[#b91c1c]/10 dark:bg-red-600/15')}>
                 <p className="font-semibold">{p.id} · {TPC_NAMES[p.id]}</p>
                 <p className={cn('rounded px-1 py-0.5 text-center font-semibold text-white', blocked ? 'bg-[#b91c1c]' : P_BG[p.state])}>
                   {cap(p.state)}
                 </p>
                 <p>{p.locked ? '🔒 locked' : 'unlocked'}</p>
-                <p className={cn('font-semibold', blocked ? 'text-[#b91c1c]' : 'invisible')}>Blocked</p>
+                <p className={cn('font-semibold', blocked ? 'text-[#b91c1c] dark:text-red-400' : 'invisible')}>Blocked</p>
                 <p>vote: {p.vote ? p.vote.toUpperCase() : '—'}</p>
               </div>
             )

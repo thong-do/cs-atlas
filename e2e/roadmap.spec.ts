@@ -31,11 +31,12 @@ test('roadmap labels are inside the viewBox and do not overlap within a row', as
   expect(result.overlaps).toEqual([])
 })
 
-test('roadmap shows both tracks and links lessons to their pages', async ({ page }) => {
+test('roadmap shows all three tracks and links lessons to their pages', async ({ page }) => {
   await page.goto('/roadmap/')
   const svg = page.locator('svg[aria-label="Roadmap"]')
   await expect(svg.getByText('Algorithms', { exact: true })).toBeVisible()
   await expect(svg.getByText('System Design', { exact: true })).toBeVisible()
+  await expect(svg.getByText('CS Fundamentals', { exact: true })).toBeVisible()
   await svg.getByRole('link', { name: /^Caching:/ }).click()
   await expect(page).toHaveURL(/\/system-design\/caching\/$/)
 })

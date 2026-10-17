@@ -64,15 +64,20 @@ describe('content accessors', () => {
 })
 
 describe('content inventory', () => {
-  it('defaults design prompts to the design kind', () => {
+  it('gives design-* prompts the design kind and diagnose-* prompts the diagnose kind', () => {
     const { exercises } = getCatalog()
-    const designs = exercises.filter((x) => x.type === 'design-prompt')
+    const prompts = exercises.filter((x) => x.type === 'design-prompt')
+    const designs = prompts.filter((x) => x.slug.startsWith('design-'))
+    const diagnoses = prompts.filter((x) => x.slug.startsWith('diagnose-'))
     expect(designs.length).toBeGreaterThan(0)
+    expect(diagnoses.length).toBeGreaterThan(0)
     expect(designs.every((x) => x.type === 'design-prompt' && x.kind === 'design')).toBe(true)
+    expect(diagnoses.every((x) => x.type === 'design-prompt' && x.kind === 'diagnose')).toBe(true)
+    expect(designs.length + diagnoses.length).toBe(prompts.length)
   })
   it('has a System Design track with the Caching lesson and coming-soon outline', () => {
     const { tracks, lessons, exercises } = getCatalog()
-    expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design'])
+    expect(tracks.map((t) => t.slug).slice(0, 2)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
     expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat'])
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
@@ -121,6 +126,23 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'chat')).toMatchObject({ track: 'system-design', prerequisites: ['queues-streams', 'load-balancing'] })
     expect(getLessonDoc('chat')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('chat')).map((e) => e.slug).sort()).toEqual(['chat-quiz', 'design-live-comments'])
+  })
+
+  it('has a CS Fundamentals track whose lessons, tables of contents and exercises match the inventory', () => {
+    const { tracks, lessons, exercises } = getCatalog()
+    expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design', 'cs-fundamentals'])
+    const csf = tracks[2]
+    // Append one entry per new lesson, in track order.
+    const CSF: Record<string, { prerequisites: string[]; exercises: string[] }> = {
+      complexity: { prerequisites: [], exercises: ['complexity-quiz', 'diagnose-slow-growth'] },
+    }
+    expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
+    expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
+    for (const [slug, want] of Object.entries(CSF)) {
+      expect(lessons.find((l) => l.slug === slug), slug).toMatchObject({ track: 'cs-fundamentals', prerequisites: want.prerequisites })
+      expect(getLessonDoc(slug)!.toc.map((t) => t.title), slug).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+      expect(exercises.filter((e) => e.lessons.includes(slug)).map((e) => e.slug).sort(), slug).toEqual([...want.exercises].sort())
+    }
   })
 
   const { lessons, exercises: allExercises } = getCatalog()

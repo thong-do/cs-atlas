@@ -1,0 +1,56 @@
+slug: complexity-quiz
+type: quiz
+title: "Complexity & Big-O — quiz"
+lessons: [complexity]
+ladderOrder: 1
+questions:
+  - id: growth-from-timings
+    prompt: "A job takes 4 s on 5,000 records, 16 s on 10,000 and 64 s on 20,000. Which growth fits these timings best?"
+    choices: ["Linear: doubling n doubles the time", "n log n: doubling n multiplies the time by a little over 2", "Quadratic: doubling n multiplies the time by 4", "Logarithmic: doubling n adds a fixed amount of time"]
+    answer: 2
+    explanation: "Each doubling of n multiplies the time by 4 (4 → 16 → 64 s), the signature of n². Linear and n log n would give roughly 2×, and a logarithmic cost would add the same amount each doubling, not 12 s and then 48 s."
+  - id: budget-check
+    prompt: "A Python step with a 1 s budget compares every pair among 40,000 items: 40,000 × 39,999 ÷ 2 ≈ 8 × 10⁸ comparisons. Taking CPython as roughly 10⁷ simple operations per second (illustrative), what is the best judgement?"
+    choices: ["It fits: a CPU runs billions of cycles a second, so 8 × 10⁸ comparisons take well under a second", "About 80 s, so replace the all-pairs step with an algorithm that does far fewer comparisons", "About 80 s, so split the work across four worker processes", "About 0.8 s, so it fits with a little room to spare"]
+    answer: 1
+    explanation: "8 × 10⁸ ÷ 10⁷ = 80 s. Four workers would still need about 20 s, and counting cycles ignores that each interpreted comparison costs many of them; 0.8 s comes from misplacing a factor of 100."
+  - id: array-append-cost
+    prompt: "An empty dynamic array with capacity 1 doubles whenever it is full. You append 100 items. Which statement about the cost is correct?"
+    choices: ["Every append may copy the whole array, so 100 appends cost about 100 × 100 = 10,000 copies", "Only 7 resizes happen (1, 2, 4, …, 64), so each append costs O(log n) amortized", "Every append is O(1) even in the worst case, because spare capacity is always ready in advance", "Resizes copy 1 + 2 + … + 64 = 127 in total, under 2 × 100, so append is O(1) amortized"]
+    answer: 3
+    explanation: "Resizes occur at sizes 1, 2, 4, …, 64 and copy 127 elements in total. Seven resizes is the right count but not the cost per append, and the 65th append really does copy 64 items, so the worst case is not O(1)."
+  - id: log-base
+    prompt: "A colleague says an algorithm taking log₂ n steps and one taking log₁₀ n steps belong to different Big-O classes. What is the accurate view?"
+    choices: ["Same class: log₂ n is about 3.3 × log₁₀ n at every n, a constant factor", "Different classes: the base sets how quickly the curve grows as n gets large", "Same class, so the base can never matter for real running time", "Same class up to about a million items; past that, base 10 grows more slowly"]
+    answer: 0
+    explanation: "Changing log base multiplies by a fixed constant, which Big-O drops, so the ratio stays about 3.3 at all n. A constant still shows up on a stopwatch, and nothing changes at a million items."
+  - id: crossover
+    prompt: "Algorithm A takes about 50n steps and algorithm B about n² steps. Your input is always around n = 20 items. Which is cheaper, and what does Big-O say?"
+    choices: ["A, because a linear algorithm always beats a quadratic one, whatever the input size", "A, because by n = 20 the linear cost has already fallen below the quadratic one", "B: about 400 steps against 1,000, as the two curves only cross at n = 50, not 20", "Neither: Big-O ignores constants, so the two always cost the same number of steps"]
+    answer: 2
+    explanation: "At n = 20, 50 × 20 = 1,000 and 20² = 400, and the curves cross at n = 50. Big-O is asymptotic, so it does not rank the two below that point, and 'ignoring constants' does not make them cost the same."
+flashcards:
+  - id: big-o
+    front: "Big-O"
+    back: "An upper bound on growth: f is O(g) if, for large n, f stays below some constant multiple of g. Drop constants and lower-order terms."
+  - id: theta-omega
+    front: "Θ and Ω"
+    back: "Ω is a lower bound (at least this fast). Θ is a tight bound: both O and Ω, so growth matches up to constants."
+  - id: input-size
+    front: "What is n?"
+    back: "The size of the input (items, characters, nodes), not the value of any number in it."
+  - id: log-base
+    front: "Log base in Big-O"
+    back: "Irrelevant: log₂ n = log₁₀ n × log₂ 10 ≈ 3.32 × log₁₀ n, a constant factor. Write O(log n)."
+  - id: amortized
+    front: "Amortized cost"
+    back: "Cost averaged over a sequence of operations. Doubling a dynamic array makes append O(1) amortized, though one append copies everything."
+  - id: case-analysis
+    front: "Best, worst and average case"
+    back: "Which input you run on, not which bound you use. Quote the worst case unless told otherwise."
+  - id: space-complexity
+    front: "Space complexity"
+    back: "Extra memory beyond the input. Copying a list is O(n); recursion uses stack space proportional to its depth."
+  - id: ops-budget
+    front: "Operations-per-second estimate"
+    back: "Roughly 10⁸ simple operations per second in compiled code, 10⁷ in CPython (illustrative; hardware-dependent). Use it to filter designs, not predict time."

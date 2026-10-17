@@ -1,0 +1,45 @@
+slug: design-collaborative-cart
+type: design-prompt
+title: "Design: a shared family shopping cart"
+lessons: [consistency-models]
+ladderOrder: 2
+prompt: |
+  A family shares **one shopping cart across up to 4 devices**. There are **2 million active carts** and about **5,000 cart edits/s at peak**.
+  Devices may **edit offline for minutes** and sync later. At checkout, **price and stock must be exact**.
+
+  Describe the **consistency choice for each operation** (add, remove, view, checkout), how **concurrent and offline edits merge**,
+  how **each device gets read-your-writes**, **what checkout must re-verify**, and **what the user sees during a partition**.
+  Show the arithmetic.
+hint: "Ask which operations can tolerate stale or reordered data and still converge, and which one protects money and stock and so cannot."
+rubric:
+  - id: per-operation
+    point: "Chooses a model per operation: add, remove and view are available and eventually or causally consistent, while checkout is linearizable (a single authoritative write path per cart and per stock item)."
+  - id: merge
+    point: "Merges concurrent and offline edits deterministically without silently dropping an item or resurrecting a removed one (not plain last-writer-wins), and says how a concurrent add and remove, and quantity changes up and down, resolve."
+  - id: read-your-writes
+    point: "Gives each device read-your-writes with local optimistic apply plus a version token or leader read, and says how the token advances."
+  - id: checkout-verify
+    point: "At checkout re-reads the cart at its latest version, re-checks current prices, then decrements stock atomically (one transaction, or release on failure), with a client-generated checkout key that makes retries safe."
+  - id: partition-behaviour
+    point: "States what the user sees during a partition: editing continues locally with a pending or offline indicator, views may be stale and are labelled, and checkout waits or fails clearly until it can reach the authority."
+reference: |
+  **Arithmetic.** 5,000 edits/s ÷ 2,000,000 carts = 0.0025 edits/s per cart, one edit per 400 s. Shard by `cart_id`, 3 replicas.
+
+  **Per operation.** Add, remove and view are available and converge: a device applies the edit locally, queues it
+  and syncs. Checkout is linearizable, run on the cart shard's leader plus a conditional stock write.
+
+  **Merge.** Each add creates a unique tag (device id, counter). A remove records the tags it has seen in a removed
+  set. Visible = added tags minus removed tags, so a concurrent add, unseen by the remover, survives. Quantity is
+  per-device increment and decrement totals scoped to the tag, so it can go down and is discarded with the tag;
+  a re-add gets a new tag. An item's quantity is the sum over its live tags; an edit applies to a tag the device sees. Merge = union of added sets, union of removed sets, per-device maximum of each total.
+
+  **Read-your-writes.** The device shows its edit at once. The server returns the cart version after each merge
+  (previous + 1); the device keeps the highest and sends it with reads. A replica below it forwards to the leader.
+
+  **Checkout.** Read the latest cart from the leader and re-read prices; if any changed, show the diff and ask to
+  confirm. Stock lives in one transactional store. In one transaction there, run `UPDATE stock SET qty = qty - n WHERE sku = ? AND qty >= n`
+  per line and insert the order. The client generates a checkout key once and reuses it on retries; a unique
+  constraint on it, in that store, covers decrements and order.
+
+  **Partition.** Editing continues locally with a "syncing" badge; views are labelled possibly out of date; checkout
+  is disabled until the authority is reachable.

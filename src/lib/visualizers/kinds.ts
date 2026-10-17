@@ -14,6 +14,8 @@ export const VISUALIZER_KINDS = [
   'consistent-hashing',
   'token-bucket',
   'feed-fanout',
+  'raft',
+  'two-phase-commit',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

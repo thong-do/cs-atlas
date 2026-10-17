@@ -1,0 +1,102 @@
+---
+slug: consensus-raft
+title: Consensus with Raft
+level: advanced
+authors: [cs-atlas]
+prerequisites: [consistency-models]
+summary: "Consensus lets a cluster agree on one ordered log despite crashes; Raft does it with a leader, terms, and a majority rule for both elections and commits."
+---
+
+## Intuition
+
+Three clerks share one ledger of decisions. Each keeps a copy, and the rule is that every copy must list the same entries in the same order. Clerks go home sick. Someone must be in charge of adding lines, or two clerks will write different line 7s, so the clerks pick a chair. Nothing counts as decided until a majority of clerks has written it down. If the chair vanishes, the remaining clerks elect a new one, and the new chair must already hold every decided line.
+
+That is **consensus**: a group of machines agreeing on one ordered sequence of commands even when some of them crash. Feed the same log to deterministic programs and each ends in the same state. This is a **replicated state machine**, and it is how a cluster can offer the strongest model from [Consistency models](/system-design/consistency-models/): linearizability, the single-copy illusion. **Raft** is a consensus algorithm designed to be understandable.
+
+**Roles and terms.** Each node is a **follower**, a **candidate**, or the **leader**. Time is cut into numbered **terms**, and a term has at most one leader. A node that sees a higher term than its own adopts it and, if it was a leader, steps down. Terms work as a logical clock that exposes stale leaders.
+
+**Elections.**
+- A follower that hears nothing from a leader before its **election timeout** becomes a candidate, increments its term, votes for itself, and asks the others for votes.
+- Each node casts **one vote per term**. A candidate with a majority becomes leader and starts sending heartbeats.
+- Timeouts are **randomized** (for example 150 to 300 ms), so usually one node times out first and wins. Randomization makes **split votes unlikely, not impossible**. If nobody wins, the term ends and a new election starts with fresh random timeouts.
+- **Election restriction.** A voter rejects a candidate whose log is less up to date than its own. It compares the term of the last entry first, and if those are equal, the log length. A committing majority overlaps any electing majority, so the winner holds every committed entry.
+
+**Log replication.**
+- Clients send commands to the leader, which appends each to its log and sends **AppendEntries** to followers.
+- Each request carries the **previous index and term**. A follower whose log does not contain that entry rejects the request, and the leader backs up and resends from an earlier point until the logs match. Then the follower overwrites any conflicting tail.
+- An entry is **committed** once a majority of nodes has stored it. The leader applies it and answers the client, and followers learn the commit index from later AppendEntries.
+- One subtlety, simplified here: a leader generally does not count replicas to commit entries from earlier terms. It commits them indirectly, by committing a newer entry from its own term.
+
+**Cluster size.** A majority of N nodes is ⌊N/2⌋ + 1, so the cluster tolerates ⌊(N−1)/2⌋ failures. Three nodes tolerate 1, five tolerate 2, and seven tolerate 3. Four nodes need 3 for a majority and tolerate only ⌊3/2⌋ = 1, the same as three, so even sizes add cost without adding tolerance.
+
+**Throughput and reads.** All writes go through the leader and wait for a majority, so adding nodes adds fault tolerance, **not write throughput**; more nodes means a larger majority to reach. To scale writes, shard into independent Raft groups ([Replication & sharding](/system-design/replication-sharding/)).
+- A read from a follower may be **stale**, because the follower can lag the commit index.
+- A **linearizable** read is served by the leader after it confirms it is still leader. One approach is **ReadIndex**: record the commit index, confirm leadership with a heartbeat round to a majority, wait until the state machine has applied that index, then answer. Another is a **leader lease**: the leader assumes no rival can be elected for a bounded time. That assumption depends on **bounded clock drift**, so a badly drifting clock can break it.
+
+**Split brain.** An old leader cut off from the others cannot commit, since it cannot reach a majority. The majority side elects a leader in a higher term, and anyone who sees that term rejects the old leader. The term acts like the fencing token from [Replication & sharding](/system-design/replication-sharding/): a stale holder is refused, not trusted.
+
+**Systems.** etcd and Consul use Raft. ZooKeeper uses its own protocol, ZAB. Chubby and Spanner use Paxos-family protocols (Spanner pairs Paxos with TrueTime).
+
+## Visual
+
+<Visualizer kind="raft" />
+
+The scenario has three nodes, S1, S2 and S3. All start as followers in term 1. S2's timeout fires first, so it becomes a candidate for term 2 and wins with votes from S1 and S3. A client sends x=1, which S2 appends at index 1. Then S3 crashes. S1 stores the entry, so 2 of 3 nodes have it, a majority, and S2 commits. When S3 restarts, it catches up from the leader.
+
+```text
+A replicated state machine
+ clients ──► LEADER log:  [1:x=1] [2:y=5] [3:x=2]     (index:command)
+                │  AppendEntries (prev index + term)
+        ┌───────┴────────┐
+        ▼                ▼
+ FOLLOWER A log:      FOLLOWER B log:
+ [1:x=1] [2:y=5]      [1:x=1]            ← B lags, and is caught up later
+        │
+ majority has index 2 → commit index = 2
+ every node applies committed entries in order:  state = { x: 1, y: 5 }
+```
+
+## Example
+
+A 5-node cluster with each node on its own rack. A majority is ⌊5/2⌋ + 1 = 3.
+
+| Failures | Nodes left | Majority of 3? | Result |
+|---|---|---|---|
+| 1 node | 4 | yes | Keeps working. If the leader died, an election picks another, usually within a few timeouts. |
+| 2 nodes | 3 | yes | Still works, since ⌊(5−1)/2⌋ = 2. Every commit now needs all 3 live nodes. |
+| 3 nodes | 2 | no | No leader can be elected and no write can commit. Reads from the survivors may be stale. |
+
+The cluster stalls rather than risk diverging histories, which is the CAP trade made on the consistent side.
+
+**Write latency.** Commit needs the leader to reach a majority and a durable disk write. Suppose, purely for illustration, a 1 ms round trip inside one site and a 2 ms disk sync (storage varies widely). Each follower acks after its own sync, so an ack takes about 1 + 2 = 3 ms; the leader's own 2 ms sync overlaps, and 2 follower acks are needed. If the nearest majority sat 40 ms away, expect about 40 + 2 = 42 ms.
+
+```python
+def can_elect(candidate_last, voter_last):
+    """Election restriction: each log is (last_term, length)."""
+    return candidate_last >= voter_last   # compare term first, then length
+
+def majority(n):
+    return n // 2 + 1
+
+def tolerated_failures(n):
+    return (n - 1) // 2
+
+assert can_elect((3, 2), (2, 9))          # newer last term wins despite being shorter
+assert not can_elect((2, 4), (2, 5))      # same term, shorter log: rejected
+assert [tolerated_failures(n) for n in (3, 4, 5)] == [1, 1, 2]
+```
+
+Tuples compare left to right: term first, then length.
+
+## Pitfalls
+
+- **Running 4 or 6 nodes.** A fourth node adds cost and a larger majority, but no extra tolerance. Fix: use odd sizes.
+- **Expecting more nodes to mean more write throughput.** Every write still goes through one leader and a majority. Fix: shard into several Raft groups or batch writes.
+- **Serving reads from any follower and calling them linearizable.** A follower may lag. Fix: use ReadIndex or a leader lease, accept stale reads where they are harmless, and remember leases rely on bounded clock drift.
+- **Elections that never settle.** Timeouts shorter than the network or disk delay cause constant elections. Fix: set the election timeout well above the heartbeat interval and measured latency.
+
+## Tips & tricks
+
+- Interview phrasing: "Consensus gives a replicated log. A majority commits, terms fence stale leaders, and the election restriction keeps committed entries from being lost."
+- Keep consensus groups small (3 or 5 nodes) and bulk data elsewhere.
+- Measure commit latency, leader changes per hour, follower lag in log entries, and disk sync time.

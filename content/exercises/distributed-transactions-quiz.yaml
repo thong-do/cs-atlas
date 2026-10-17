@@ -1,0 +1,56 @@
+slug: distributed-transactions-quiz
+type: quiz
+title: "Distributed transactions — quiz"
+lessons: [distributed-transactions]
+ladderOrder: 1
+questions:
+  - id: silent-coordinator
+    prompt: "A participant in a two-phase commit voted YES and then heard nothing from the coordinator for ten minutes. Its locks are blocking other work. What may it safely do?"
+    choices: ["Abort and release its locks, since a coordinator silent this long has evidently crashed before deciding", "Keep waiting or ask the coordinator for the outcome, since COMMIT may already be logged", "Commit, since every participant that reached the prepared state is certain to commit", "Poll the other participants and follow whichever outcome most of them choose"]
+    answer: 1
+    explanation: "After voting YES a participant cannot decide alone: the coordinator may have logged COMMIT and told others. Aborting on a timeout, committing on a guess, or taking a peer majority can each split the outcome."
+  - id: step-order
+    prompt: "A saga has four steps. A can be undone freely, B can be undone for a fee, C cannot be undone once done, and D is an idempotent notification that can be repeated safely. Which order is best?"
+    choices: ["C, A, B, D, so the riskiest step runs first and any failure shows up early", "D, A, B, C, so the user hears early and C is the pivot", "A, C, B, D, so C is the pivot after the free step but before the fee", "A, B, C, D, so C is the pivot, with only the repeatable D after it"]
+    answer: 3
+    explanation: "Compensatable steps come first, the irreversible step is the pivot as late as possible, and only repeatable steps follow it. Running C first, or before B, leaves a later failure with nothing to undo it, and notifying early announces work that may be cancelled."
+  - id: failing-undo
+    prompt: "A saga is compensating and the undo of step 3 times out repeatedly. What should the orchestrator do?"
+    choices: ["Mark the saga failed and move on, as the forward step already failed and the undo is best effort", "Retry the undo with a new key each time, so a stuck earlier attempt cannot block it", "Retry with the same key and backoff, escalating to a person if it still keeps failing", "Skip step 3's undo and continue compensating steps 2 and 1, retrying step 3 at the end"]
+    answer: 2
+    explanation: "A compensation must be safe to retry and must eventually succeed, so the orchestrator retries with its one key and escalates. A fresh key can apply the undo twice, dropping it leaves the saga half-done, and deferring it only delays the retry that is still needed."
+  - id: dirty-read
+    prompt: "In a saga, seat 14B is booked in step 1 and the payment in step 2 later fails, so the seat is released. Meanwhile a seat-map page showed 14B as taken. What explains this, and what is the standard mitigation?"
+    choices: ["Orchestration lets steps interleave, so switch the saga to choreography to restore ordering", "The outbox delayed the release event, so shorten the relay's polling interval", "Sagas expose intermediate states, so mark the seat pending until the saga finishes", "The local database ran below serializable isolation, so raise it in each service"]
+    answer: 2
+    explanation: "Each step commits and is visible at once, so a saga has no isolation across steps; a pending status tells readers the booking is provisional. Local isolation covers one step only, and the outbox and the choice of orchestration or choreography do not hide committed intermediate states."
+  - id: restart-with-decision
+    prompt: "A 2PC coordinator collects YES from both participants and writes COMMIT to its log. It crashes after telling the first participant to commit, before telling the second. What happens on restart?"
+    choices: ["It sends ABORT, because a participant may not have received COMMIT and presumed abort is the safe default", "It starts a new prepare round, since the old votes expired when the coordinator went down", "It waits for the second participant to time out and abort itself, then rolls back to match", "It re-sends COMMIT, because the logged decision is the commit point and one participant has committed"]
+    answer: 3
+    explanation: "The logged decision fixed the outcome; presumed abort applies only when no decision is logged. Aborting or re-voting would contradict the participant that already committed, and the second participant is prepared and cannot abort on its own."
+flashcards:
+  - id: tpc-two-phases
+    front: "What are the two phases of 2PC?"
+    back: "Prepare: each participant persists its work, keeps locks and votes. Decide: the coordinator logs COMMIT if all voted YES (else ABORT) and tells everyone."
+  - id: tpc-decision-point
+    front: "The 2PC decision point"
+    back: "The coordinator's durable log of COMMIT or ABORT. After it the outcome is fixed, and recovery re-sends the logged decision."
+  - id: tpc-blocking
+    front: "Why does 2PC block?"
+    back: "A participant that voted YES cannot decide alone. If the coordinator is down, it waits with its locks held, and other transactions queue behind them."
+  - id: presumed-abort
+    front: "Presumed abort"
+    back: "A common convention: a coordinator with no logged decision treats the transaction as aborted on recovery. Implementations vary."
+  - id: saga-compensation
+    front: "Saga compensation"
+    back: "A semantic undo of a committed local step, such as cancelling a booking. Not a rollback; it must be retry-safe and eventually succeed."
+  - id: saga-pivot
+    front: "Pivot transaction"
+    back: "The go/no-go step of a saga. Before it, steps can be compensated; after it, steps are retriable and must eventually succeed."
+  - id: saga-isolation
+    front: "What do sagas lack?"
+    back: "Isolation (ACD without I): committed steps are visible before the saga ends. Mitigate with a pending status or semantic lock."
+  - id: orchestration-choreography
+    front: "Orchestration vs choreography"
+    back: "Orchestration: a central service directs each step. Choreography: services react to each other's events with no central controller."

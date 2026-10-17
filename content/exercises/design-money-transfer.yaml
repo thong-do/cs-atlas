@@ -1,0 +1,33 @@
+slug: design-money-transfer
+type: design-prompt
+title: "Design: moving money between two services"
+lessons: [distributed-transactions]
+ladderOrder: 2
+prompt: |
+  Design **money transfers** between accounts that live in two different services: the **Accounts service** and a **Partner Bank gateway**. Peak load is **1,000 transfers/s**.
+  **Money must never be created or lost.** The partner call sometimes **times out without telling you whether it succeeded**.
+
+  Choose **2PC or a saga, and say why**. Give the **steps and their compensations**, how you keep things **idempotent across retries**,
+  how you **hold funds while a transfer is in flight**, and how you **detect and repair mismatches**. Show the arithmetic.
+hint: "Ask what you can safely do after a timeout when you do not know the outcome, and which step cannot be undone once it succeeds."
+rubric:
+  - id: saga-choice
+    point: "Chooses a saga over 2PC, because the partner is an external system that will not take part in a prepare/commit protocol and a blocked coordinator would freeze locks at this rate."
+  - id: steps-compensations
+    point: "Lists the steps in order with a compensation for each step before the pivot, identifies the partner call as the pivot or go/no-go point, and gives the steps after it as retriable until they succeed."
+  - id: idempotency
+    point: "Uses one producer-assigned idempotency key per transfer and step, reused on every retry and sent to the partner, so a repeat has no extra effect; treats a timeout as unknown and retries or queries by key, never assuming failure."
+  - id: holds
+    point: "Places a hold on the source funds in the first local transaction so they cannot be spent twice, releases it on a definite failure, and converts it to a final debit only after the partner confirms."
+  - id: mismatch-repair
+    point: "Records every movement as balanced double-entry postings, and runs a reconciliation job that compares them with the partner's records and repairs differences with compensating entries or human review."
+reference: |
+  **Choice.** A saga. The partner is external and cannot join a prepare phase. With 2PC, locks would stay held during every partner delay. By Little's law, a 2 s partner call at 1,000 transfers/s keeps 1,000 × 2 = 2,000 transfers in flight.
+
+  **Steps.** (1) In one local transaction, Accounts moves the amount from available to **held** and writes a PENDING transfer plus an outbox row. Compensation: release the hold and mark the transfer FAILED. (2) Send the partner credit with idempotency key `transfer_id`. This is the **pivot**: once it succeeds, it cannot be undone. (3) After the partner confirms, Accounts turns the hold into a final debit and marks the transfer DONE. This step is retriable and must eventually succeed.
+
+  **Timeouts.** A timeout means unknown. Never release the hold on one. Retry with the same key or query the partner by key until it answers. If the partner definitely refused, run the compensation. Illustratively, if 0.5% of calls time out, that is 5 per second to resolve.
+
+  **Holds.** Available balance drops in step 1, so concurrent transfers cannot spend the same funds. The held amount is released on failure or consumed on success, so available + held is unchanged until the final debit.
+
+  **Ledger and mismatches.** Every change is two entries, a debit and a credit, summing to zero, so any imbalance is visible. A reconciliation job compares our transfers with the partner's report by `transfer_id`. A transfer PENDING beyond a threshold gets a status query. A real difference is repaired with a compensating entry, or sent to a person.

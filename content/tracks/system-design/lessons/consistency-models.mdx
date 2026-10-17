@@ -1,0 +1,104 @@
+---
+slug: consistency-models
+title: Consistency models
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [replication-sharding]
+summary: "A consistency model is a promise about what reads may return when data is copied: know the ladder from linearizable to eventual, and choose a rung per operation."
+---
+
+## Intuition
+
+Two offices each keep a copy of the same notice board, and a courier carries changes between them. A note is pinned in office one; what may a visitor to office two read? Three promises are possible. "Never out of date": office two phones office one before showing anything, and shows nothing if the line is down. "Never out of order": the board may be old, but a note never appears before the note it answers. "It will catch up": the board may be old and jumbled, but once the courier has delivered everything, both boards are identical.
+
+That is a **consistency model**: a contract about which values a read may return when data is replicated (see [Replication & sharding](/system-design/replication-sharding/) for replicas and lag).
+
+**The models, strongest first.**
+- **Linearizability.** Every operation appears to take effect at one instant between its start and its end, and that order respects real time: once a write has completed, every read that starts afterwards sees it. It gives the single-copy illusion. The price is coordination (usually a leader or a majority round trip), higher latency, and, during a partition, refusing requests on the side that cannot reach a majority.
+- **Sequential consistency.** All processes see one total order of operations, and each process's own operations appear in the order it issued them. That order need not match real time, so a read may return an old value after another client's write has finished.
+- **Causal consistency.** Operations related by **happens-before** (a reply follows the message it answers; a write follows the reads that informed it) are seen in that order by everyone. Concurrent writes may be seen in different orders by different readers. It needs no global coordination, so it can stay available during a partition as long as each client keeps using a replica it can reach, which is why it is often the sweet spot.
+- **Eventual consistency.** If writes stop, replicas converge. Until then nothing is promised: reads can be stale, reordered, or go backwards. If the store resolves concurrent writes with last-writer-wins, one of the two edits is lost.
+
+**Not serializability.** Linearizability is a recency guarantee for single objects. Serializability is transaction isolation: the outcome equals some serial order of whole transactions, with no real-time requirement. A database can offer either, both, or neither.
+
+**Session guarantees** (Terry et al., the Bayou system) are four promises to one client session, cheaper than global models:
+- **Read-your-writes:** a read sees the session's own earlier writes.
+- **Monotonic reads:** once a session has seen a value, later reads never show an older state.
+- **Monotonic writes:** a session's writes are applied in the order it issued them.
+- **Writes-follow-reads:** a write is ordered after the writes the session has already read, so a reply cannot be applied before its message.
+
+Together, for clients that use all four, they give causal consistency (Brzeziński et al.). Fixes for lag are sticky routing, reading from the leader for a short window, or a version token (below).
+
+## Visual
+
+```text
+Linearizable: once the write completes, every later read sees it
+  A:  |── write x=1 ──|
+  B:                      |─ read x (replica 2) ─► 1   (replica 2 must already have it, or wait)
+
+Eventual: replica 2 has not received the write yet
+  A:  |── write x=1 ──|   (acked by replica 1)
+  B:                      |─ read (replica 2) ─► 0   (stale: allowed)
+  B:                                      |─ read (replica 1) ─► 1
+  B:                                              |─ read (replica 2) ─► 0   (monotonic reads broken)
+
+Causal: a reply must not be seen before its message
+  Ana:  posts m1 "Lunch?"          ─► replica 1, then replica 2
+  Raj:  reads m1, posts m2 "Yes!"  ─► replica 1   (m2 depends on m1)
+  Lia reads replica 2, which has m2 but not m1:
+     eventual → may show "Yes!" alone (allowed)
+     causal   → replica 2 holds m2 back until m1 arrives
+  Unrelated posts m3 and m4 are concurrent: readers may see them in either order.
+```
+
+## Example
+
+A social app, one operation at a time. Pick the weakest model that keeps the operation correct, then the mechanism.
+
+| Operation | Needs | How |
+|---|---|---|
+| Claim username `ana` | Linearizable | One conditional write (insert if absent) on a leader with synchronous or consensus replication (or a consensus-backed store); async failover could lose it. Two replicas answering independently could each accept it. |
+| Like count | Eventual | Increment asynchronously and show an approximate number; seconds of staleness hurt no one. |
+| Comment thread | Causal | A reply stores its parent id, and a replica hides it until the parent is present. |
+| Edit my own bio | Read-your-writes | Version token or leader read for that user. |
+
+**Version tokens.** A write returns the version it was applied at. The client sends it with later reads, and a replica serves the read only if it has applied at least that version.
+
+```python
+class Replica:
+    def __init__(self):
+        self.applied = 0          # highest version applied here
+        self.data = {}
+
+    def read(self, key, min_version=0):
+        if self.applied < min_version:
+            return None           # lagging: caller falls back
+        return self.data.get(key), self.applied   # (value, version)
+
+def read_profile(user_id, token, replica, leader):
+    key = ("profile", user_id)
+    result = replica.read(key, min_version=token)
+    return result if result is not None else leader.read(key)  # same (value, version) shape
+```
+
+If the client raises its token to the version returned by each read and sends that, the same token gives monotonic reads across replicas.
+
+**Tunable quorums.** With N replicas, a write waits for W acks and a read asks R replicas. Strict quorums with **W + R > N** make every read set overlap every acknowledged write set: for N = 3, W = 2, R = 2 the overlap is 2 + 2 − 3 = 1 replica. W = 1, R = 1 is fast but has no overlap. Overlap alone is not linearizability, and **sloppy quorums** (writes accepted on stand-in nodes) break the overlap.
+
+**CAP, stated precisely.** The theorem (Gilbert and Lynch proved Brewer's conjecture) is about behaviour **during a network partition**. Take C to mean linearizability and A to mean that every non-failed node answers every request. When nodes are split into groups that cannot talk, a service cannot give both: the minority side either refuses (consistent, not available) or answers with possibly stale data (available, not linearizable). "Pick 2 of 3" misleads, because partitions are not optional on a network you do not control. With no partition you can have both. Real databases are configurable and rarely cleanly "CP" or "AP"; describe what a given operation does under a given setting.
+
+**PACELC** (Abadi): if there is a **P**artition, choose **A**vailability or **C**onsistency; **E**lse, choose **L**atency or **C**onsistency. Even when healthy, a linearizable read pays for a trip to the leader or a majority, while a nearby replica answers sooner but may be stale.
+
+## Pitfalls
+
+- **Treating "eventual" as "soon".** It promises convergence, not a time bound or an order. Fix: measure replication lag and design the flow to tolerate it, or add a session guarantee.
+- **Linearizability everywhere.** Every read pays coordination and stalls during partitions. Fix: decide per operation and reserve it for invariants such as uniqueness.
+- **Conflating linearizability with serializability.** A serializable database may still serve stale reads; a linearizable register says nothing about multi-object transactions. Fix: name the property you need.
+- **Trusting last-writer-wins.** It drops one concurrent edit, and clock skew can pick the wrong winner. Fix: don't use it where losing an edit matters.
+- **Sticky sessions as a guarantee.** The replica fails and the session may land on an older one. Fix: carry a version token.
+
+## Tips & tricks
+
+- Ask per operation: what is the worst result of a stale read, what must never be reordered, and what happens during a partition?
+- Interview phrasing: "Usernames need linearizability, so a conditional write on the leader. Likes are eventual. Comments are causal with a parent check. Profile edits get read-your-writes through a version token."
+- Measure replication lag per replica, leader fallbacks of version-token reads, and p99 latency of linearizable versus local reads.

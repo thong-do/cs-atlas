@@ -1,0 +1,43 @@
+slug: design-config-service
+type: design-prompt
+title: "Design: a config and lock service"
+lessons: [consensus-raft]
+ladderOrder: 2
+prompt: |
+  Design a **config and lock service** for **2,000 microservices**. It sees **500 writes/s** and **50,000 reads/s**, and it must **survive the loss of one of 3 availability zones**.
+  Services use it for **distributed locks** to elect a leader among their own replicas, and they want to be **told when config changes**.
+
+  Describe the **cluster size and its placement across zones**, the **read path** (stale versus linearizable, and when each is fine),
+  the **lock design with leases and fencing tokens**, **change notification**, and **how to scale reads without slowing writes**.
+  Show the arithmetic.
+hint: "Work out how many nodes must stay alive for a majority, then ask which reads truly need the leader and which can come from any replica."
+rubric:
+  - id: size-placement
+    point: "Runs a Raft-style cluster of 5 voting nodes spread 2/2/1 across the zones, and shows that losing a 2-node zone leaves 3 of 5, which is still a majority (a 3-node cluster would tolerate only one node, and one per zone also works for losing a zone)."
+  - id: read-path
+    point: "Says writes go through the leader and wait for a majority, serves most config reads from followers as possibly stale, and uses a linearizable read (ReadIndex or a leader lease) only where staleness is unsafe, such as checking a lock owner."
+  - id: locks
+    point: "Builds locks as expiring leases tied to a session, kept alive by heartbeats, and issues a fencing token (a monotonically increasing revision or log index) that the protected resource checks and rejects when stale."
+  - id: watches
+    point: "Offers watches that stream changes from a revision, so a reconnecting client resumes without missing events, with a fallback to re-read the current state if the history has been compacted."
+  - id: scale-reads
+    point: "Scales reads with followers, non-voting replicas or client-side caches kept fresh by watches, so read load never enters the write path or the commit quorum."
+reference: |
+  **Size and placement.** 5 voters placed 2/2/1 over the three zones. A majority is ⌊5/2⌋ + 1 = 3, and the cluster tolerates
+  ⌊(5−1)/2⌋ = 2 failures. Losing a 2-node zone leaves 2 + 1 = 3 nodes, still a majority; a new leader is elected if needed. Three nodes, one per zone, also survive a zone loss, but tolerate no further failure.
+
+  **Writes and reads.** 500 writes/s go through the leader, and each commit waits for 2 follower acks (3 of 5). Most config reads
+  come from followers and may be slightly stale, fine for rarely changing settings. A linearizable read
+  (ReadIndex, or a leader lease assuming bounded clock drift) is for rare cases such as checking who holds a lock.
+
+  **Scaling reads.** 50,000 reads/s over 4 followers is 12,500 each; after losing a 2-node zone, 2 followers carry 25,000 each. For more capacity add
+  non-voting replicas, which do not join the majority. Services also cache configs, refreshed by watch.
+
+  **Locks.** A lock is a key created only if absent, attached to a session lease with a TTL, for example 10 s,
+  renewed about every 3.3 s (TTL/3) by heartbeats. If a holder stalls, the lease expires and another service acquires it. Each acquisition
+  returns a fencing token, the commit revision of that key, which is higher than every earlier one. The protected resource
+  rejects any request carrying a token below the highest it has seen. Assuming one holder per service, 2,000 holders renewing every 3.3 s is
+  about 600/s; if each renewal is logged, writes reach about 1,100/s.
+
+  **Watches.** A client watches a key prefix from a revision; the server streams events in order, so reconnecting clients
+  resume from their last revision. If that history was compacted, the client re-reads the current state and watches again.

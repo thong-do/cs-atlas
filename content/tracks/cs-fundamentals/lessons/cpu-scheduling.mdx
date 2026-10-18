@@ -31,7 +31,7 @@ A scheduler is a receptionist at a clinic with one doctor. Patients arrive, wait
 
 **Load average.** The three numbers from `uptime` are averages over 1, 5 and 15 minutes. On Linux they count threads that are runnable *plus* threads in uninterruptible sleep, usually waiting on disk or network storage; other Unix systems count only runnable ones.
 
-**Priority inversion.** If a low-priority thread holds a lock that a high-priority thread needs, the high-priority one must wait. If a medium-priority thread then keeps the core busy, the low one never runs to release the lock, so the high-priority thread is effectively blocked behind the medium one. Priority inheritance (the lock holder temporarily borrows the waiter's priority) is one fix, as covered by the coming "Concurrency primitives" lesson.
+**Priority inversion.** If a low-priority thread holds a lock that a high-priority thread needs, the high-priority one must wait. If a medium-priority thread then keeps the core busy, the low one never runs to release the lock, so the high-priority thread is effectively blocked behind the medium one. Priority inheritance (the lock holder temporarily borrows the waiter's priority) is one fix (see [Concurrency primitives](/cs-fundamentals/concurrency-primitives/)).
 
 ## Visual
 

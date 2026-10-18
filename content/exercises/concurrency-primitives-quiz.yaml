@@ -1,0 +1,56 @@
+slug: concurrency-primitives-quiz
+type: quiz
+title: "Concurrency primitives — quiz"
+lessons: [concurrency-primitives]
+ladderOrder: 1
+questions:
+  - id: one-sided-lock
+    prompt: "In a language with a formal memory model, a writer thread replaces `settings` while holding `lock`. For speed, a reader thread reads `settings` without taking any lock, and now and then sees a stale view. What fixes it?"
+    choices: ["Make the writer release the lock sooner after the update, so the new value reaches memory before any reader looks at it", "Make the reader pause briefly before each read, so the writer's stores have time to reach main memory", "Make the reader take the same lock around its read, so the writer's release and its acquire order the two", "Make the writer take a second, separate lock around its stores, so that they are forced out of the CPU's caches"]
+    answer: 2
+    explanation: "Visibility comes from a release and acquire pair on the same lock; without the reader's acquire, nothing orders the reader's read after the writer's stores. Releasing earlier or pausing only change timing, which guarantees nothing, and a second lock that the reader never takes pairs with nothing."
+  - id: single-core-spinner
+    prompt: "On a machine with a single core, thread A spins on a lock held by thread B, which was preempted inside its critical section. Why is spinning a poor choice here?"
+    choices: ["B cannot run to release the lock while A occupies the only core, so A burns its whole time slice making no progress", "Each failed attempt on the lock traps into the kernel, so A spends its slice on system calls instead of retrying quickly", "A's repeated atomic operations keep the lock's cache line locked, which stops B from storing the release when it does run", "Atomic read-modify-write instructions are only guaranteed correct when a second core is present to arbitrate them"]
+    answer: 0
+    explanation: "Only one thread executes at a time, so A's loop delays the one thread that can end the wait. A spinner's atomic attempts run in user mode without a trap, a lock instruction does not keep the line away from a later thread on the same core, and atomics are correct on a single core."
+  - id: three-lock-freeze
+    prompt: "A service guards its cache, index and journal with three locks. Different code paths take different subsets in different orders, and the service sometimes freezes with CPU near zero. Which change reliably removes the freeze?"
+    choices: ["Make the three locks reentrant, so a thread can re-take a lock whenever it finds itself waiting for it", "Give the locks a fixed rank and have every path take any subset in rank order, so no cycle of waits can form", "Make the locks fair so they are granted in arrival order, which stops any thread waiting indefinitely behind another", "Have each path take its locks longest-expected-hold first, so that long-held locks are never requested late"]
+    answer: 1
+    explanation: "One agreed order across all paths breaks circular wait. Reentrancy only helps a thread that already holds the lock, not two threads holding each other's; fairness orders waiters but a cycle still waits forever; and per-path orderings can still disagree with each other."
+  - id: waiting-writer
+    prompt: "A route table sits behind a read-write lock that admits any new reader while other readers hold it. Forty lookup threads keep it busy, and an update thread has waited minutes for the write lock while CPU stays high. What fixes it?"
+    choices: ["Raise the OS priority of the update thread, so the scheduler runs it ahead of the many lookup threads on every core", "Replace the lock with a spinlock, so the update thread polls for a moment with no readers inside far more often", "Add more cores, so the lookups finish sooner and the reader count falls to zero on its own at some point", "Switch to a policy that admits no new readers once a writer waits, so current readers drain and the writer gets in"]
+    answer: 3
+    explanation: "Under reader preference the reader count may never reach zero, so the writer is starved until the lock stops admitting new readers. Thread priority does not change the lock's admission rule, polling faster still finds readers inside, and more cores simply serve more lookups."
+  - id: half-updated-mean
+    prompt: "A stats object keeps `count` and `total` as two atomic integers. Each request adds to `total`, then to `count`. A reporter computes `total / count` and sometimes prints a mean that is too high. What fixes it?"
+    choices: ["Update and read both fields in one mutex-protected section, since the pair can be seen half-updated", "Use the strongest memory ordering on both atomic adds, so the reporter sees the two updates take effect together", "Widen both counters to 64 bits, so neither one can overflow between the reporter's two separate reads", "Have the reporter re-read until two successive reads of `count` agree, which shows no update was in progress"]
+    answer: 0
+    explanation: "A single lock makes the pair change as one unit. Stronger ordering constrains how the two operations are observed relative to other memory but still leaves two separate operations, width has no bearing on a torn pair, and an unchanged count says nothing about `total`, which may have been added to just before."
+flashcards:
+  - id: race-condition
+    front: "Race condition"
+    back: "A bug where the result depends on how threads interleave. The code touching shared state is the critical section; a mutex lets one thread in at a time."
+  - id: spin-vs-block
+    front: "Spinning versus blocking waiters"
+    back: "Spinning loops on an atomic and burns a core; blocking sleeps in the kernel and pays a context switch. Spinning tends to win only for very short waits (varies by hardware and OS)."
+  - id: condition-wait-loop
+    front: "How to use a condition variable"
+    back: "Hold the mutex, then `while not condition: wait()`. wait() releases the mutex while asleep. Spurious wakeups are allowed, so always re-check the condition."
+  - id: counting-semaphore
+    front: "Counting semaphore"
+    back: "A counter of permits: acquire takes one and blocks at zero, release returns one. Starting at N bounds concurrency to N threads rather than enforcing exclusion."
+  - id: compare-and-swap
+    front: "Compare-and-swap (CAS)"
+    back: "Atomically writes a new value only if the word still equals the expected one, and reports success. Callers loop: read, compute, try CAS, retry on failure."
+  - id: coffman-conditions
+    front: "The four Coffman conditions"
+    back: "Deadlock needs all of: mutual exclusion, hold and wait, no preemption, circular wait. Break any one and deadlock cannot occur."
+  - id: lock-ordering
+    front: "Lock ordering rule"
+    back: "Give every lock a rank and always acquire in rank order, so no cycle of waits can form. This breaks circular wait without extra runtime cost."
+  - id: livelock-starvation
+    front: "Livelock versus starvation"
+    back: "Livelock: threads keep reacting to each other, busy but making no progress; backoff helps. Starvation: one thread is perpetually passed over while others proceed."

@@ -139,6 +139,7 @@ describe('content inventory', () => {
       'processes-threads': { prerequisites: ['data-in-memory'], exercises: ['processes-threads-quiz', 'diagnose-thread-pool-starvation'] },
       'cpu-scheduling': { prerequisites: ['processes-threads'], exercises: ['cpu-scheduling-quiz', 'diagnose-cpu-throttling'] },
       'virtual-memory': { prerequisites: ['processes-threads'], exercises: ['virtual-memory-quiz', 'diagnose-prefork-memory'] },
+      'concurrency-primitives': { prerequisites: ['processes-threads'], exercises: ['concurrency-primitives-quiz', 'diagnose-service-hang'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
     expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)

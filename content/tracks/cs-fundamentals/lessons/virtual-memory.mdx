@@ -17,7 +17,7 @@ Virtual memory is a hotel with room numbers. Every guest is told "you are in roo
 
 **Page tables.** The **page table** maps pages to frames, with a *present* flag per entry. A flat table for a 48-bit address space would need 2^36 entries (48 minus 12 offset bits), which at 8 bytes each is 512 GiB per process. So tables are **multi-level**: a tree whose branches exist only for regions actually in use. x86-64 typically uses 4 levels for 48-bit addresses (9 bits per level, tables of 512 entries × 8 bytes = 4 KiB), and newer CPUs can use 5 levels for 57-bit addresses. A **walk** costs several memory reads.
 
-**The TLB.** To avoid walking on every access, the CPU keeps a small cache of recent translations, the **TLB** (translation lookaside buffer). A hit costs roughly nothing extra; a miss pays for the walk Sizes and timings vary by CPU.
+**The TLB.** To avoid walking on every access, the CPU keeps a small cache of recent translations, the **TLB** (translation lookaside buffer). A hit costs roughly nothing extra; a miss pays for the walk. Sizes and timings vary by CPU.
 
 **Page faults and demand paging.** Memory is allocated lazily (**demand paging**): a new mapping has no frames until first touched. Touching a page with no usable entry raises a **page fault** and the OS takes over. A **minor** fault is resolved without disk I/O, for example the first touch of fresh memory (the OS supplies a zeroed frame), or a page that is already in RAM and only needs mapping. A **major** fault must read from storage, and is far slower (varies by device).
 
@@ -95,7 +95,7 @@ with open("events.log", "rb") as f:
 - **Summing RSS across processes.** Shared pages count in each process, so the total can exceed physical RAM. Fix: compare against the system's used-memory figure.
 - **Ignoring major faults.** A mapped file larger than RAM, read at random, spends its time waiting on storage. Fix: watch major faults and swap-in rates, and keep the hot set smaller than RAM.
 - **Assuming `malloc` success means memory exists.** With overcommit, the call can succeed and trouble arrives later, as an OOM kill. Fix: set container and cgroup limits deliberately, and test at the limit.
-- **Treating a first-touch spike as slow code.** Touching a freshly allocated 1 GB buffer for the first time faults in about 262,144 pages (1 GiB ÷ 4 KiB, if pages are 4 KiB), which takes real time. Fix: reuse buffers, or touch them at startup if latency matters.
+- **Treating a first-touch spike as slow code.** Touching a freshly allocated 1 GiB buffer for the first time faults in about 262,144 pages (1 GiB ÷ 4 KiB, if pages are 4 KiB), which takes real time. Fix: reuse buffers, or touch them at startup if latency matters.
 
 ## Tips & tricks
 

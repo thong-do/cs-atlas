@@ -1,0 +1,104 @@
+---
+slug: virtual-memory
+title: Virtual memory
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [processes-threads]
+summary: "Learn how the OS and CPU turn each process's private addresses into physical memory, what page tables, the TLB and page faults cost, and how to read VIRT against RES."
+---
+
+## Intuition
+
+Virtual memory is a hotel with room numbers. Every guest is told "you are in room 12", and every guest's room 12 is a different physical room. The front desk keeps the mapping, and a room needs no key until a guest first walks in.
+
+**Address spaces.** Each process sees its own **virtual addresses**, so the same address in two processes usually names different bytes (see [Processes & threads](/cs-fundamentals/processes-threads/)). The CPU's memory-management unit translates every access using tables the OS maintains.
+
+**Pages and frames.** Memory is cut into fixed blocks. A **page** is a block of virtual memory; a **frame** is a block of physical RAM of the same size. A common page size is 4 KiB (4,096 bytes); platforms vary. A virtual address splits into a **page number** and an **offset** within the page. Only the page number is translated; the offset passes through.
+
+**Page tables.** The **page table** maps pages to frames, with a *present* flag per entry. A flat table for a 48-bit address space would need 2^36 entries (48 minus 12 offset bits), which at 8 bytes each is 512 GiB per process. So tables are **multi-level**: a tree whose branches exist only for regions actually in use. x86-64 typically uses 4 levels for 48-bit addresses (9 bits per level, tables of 512 entries × 8 bytes = 4 KiB), and newer CPUs can use 5 levels for 57-bit addresses. A **walk** costs several memory reads.
+
+**The TLB.** To avoid walking on every access, the CPU keeps a small cache of recent translations, the **TLB** (translation lookaside buffer). A hit costs roughly nothing extra; a miss pays for the walk Sizes and timings vary by CPU.
+
+**Page faults and demand paging.** Memory is allocated lazily (**demand paging**): a new mapping has no frames until first touched. Touching a page with no usable entry raises a **page fault** and the OS takes over. A **minor** fault is resolved without disk I/O, for example the first touch of fresh memory (the OS supplies a zeroed frame), or a page that is already in RAM and only needs mapping. A **major** fault must read from storage, and is far slower (varies by device).
+
+**Copy-on-write.** After `fork()` the child gets a copy of the parent's page table, with both sides' entries marked read-only and pointing at the same frames. The first write to a page faults, and the kernel copies that page into a new frame for the writer. Untouched pages stay shared, so fork is cheap.
+
+**Memory-mapped files.** `mmap` maps a file into the address space. Pages arrive by faults as you touch them, and several processes mapping one file share the same cached frames; clean pages can be dropped and re-read later.
+
+**Virtual versus resident.** *Virtual size* (VIRT) counts address space reserved. *Resident size* (RES or RSS) counts pages currently in RAM. RSS counts a shared page in every process that maps it, so adding up RSS across processes can overstate real use.
+
+**Swapping, overcommit, OOM.** When RAM runs short, the OS can write rarely used pages to swap and fault them back later; if the active set no longer fits, the machine **thrashes**, mostly waiting on storage. Linux by default usually allows allocations beyond what is free (**overcommit**, configurable), betting that most reserved memory is never touched. If memory then truly runs out, the **OOM killer** picks a process to kill (policy varies by version). Containers can hit their own limit first.
+
+## Visual
+
+```text
+virtual address (4 KiB pages)
++----------------------+------------+
+|     page number      |   offset   |
++----------------------+------------+
+           |                  |
+           v                  |
+   TLB: page -> frame?        |
+     hit |        miss        |
+         |          v         |
+         |    page table walk |
+         |      present?      |
+         |      no |   yes    |
+         |  page fault: OS    |
+         |  loads page, sets  |
+         |  the entry         |
+         v          v         |
++----------------------+------------+
+|     frame number     |   offset   |   physical address
++----------------------+------------+
+```
+
+The scenario below uses 4,096-byte pages and a TLB holding two entries, with page 0 → frame 5 cached at the start. Address 291 hits the TLB and becomes 5 × 4,096 + 291 = 20,771. Address 4,100 (page 1, offset 4) misses, the page table says frame 2, and the result is 2 × 4,096 + 4 = 8,196. Address 8,200 (page 2, offset 8) misses and the page is not in memory, so a page fault loads it from disk into free frame 3, giving 12,296, and the full TLB evicts page 0.
+
+<Visualizer kind="page-table" />
+
+## Example
+
+**Translating by hand.** Take 4 KiB pages and this page table: page 2 → frame 9, page 5 → frame 3.
+
+- Virtual address 10,000. Page = 10,000 ÷ 4,096 = 2 (2 × 4,096 = 8,192), offset = 10,000 − 8,192 = 1,808. Frame 9, so physical = 9 × 4,096 + 1,808 = 36,864 + 1,808 = 38,672.
+- Virtual address 20,500. Page = 5 (5 × 4,096 = 20,480), offset = 20. Frame 3, so physical = 3 × 4,096 + 20 = 12,288 + 20 = 12,308.
+
+Because 4,096 = 2^12, the offset is just the low 12 bits, so hardware needs no division.
+
+**VIRT 2 GB, RES 200 MB.** A service shows 2 GB virtual and 200 MB resident. Is it leaking? An illustrative breakdown (made-up figures):
+
+| Region | Virtual | Resident |
+| --- | --- | --- |
+| Allocator arena reserved up front | 1,400 MB | 60 MB |
+| Memory-mapped data file | 512 MB | 100 MB |
+| 8 thread stacks (8 MB reserved each) | 64 MB | 4 MB |
+| Code, libraries, everything else | 72 MB | 36 MB |
+| **Total** | **2,048 MB** | **200 MB** |
+
+Only touched pages cost RAM, so the big virtual number says nothing about leaks. What matters is whether RES grows over time and nears the box's limit.
+
+```python
+import mmap
+
+with open("events.log", "rb") as f:
+    with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as m:
+        # nothing is read yet; each page is faulted in on first touch
+        first_line = m.readline()
+        m.seek(m.size() // 2)          # jump to the middle of a large file
+        middle = m.read(64)            # faults in only the pages needed
+```
+
+## Pitfalls
+
+- **Reading VIRT as memory use.** A large virtual size triggers a false alarm. Fix: look at resident size and its trend.
+- **Summing RSS across processes.** Shared pages count in each process, so the total can exceed physical RAM. Fix: compare against the system's used-memory figure.
+- **Ignoring major faults.** A mapped file larger than RAM, read at random, spends its time waiting on storage. Fix: watch major faults and swap-in rates, and keep the hot set smaller than RAM.
+- **Assuming `malloc` success means memory exists.** With overcommit, the call can succeed and trouble arrives later, as an OOM kill. Fix: set container and cgroup limits deliberately, and test at the limit.
+- **Treating a first-touch spike as slow code.** Touching a freshly allocated 1 GB buffer for the first time faults in about 262,144 pages (1 GiB ÷ 4 KiB, if pages are 4 KiB), which takes real time. Fix: reuse buffers, or touch them at startup if latency matters.
+
+## Tips & tricks
+
+- **Rules of thumb:** address translation is nearly free when it hits the TLB, and a page fault is normal, but a major one is slow. Keep the hot set compact.
+- **Interview phrasing:** "Each process gets a private address space. The MMU translates page numbers to frames through a multi-level page table cached in the TLB. Pages arrive on demand: a minor fault needs no disk, a major one reads from disk."
+- **What to measure:** resident versus virtual size over time (`top`, `ps`), minor and major fault counts (`/usr/bin/time -v`, `vmstat`), swap activity, and container memory limit against usage. Hedge: tools and field names vary by OS.

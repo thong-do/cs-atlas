@@ -19,15 +19,15 @@ A scheduler is a receptionist at a clinic with one doctor. Patients arrive, wait
 
 - **FIFO:** run in arrival order until done or blocked. A long job makes everything behind it wait (a *convoy*).
 - **Shortest-job-first:** minimises mean completion time, but needs to know the lengths in advance, and a stream of short jobs can starve a long one.
-- **Round-robin:** each ready thread gets one slice in turn, then goes to the back of the queue. Short jobs finish quickly and nobody waits for long.
+- **Round-robin:** each ready thread gets one slice in turn, then goes to the back of the queue.
 - **Priority:** the highest-priority ready thread runs. A steady supply of high-priority work can starve the rest.
 - **MLFQ (multi-level feedback queue):** several queues by priority. A thread that burns its whole slice drops a level; one that blocks early stays high. Periodically everything is moved back to the top so nothing starves. It learns which threads are interactive without being told.
 
-**Linux.** Linux's long-time default, CFS (the Completely Fair Scheduler), tracked a **virtual runtime** per thread, meaning CPU time consumed (weighted by priority), and always ran the thread with the least. Since Linux 6.6 the default fair scheduler is EEVDF (varies by kernel version and configuration). Both aim at fair sharing of CPU, so think "least served goes next" rather than fixed slices.
+**Linux.** Linux's long-time default, CFS (the Completely Fair Scheduler), tracked a **virtual runtime** per thread, meaning CPU time consumed (weighted by priority), and always ran the thread with the least. Since Linux 6.6 the default fair scheduler is EEVDF (varies by kernel version and configuration). Both aim at fair sharing; roughly, the least-served thread goes next. (EEVDF picks, among eligible threads, the earliest virtual deadline.)
 
-**CPU-bound versus I/O-bound.** A CPU-bound thread computes until its slice ends. An I/O-bound thread runs briefly, blocks, and sleeps. Because the I/O-bound thread has used little CPU lately, fair-share schedulers tend to run it promptly when it wakes. That is why an editor stays responsive while a build runs.
+**CPU-bound versus I/O-bound.** A CPU-bound thread computes until its slice ends. An I/O-bound thread runs briefly, blocks, and sleeps. Because the I/O-bound thread has used little CPU lately, fair-share schedulers tend to run it promptly when it wakes.
 
-**Context-switch overhead.** Each switch (see [Processes & threads](/cs-fundamentals/processes-threads/)) is pure overhead: no useful work happens during it, and the next thread often starts with cold caches. 
+**Context-switch overhead.** Each switch (see [Processes & threads](/cs-fundamentals/processes-threads/)) is pure overhead: no useful work happens during it, and the next thread often starts with cold caches. Direct cost is often a few microseconds, varying widely by hardware and OS.
 
 **Load average.** The three numbers from `uptime` are averages over 1, 5 and 15 minutes. On Linux they count threads that are runnable *plus* threads in uninterruptible sleep, usually waiting on disk or network storage; other Unix systems count only runnable ones.
 
@@ -73,22 +73,22 @@ t:   0    5    10   15   20   25   30   35   40   45
 
 Step by step: A runs 0 to 5 (25 left), B 5 to 10 (5 left), C 10 to 15 (done, **15**). A runs 15 to 20 (20 left), B 20 to 25 (done, **25**). A has the core alone for the remaining 20 ms, 25 to 45 (done, **45**). Mean = (15 + 25 + 45) / 3 = 85 / 3 = **28.3 ms**.
 
-The core never idles, so the last job ends at 30 + 10 + 5 = 45 ms under every policy; only the order decides who waits. Round-robin sits between the two: it needs no job lengths, yet short jobs escape early. The price is the switches. With 0.05 ms per switch and the 5 ms slice, overhead is 0.05 / 5.05, about 1%; with a 0.5 ms slice it would be 0.05 / 0.55, about 9%.
+The core never idles, so the last job ends at 30 + 10 + 5 = 45 ms under every policy; only the order decides who waits. Round-robin needs no job lengths, yet short jobs escape early. The price is the switches. Assume 0.05 ms per switch for round numbers (real costs vary). With the 5 ms slice, overhead is 0.05 / 5.05, about 1%; with a 0.5 ms slice it would be 0.05 / 0.55, about 9%.
 
-**Why average CPU can mislead.** A service runs on 2 cores and receives a burst of 8 requests every 200 ms, each needing 20 ms of CPU. Work per burst: 8 × 20 = 160 ms of CPU. Capacity per 200 ms: 2 × 200 = 400 core-ms. Utilisation: 160 / 400 = **40%**. But the burst arrives together: two requests run at once, finishing at 20, 20, 40, 40, 60, 60, 80 and 80 ms. A request that takes 20 ms alone can take up to 80 ms, and the run queue length (8 at its peak) is the signal, not the utilisation average.
+**Why average CPU can mislead.** A service runs on 2 cores and receives a burst of 6 requests every 200 ms, each needing 20 ms of CPU. Work per burst: 6 × 20 = 120 ms of CPU. Capacity per 200 ms: 2 × 200 = 400 core-ms. Utilisation: 120 / 400 = **30%**. But the burst arrives together: two requests run at once, finishing at 20, 20, 40, 40, 60 and 60 ms. A request that takes 20 ms alone can take up to 60 ms, and the run queue length (6 at its peak) is the signal, not the utilisation average.
 
 ```python
 # queueing delay when a burst of n equal jobs hits c cores (FIFO)
 def finish_times(n, c, job_ms):
     return [(i // c + 1) * job_ms for i in range(n)]
 
-print(finish_times(8, 2, 20))   # [20, 20, 40, 40, 60, 60, 80, 80]
+print(finish_times(6, 2, 20))   # [20, 20, 40, 40, 60, 60]
 ```
 
 ## Pitfalls
 
-- **Judging capacity by average CPU.** A service at 40% mean can still queue every burst. Fix: watch run-queue length, request latency percentiles and peak-interval utilisation, not only the mean.
-- **Reading load average as CPU use.** On Linux, threads stuck on slow storage inflate it while cores sit idle. Fix: compare load with core count and utilisation, then look at what the blocked threads wait on.
+- **Judging capacity by average CPU.** A service at 30% mean can still queue every burst. Fix: watch run-queue length, request latency percentiles and peak-interval utilisation, not only the mean.
+- **Reading load average as CPU use.** Load counts more than threads wanting a core, so it can disagree with utilisation. Fix: compare load with core count and utilisation, then check what the non-running threads wait on.
 - **Using far more runnable threads than cores for CPU-bound work.** Each extra thread adds switches and cold caches without adding compute. Fix: size CPU-bound pools near the core count.
 - **Mixing long and short jobs in one FIFO queue.** Short requests wait behind long ones. Fix: split long jobs, or give them their own pool.
 - **Tiny time slices to "feel faster".** Very short slices lift overhead and can lower throughput. Fix: leave OS defaults unless profiling shows a problem.

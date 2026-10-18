@@ -8,7 +8,7 @@ prompt: |
   A service runs in a container with a CPU limit of **1 CPU**, enforced as a **100 ms quota per 100 ms period**. The host has
   many idle cores. Each request fans out to **4 threads** that each burn **25 ms** of CPU, and requests arrive at about **4 per second**.
   Average usage reads **40%** of the limit and the median latency is about **25 ms**, yet in bursts **p99 jumps to about
-  100 ms or more**.
+  100 ms**.
 
   Explain the cause, including why the average does not show it. Say how you would confirm it with a counter or a metric.
   Propose fixes, hedged by platform.
@@ -17,32 +17,23 @@ rubric:
   - id: mechanism
     point: "Names quota throttling: once the CPU time used in a period reaches the quota, the cgroup's threads are not scheduled until the next period starts, even though the host has idle cores."
   - id: arithmetic
-    point: "Shows the arithmetic: 4 threads × 25 ms = 100 ms of CPU, which equals the whole quota and is consumed in about 25 ms of wall time, leaving roughly 75 ms of the period with no CPU; a second request in the same period waits for the next period, so about 100 ms or more."
+    point: "Shows the arithmetic: 4 threads × 25 ms = 100 ms of CPU, which equals the whole quota and is consumed in about 25 ms of wall time, leaving roughly 75 ms of the period with no CPU; a second request in the same period waits for the next period, so its latency is up to about 100 ms depending on where it lands (about 110 ms when two requests overlap)."
   - id: average-hides
-    point: "Explains why the average is misleading: 4 requests/s × 100 ms = 400 ms per second = 40% of the limit, but the use arrives in spikes; with about 0.4 arrivals per period, roughly 6% of periods see two or more, and those requests are the tail."
+    point: "Explains why the average is misleading: 4 requests/s × 100 ms = 400 ms per second = 40% of the limit, but the use arrives in spikes; with 0.4 arrivals per period, about 6% of periods see two or more, and the second-or-later requests are about 18% of all requests, enough to own p99."
   - id: confirm
-    point: "Confirms with the cgroup's throttling counters (the throttled-periods count and throttled time in cpu.stat, or the equivalent container metric), checking that the counter rises when p99 spikes; hedged for cgroup v1 versus v2."
+    point: "Confirms with the cgroup's throttling counters in cpu.stat (nr_throttled against nr_periods, plus throttled time; field names differ between cgroup v1 and v2), checking that they rise when p99 spikes."
   - id: fixes
-    point: "Names fixes with trade-offs: raise the limit (costs more reserved CPU), reduce the thread count per request so it spreads over the period, or remove the hard limit and rely on requests/shares, hedged by platform and noisy-neighbour risk."
+    point: "Names fixes with trade-offs: raise the limit (more reserved CPU); fewer threads per request (smooths bursts but raises the median, adds no capacity); or remove the hard limit and rely on requests/shares, hedged by platform and noisy-neighbour risk."
 reference: |
-  **Cause.** A 1-CPU limit as a 100 ms quota per 100 ms period is a budget of CPU-milliseconds. Once the threads in the group have used 100 ms of CPU in a period, none of them is scheduled until the next period starts, even though
-  other cores are idle. That is throttling.
+  **Cause.** A 1-CPU limit as a 100 ms quota per 100 ms period is a budget of CPU-milliseconds. Once the group has used 100 ms of CPU in a period, none of its threads runs until the next period, even with idle cores.
 
-  **Arithmetic.** One request burns 4 × 25 = 100 ms of CPU, the entire quota. Four threads on four cores finish in
-  25 ms of wall time, leaving about 75 ms with nothing. A second request that arrives in the same period
-  has no quota left, so it waits for the next period and then runs 25 ms. Its latency is therefore about 100 ms or more,
-  against 25 ms.
+  **Arithmetic.** One request burns 4 × 25 = 100 ms of CPU, the whole quota, in 25 ms of wall time, leaving about 75 ms idle. A second request arriving at offset t in the same period finds no quota, waits for the boundary, then runs 25 ms: about 125 − t ms, so up to about 100 ms depending on where it lands. If two overlap, 8 threads burn the quota in 12.5 ms, and both finish near 112 ms.
 
-  **Why the average hides it.** 4 requests/s × 100 ms = 400 ms of CPU per second, which is 40% of the limit. But that CPU arrives
-  in spikes. At 4 per second there are 0.4 arrivals per 100 ms period on average, and
-  P(2 or more) = 1 − e^−0.4 × (1 + 0.4) ≈ 0.062, so about 6% of periods hold a second request that waits. The median stays
-  near 25 ms.
+  **Why the average hides it.** 4 requests/s × 100 ms = 400 ms of CPU per second, 40% of the limit. At 0.4 arrivals per period, P(2 or more) = 1 − e^−0.4 × (1 + 0.4) ≈ 0.062, so about 6% of periods hold a waiting request. Requests that are second or later: 0.4 − (1 − e^−0.4) = 0.4 − 0.330 = 0.070 per period, and 0.070 ÷ 0.4 ≈ 18%, roughly 1 in 6 waits, so p99 sits near the worst case.
 
-  **Confirm.** Read the group's throttling counters (`nr_throttled` and the throttled time in `cpu.stat` on cgroup v2; names differ in v1 and in
-  platform metrics) and check that they rise together with p99.
+  **Confirm.** Read `nr_throttled` and `nr_periods` in the group's `cpu.stat` (time field: `throttled_time` ns on v1, `throttled_usec` on v2); a rising nr_throttled ÷ nr_periods tracking p99 confirms it.
 
   **Fixes.**
-  - Raise the limit: simple, but reserves more CPU.
-  - Use fewer threads per request: the CPU is spread across more wall time and stays within the quota.
-  - Drop the hard limit and set only a CPU request or shares (platform dependent): bursts can use idle cores, but neighbours
-    can be affected.
+  - Raise the limit: simple, costs CPU.
+  - Fewer threads per request: 2 threads take 50 ms, 1 thread 100 ms, so the median rises. It smooths bursts, adds no capacity: two requests per period still need 200 ms against 100.
+  - Drop the hard limit, keep a CPU request or shares (platform dependent): bursts use idle cores, but neighbours suffer.

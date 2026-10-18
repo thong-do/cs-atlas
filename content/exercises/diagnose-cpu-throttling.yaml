@@ -1,0 +1,48 @@
+slug: diagnose-cpu-throttling
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the 100 ms tail at 40% CPU"
+lessons: [cpu-scheduling]
+ladderOrder: 2
+prompt: |
+  A service runs in a container with a CPU limit of **1 CPU**, enforced as a **100 ms quota per 100 ms period**. The host has
+  many idle cores. Each request fans out to **4 threads** that each burn **25 ms** of CPU, and requests arrive at about **4 per second**.
+  Average usage reads **40%** of the limit and the median latency is about **25 ms**, yet in bursts **p99 jumps to about
+  100 ms or more**.
+
+  Explain the cause, including why the average does not show it. Say how you would confirm it with a counter or a metric.
+  Propose fixes, hedged by platform.
+hint: "Add up the CPU that one request burns, and ask how much wall-clock time it takes on 4 cores compared with the budget for the whole period."
+rubric:
+  - id: mechanism
+    point: "Names quota throttling: once the CPU time used in a period reaches the quota, the cgroup's threads are not scheduled until the next period starts, even though the host has idle cores."
+  - id: arithmetic
+    point: "Shows the arithmetic: 4 threads × 25 ms = 100 ms of CPU, which equals the whole quota and is consumed in about 25 ms of wall time, leaving roughly 75 ms of the period with no CPU; a second request in the same period waits for the next period, so about 100 ms or more."
+  - id: average-hides
+    point: "Explains why the average is misleading: 4 requests/s × 100 ms = 400 ms per second = 40% of the limit, but the use arrives in spikes; with about 0.4 arrivals per period, roughly 6% of periods see two or more, and those requests are the tail."
+  - id: confirm
+    point: "Confirms with the cgroup's throttling counters (the throttled-periods count and throttled time in cpu.stat, or the equivalent container metric), checking that the counter rises when p99 spikes; hedged for cgroup v1 versus v2."
+  - id: fixes
+    point: "Names fixes with trade-offs: raise the limit (costs more reserved CPU), reduce the thread count per request so it spreads over the period, or remove the hard limit and rely on requests/shares, hedged by platform and noisy-neighbour risk."
+reference: |
+  **Cause.** A 1-CPU limit as a 100 ms quota per 100 ms period is a budget of CPU-milliseconds. Once the threads in the group have used 100 ms of CPU in a period, none of them is scheduled until the next period starts, even though
+  other cores are idle. That is throttling.
+
+  **Arithmetic.** One request burns 4 × 25 = 100 ms of CPU, the entire quota. Four threads on four cores finish in
+  25 ms of wall time, leaving about 75 ms with nothing. A second request that arrives in the same period
+  has no quota left, so it waits for the next period and then runs 25 ms. Its latency is therefore about 100 ms or more,
+  against 25 ms.
+
+  **Why the average hides it.** 4 requests/s × 100 ms = 400 ms of CPU per second, which is 40% of the limit. But that CPU arrives
+  in spikes. At 4 per second there are 0.4 arrivals per 100 ms period on average, and
+  P(2 or more) = 1 − e^−0.4 × (1 + 0.4) ≈ 0.062, so about 6% of periods hold a second request that waits. The median stays
+  near 25 ms.
+
+  **Confirm.** Read the group's throttling counters (`nr_throttled` and the throttled time in `cpu.stat` on cgroup v2; names differ in v1 and in
+  platform metrics) and check that they rise together with p99.
+
+  **Fixes.**
+  - Raise the limit: simple, but reserves more CPU.
+  - Use fewer threads per request: the CPU is spread across more wall time and stays within the quota.
+  - Drop the hard limit and set only a CPU request or shares (platform dependent): bursts can use idle cores, but neighbours
+    can be affected.

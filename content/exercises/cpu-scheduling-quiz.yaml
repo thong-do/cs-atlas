@@ -1,0 +1,56 @@
+slug: cpu-scheduling-quiz
+type: quiz
+title: "CPU scheduling — quiz"
+lessons: [cpu-scheduling]
+ladderOrder: 1
+questions:
+  - id: mean-completion-order
+    prompt: "Three jobs of 20 ms, 6 ms and 2 ms arrive together on one core, in that order, and run to completion without preemption. What are the mean completion times under FIFO and under shortest-job-first?"
+    choices: ["FIFO 15.3 ms and shortest-first 3.3 ms, because shortest-first lets the 2 ms and 6 ms jobs start almost at once", "FIFO 24.7 ms and shortest-first 12.7 ms, because the two short jobs no longer wait behind the whole 20 ms job first", "FIFO 28 ms and shortest-first 28 ms, because the core is never idle so every job ends when the total work does", "FIFO 12.7 ms and shortest-first 24.7 ms, because the longest job gets the core first and the others share what remains"]
+    answer: 1
+    explanation: "FIFO finishes at 20, 26 and 28 ms (mean 24.7); shortest-first at 2, 8 and 28 ms (mean 12.7). The first choice gives mean waiting times, not completion times; the third treats the last job's finish as everyone's; the fourth swaps the two policies."
+  - id: high-load-low-cpu
+    prompt: "A 4-core Linux server shows a load average of about 11 while CPU utilisation sits near 12%. Which explanation fits those two numbers?"
+    choices: ["About eleven threads are ready on the run queue, but each runs in bursts too short for the utilisation sampler to register", "Threads asleep on timers and idle network connections count towards load on Linux, so a server with many open connections reads high", "Threads blocked on a mutex inside the process count towards load, and about eleven of them are waiting on a lock held by one slow thread", "Around eleven threads are in uninterruptible sleep, typically waiting on slow storage, which Linux counts alongside runnable threads"]
+    answer: 3
+    explanation: "Linux load includes threads in uninterruptible sleep, so storage stalls raise load while cores idle. Eleven truly ready threads would keep four cores busy, timer and socket sleeps are interruptible and not counted, and a thread waiting on a mutex also sleeps interruptibly."
+  - id: shrinking-the-slice
+    prompt: "Twenty CPU-bound threads share a core under round-robin with a 20 ms slice, and a switch costs about 0.1 ms. An engineer cuts the slice to 0.5 ms so each thread gets its turn sooner. What is the effect?"
+    choices: ["About one sixth of the time (0.1 of every 0.6 ms) now goes to switching, up from about 0.5%, for shorter waits", "Throughput is unchanged, because each thread still gets an equal share and only the order of turns differs", "Throughput rises, because shorter bursts keep each thread's data hot in the cache between turns", "Overhead stays near 0.5%, because the 0.1 ms cost is paid once per thread's whole job rather than once per slice"]
+    answer: 0
+    explanation: "Before, 0.1 / 20.1 is about 0.5% overhead; after, 0.1 / 0.6 is about 17%. Equal shares do not make switches free, a thread that waits through 19 other turns finds its cached data evicted rather than hot, and the cost is paid at every switch, not once per job."
+  - id: mlfq-gaming
+    prompt: "An MLFQ scheduler demotes a thread one queue each time it uses a full slice. A batch job begins writing one byte to a pipe just before each slice would end, so it blocks briefly and stays in the top queue, and interactive threads slow down. Which policy change closes the hole?"
+    choices: ["Shorten the top queue's slice, so the job has less time to run before it can trigger that tiny write", "Move any thread that blocks voluntarily to the bottom queue, since blocking shows it is waiting rather than computing", "Charge each thread's total CPU time at a level, and demote it once its allotment is spent even if it blocked", "Return every thread to the top queue more often, so that no thread is stuck low for long"]
+    answer: 2
+    explanation: "Counting cumulative CPU at a level means the job cannot reset its budget by blocking. A shorter slice only shortens the cycle and the job repeats the trick, demoting threads that block would punish interactive work, and more frequent promotion hands the job even more top-queue time."
+  - id: burst-wave-latency
+    prompt: "On a 4-core server, 16 requests arrive together once a second, each needing 50 ms of CPU, and the cores are otherwise idle. The dashboard shows 20% average utilisation. When does the last request in each burst finish, if the cores run them first come first served?"
+    choices: ["About 50 ms, since at 20% utilisation a free core is available whenever a request arrives", "About 800 ms, since the burst's run queue is served by one core at a time", "About 100 ms, since 20% utilisation means each core is busy for only a fifth of the second and the work fits within that", "About 200 ms, since 16 × 50 ms is 800 ms of work over 4 cores, four waves of 50 ms, so the last request waits 150 ms"]
+    answer: 3
+    explanation: "Four waves of four requests end at 50, 100, 150 and 200 ms, so averages hide the queueing. Free cores exist only between bursts, not when 16 arrive at once; the run queue feeds all four cores; and 800 / 4 is 200 ms of busy time per core, not 100 ms."
+flashcards:
+  - id: thread-states
+    front: "Running, ready and blocked"
+    back: "Running is on a core. Ready could run but waits in the run queue. Blocked waits for an event; when it arrives the thread becomes ready, not running."
+  - id: preemption-slice
+    front: "Preemption and time slice"
+    back: "A preemptive scheduler can take the core back, typically on a timer interrupt at the end of a short time slice (varies by OS), so one thread cannot hold it forever."
+  - id: fifo-sjf-rr
+    front: "FIFO, shortest-job-first, round-robin"
+    back: "FIFO risks convoys. Shortest-first minimises mean completion but needs job lengths. Round-robin gives each thread a slice in turn, so short jobs finish early."
+  - id: mlfq-idea
+    front: "MLFQ idea"
+    back: "Several priority queues. Using a whole slice demotes a thread; blocking early keeps it high. Periodic boosts to the top prevent starvation."
+  - id: virtual-runtime
+    front: "Linux virtual runtime"
+    back: "CFS tracked weighted CPU used per thread and ran the least-served first. Since Linux 6.6 the default is EEVDF (varies by version); both aim at fair sharing."
+  - id: cpu-vs-io-bound
+    front: "CPU-bound versus I/O-bound threads"
+    back: "CPU-bound threads use whole slices. I/O-bound threads run briefly and block; having used little CPU, they tend to be picked promptly when they wake."
+  - id: load-average-linux
+    front: "Linux load average"
+    back: "Averaged over 1, 5 and 15 minutes. On Linux it counts runnable threads plus those in uninterruptible sleep; other Unixes count only runnable ones."
+  - id: priority-inversion
+    front: "Priority inversion"
+    back: "A high-priority thread waits on a lock held by a low-priority one, which a medium-priority thread keeps off the core. Priority inheritance is one fix."

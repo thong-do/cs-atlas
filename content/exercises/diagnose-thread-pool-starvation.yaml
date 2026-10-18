@@ -1,0 +1,47 @@
+slug: diagnose-thread-pool-starvation
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the service that is slow at 15% CPU"
+lessons: [processes-threads]
+ladderOrder: 2
+prompt: |
+  A service runs a fixed pool of **16 worker threads**. Every request makes one blocking call of about **200 ms** to a
+  downstream API and does almost no other work. At **60 requests/s** p99 latency is about **220 ms**. At **100 requests/s**
+  p99 climbs past **5 s** and keeps rising, while CPU stays at **15%** and the downstream API reports no errors.
+
+  Apply Little's law to the numbers and say how many threads 100 requests/s needs against the 16 available. Explain why
+  latency grows the way it does even though the CPU is nearly idle, and how you would confirm the cause with pool metrics
+  or a thread dump. Propose fixes (a bigger pool within limits, async I/O, timeouts, backpressure) and the trade-off of each.
+hint: "Compare the number of threads the load needs at once with the number you have, and ask where a request waits when none is free."
+rubric:
+  - id: littles-law
+    point: "Applies Little's law: threads needed = rate × time per request = 100 × 0.2 = 20 busy threads against 16 available; at 60 req/s it is 60 × 0.2 = 12, which fits."
+  - id: queue-growth
+    point: "Explains that the pool can finish at most 16 ÷ 0.2 = 80 requests/s, so at 100 req/s the excess of 20/s accumulates in the pool's work queue; the wait keeps growing instead of levelling off."
+  - id: low-cpu
+    point: "Explains the low CPU and the latency numbers: all 16 threads are blocked waiting on the downstream call, not computing, and the delay is time spent waiting for a free thread, which passes 5 s within about 20 s of overload."
+  - id: confirm
+    point: "Confirms with a thread dump (all 16 workers blocked in the downstream call), pool metrics (active threads pinned at 16, queue depth rising), and a latency split into queue wait and call time."
+  - id: fixes-and-costs
+    point: "Names fixes with trade-offs: a bigger pool (cheap, but more memory and more load on the downstream API), async I/O (many waits per thread, but needs non-blocking clients), timeouts (free threads sooner but fail requests), backpressure or load shedding (bounds latency but rejects work)."
+reference: |
+  **Little's law.** Threads busy on average = rate × time each request holds a thread. At 60 req/s: 60 × 0.2 = 12,
+  below 16, so requests nearly always find a free thread and p99 stays near 200 ms plus small waits (220 ms). At 100 req/s:
+  100 × 0.2 = 20 threads needed against 16 available.
+
+  **Why the queue grows.** Maximum throughput is 16 ÷ 0.2 = 80 requests/s. At 100 req/s the surplus of
+  100 − 80 = 20 requests/s joins the pool's work queue, and nothing drains it faster than 80/s, so it keeps growing for as long as
+  load stays at 100. After t seconds the backlog is 20t requests and a new request waits about 20t ÷ 80 = t/4 seconds. A wait near 5 s
+  appears after about 20 s of overload, and p99 keeps climbing until load drops below 80/s.
+
+  **Low CPU.** Each thread spends 200 ms blocked on the network and almost no time computing, so the CPU idles
+  while every worker is occupied. The service is out of threads, not out of CPU.
+
+  **Confirm.** A thread dump shows all 16 workers parked in the downstream call; metrics show active threads
+  pinned at 16 and queue depth rising; splitting latency into queue wait and call time shows call time still about 200 ms.
+
+  **Fixes.**
+  - Bigger pool (for example 32): easy, but each thread costs memory and the downstream API sees more concurrency.
+  - Async I/O: one thread holds many waits, but the whole call path must be non-blocking.
+  - Timeouts: free threads from slow calls sooner, but fail requests.
+  - Backpressure or shedding: bound the queue and reject excess, keeping latency bounded at the cost of refused work.

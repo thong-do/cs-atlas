@@ -1,0 +1,56 @@
+slug: processes-threads-quiz
+type: quiz
+title: "Processes & threads — quiz"
+lessons: [processes-threads]
+ladderOrder: 1
+questions:
+  - id: native-crash-blast-radius
+    prompt: "An image service calls a native decoding library that occasionally segfaults on corrupt uploads. The team wants one bad file to affect as few other in-flight jobs as possible. Which design does that?"
+    choices: ["Run all jobs as threads in one process, with each decode wrapped in try/except so a failing decode is caught in its thread", "Run each decode in a separate worker process under a supervisor that restarts it, so a segfault ends only that worker and its job", "Run all jobs as threads and give every thread its own heap arena, since arenas stop one thread's bad access from touching another's", "Run all jobs as threads in one process with a larger stack per thread, so a crash has room to unwind before it reaches shared memory"]
+    answer: 1
+    explanation: "A segfault is a fault the OS delivers to the whole process, so only a process boundary contains it. A try/except cannot catch it, per-thread allocator arenas are still inside one shared address space, and a larger stack does nothing for an invalid memory access."
+  - id: cpu-bound-hashing
+    prompt: "A pure-Python job hashes 2 million records with a CPU-heavy function on an 8-core machine. Going from 1 to 8 threads gave no speed-up on the default CPython build. What is the sensible next step?"
+    choices: ["Move the work to a process pool with about 8 workers, so each worker has its own interpreter and runs on its own core", "Raise the pool to 64 threads, so there are always runnable threads ready when a core frees up", "Rewrite the job with asyncio coroutines, since an event loop schedules CPU work across cores more evenly than threads do", "Pin each thread to its own core with CPU affinity, since the lock is only held while a thread migrates between cores"]
+    answer: 0
+    explanation: "Each process has its own interpreter and lock, so CPU-bound Python can use several cores. More threads add contention for the one lock, an event loop is a single thread on one core, and the lock is not tied to core migration."
+  - id: tiny-writes
+    prompt: "A logger writes 20 million 40-byte records by calling the OS write function once per record. Profiling shows 70% system CPU and little user CPU. What most directly addresses this?"
+    choices: ["Add 8 writer threads on the same file, so the write calls overlap and the system CPU share drops in proportion", "Fork a child process for every million records, so each child pays fewer context switches than one long-running process", "Collect records in memory and write them in blocks of tens of kilobytes, so there are far fewer system calls", "Pin the process to a single core, so the switches into kernel mode no longer need to save registers"]
+    answer: 2
+    explanation: "Each write is a crossing into kernel mode with its own overhead, so fewer, larger calls cut that cost. Extra threads still make 20 million calls and add contention, forking adds process creation without reducing calls, and pinning does not remove the mode transitions."
+  - id: idle-websockets
+    prompt: "A notification gateway must hold 80,000 WebSocket connections that are idle most of the time, each waking a few times a minute to push a small message. Which model fits best?"
+    choices: ["A fixed pool of 8 worker threads, one per core, each blocking on a connection in turn and moving on when it has nothing to read", "One process per connection, since every connection then gets its own address space and no connection waits behind another", "A pool of 500 threads, since an OS cannot watch more than a few hundred sockets for readiness without one thread per socket", "A few event-loop threads that ask the OS which sockets are ready, keeping a small state object for each connection, so idle ones cost little"]
+    answer: 3
+    explanation: "Readiness APIs such as epoll let one thread watch tens of thousands of sockets, and idle connections cost only their state. A blocked worker thread stays stuck on its connection, a process per connection costs far more memory than the work justifies, and readiness watching is not limited to hundreds of sockets."
+  - id: switch-cost
+    prompt: "A benchmark bounces control between two threads of one process, then between two separate processes. The thread case is usually faster, though both cost microseconds, varies by system. Which explains the gap?"
+    choices: ["Threads of one process keep the same address space, so cached address translations stay valid", "Threads of one process share a single set of registers, so there is nothing to save and restore on a switch", "A switch between processes must write the old process's memory out to disk before the new one can run", "Threads run in user mode only, so a switch between them never enters the kernel"]
+    answer: 0
+    explanation: "Staying in one address space avoids replacing page tables and discarding cached translations. Each thread has its own registers and stack, processes are not written to disk on a switch, and the kernel scheduler performs ordinary thread switches."
+flashcards:
+  - id: process-vs-thread
+    front: "Process versus thread"
+    back: "A process is an address space plus resources (files, sockets). A thread is a program counter, registers and stack running inside a process; its threads share the address space."
+  - id: user-kernel-mode
+    front: "User mode versus kernel mode"
+    back: "User code cannot touch hardware or other processes' memory. It asks the kernel to act through a system call, which crosses into kernel mode and back."
+  - id: system-call-cost
+    front: "Why many tiny system calls are slow"
+    back: "Each system call crosses into kernel mode, costing far more than a function call (varies by OS and CPU). Fewer, larger calls, such as buffered writes, cut that cost."
+  - id: context-switch
+    front: "What a context switch does"
+    back: "Saves the running thread's registers and program counter and restores another's. A process switch also changes address space. Cost: microseconds, varies."
+  - id: fork-exec
+    front: "fork and exec"
+    back: "Unix-specific: fork() makes a child copy of the process, exec() replaces its program with a new one. Pages are shared copy-on-write after fork."
+  - id: thread-stack
+    front: "Default thread stack size"
+    back: "Often 8 MB on Linux glibc (varies). It is a virtual reservation, not resident memory; only touched pages count toward RSS."
+  - id: gil
+    front: "CPython's GIL"
+    back: "In the default build only one thread runs Python bytecode at a time, so CPU-bound threads gain nothing. Free-threaded builds exist since 3.13 (experimental there)."
+  - id: pool-rule
+    front: "Worker count rule of thumb"
+    back: "CPU-bound work: about one worker per core. I/O-bound work: workers mostly wait, so you need more than the core count."

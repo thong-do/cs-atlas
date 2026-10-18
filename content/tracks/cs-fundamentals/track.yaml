@@ -8,8 +8,8 @@ modules:
     lessons: [complexity, data-in-memory]
   - slug: operating-systems
     title: Operating systems
-    lessons: []
-    comingSoon: ["Processes & threads", "CPU scheduling", "Virtual memory", "Concurrency primitives"]
+    lessons: [processes-threads]
+    comingSoon: ["CPU scheduling", "Virtual memory", "Concurrency primitives"]
   - slug: networking
     title: Networking
     lessons: []

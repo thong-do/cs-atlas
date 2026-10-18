@@ -1,0 +1,85 @@
+---
+slug: processes-threads
+title: Processes & threads
+level: beginner
+authors: [cs-atlas]
+prerequisites: [data-in-memory]
+summary: "Learn what the OS gives a process and a thread, what a context switch costs, and how that shapes crash isolation, memory use and how you serve many slow clients."
+---
+
+## Intuition
+
+A process is a rented flat; threads are the people living in it. The flat has its own walls, furniture and keys (an **address space** plus resources such as open files). Anyone inside can use the shared kitchen, so two flatmates can reach for the same pan at once. Another flat's furniture is out of reach: the OS enforces the walls.
+
+**Process.** An address space (the memory it can see, from [Data in memory](/cs-fundamentals/data-in-memory/)) plus resources: open file descriptors, sockets, a process id. **Thread.** An execution context, meaning a program counter, registers and its own stack, running inside a process. Every thread of a process shares that process's heap and globals, which is why threads share data cheaply and also corrupt each other's data.
+
+**User mode and kernel mode.** Your code runs in *user mode*, where the CPU forbids touching hardware or other processes' memory. To read a file, send a packet or create a thread, your code makes a **system call**, a controlled jump into *kernel mode*, where the OS does the privileged work and returns. A system call costs far more than a normal function call (the exact cost varies by OS and CPU), so a loop making ten million tiny `write` calls is slow however simple each one is.
+
+**Context switch.** The OS runs many threads on few cores by switching. It saves the running thread's registers and program counter, then restores another's. Switching to a thread in a *different* process also changes the address space, so the CPU's cached address translations may be discarded and rebuilt. Direct cost is usually quoted in microseconds, varies by hardware and OS, and the indirect cost (cold CPU caches) is often larger.
+
+**fork and exec (Unix-specific).** On Unix-like systems `fork()` creates a child process that is a copy of the parent, and `exec()` replaces the child's program with a new one. Windows creates processes differently. Modern kernels share pages copy-on-write after a fork rather than copying memory at once.
+
+**Isolation versus sharing.** A crash or a wild pointer in one process leaves other processes running; the same bug in one thread can take down every thread in the process. The price of isolation is that processes must exchange data through the OS (pipes, sockets, shared-memory regions), while threads simply read the same variables and must therefore coordinate writes.
+
+**CPython's GIL.** In the default CPython build, a global interpreter lock lets only one thread run Python bytecode at a time. So threads do not speed up CPU-bound pure-Python work, but they do help I/O-bound work, because a thread waiting on a socket releases the lock. Free-threaded builds exist since Python 3.13 but are experimental there; check your version. For CPU-bound Python, use processes (or native extensions that release the lock).
+
+## Visual
+
+```text
+Process A                          Process B
++-----------------------------+    +-----------------------------+
+| code | heap | globals       |    | code | heap | globals       |
+| fds: 3 4 5                  |    | fds: 3 4                    |
+| +---------+  +---------+    |    | +---------+                 |
+| | thread1 |  | thread2 |    |    | | thread1 |                 |
+| | regs    |  | regs    |    |    | | regs    |                 |
+| | stack   |  | stack   |    |    | | stack   |                 |
+| +---------+  +---------+    |    | +---------+                 |
++------------|---------|------+    +------------|----------------+
+             v         v                        v
+        user mode ---- system call ----> kernel mode (OS)
+```
+
+The two threads in A share one heap but have separate stacks and registers. B cannot see A's heap.
+
+## Example
+
+**Serving 1,000 concurrent slow clients** (each holds a connection and mostly waits). All per-unit figures are illustrative and vary by OS, runtime and workload; measure your own.
+
+- **Process per connection.** Suppose each worker process is about 10 MB resident (an interpreter plus app data). 1,000 × 10 MB = 10,000 MB, about 10 GB. Isolation is excellent, memory use is high, and creating a process is relatively heavy.
+- **One thread per client** (a pool of 1,000 threads). A default thread stack is often 8 MB on Linux glibc (varies), but that is a *virtual reservation*, address space set aside, not resident memory; only the pages a thread touches become resident. Say each thread touches about 100 KB: 1,000 × 100 KB = 100,000 KB, about 100 MB resident, while the reservation is 1,000 × 8 MB = 8,000 MB of address space. Cheap enough, but the kernel now schedules 1,000 threads, and every shared variable needs coordination.
+- **Event loop.** One thread asks the OS which sockets are ready (for example `epoll` on Linux) and handles each briefly, never blocking. Per client you keep only a small state object, say 10 KB: 1,000 × 10 KB = 10,000 KB, about 10 MB, with no context switches between clients. The price is that any blocking call or long computation freezes everyone, and one thread uses one core.
+
+```python
+import asyncio
+
+async def handle(reader, writer):
+    data = await reader.readline()      # waiting here frees the loop
+    writer.write(data.upper())
+    await writer.drain()
+    writer.close()
+
+async def main():
+    server = await asyncio.start_server(handle, "0.0.0.0", 8080)
+    async with server:
+        await server.serve_forever()
+
+asyncio.run(main())
+```
+
+The loop runs on one thread, so this server uses one core. Threads win when the work blocks inside libraries that have no async API; the event loop wins when you hold many mostly idle connections. For CPU-heavy requests, hand the work to worker processes. Across machines, a balancer spreads connections, so each server needs only a share of them; see [Load balancing](/system-design/load-balancing/).
+
+## Pitfalls
+
+- **Running a CPU-bound Python job on threads and expecting speed-up.** In the default build the GIL lets one thread execute bytecode at a time. Fix: use a process pool, or a native library that releases the lock, and measure on your version.
+- **Blocking the event loop.** One `time.sleep`, a synchronous HTTP call or a big JSON parse stalls every connection. Fix: use the async version of the call, or push blocking work to a thread or process pool.
+- **Treating reserved stack as used memory.** Multiplying 8 MB by thread count and declaring "we're out of RAM" confuses address space with resident memory. Fix: read resident size (RSS) per process, and set stack sizes deliberately if you really need many threads.
+- **Sharing mutable data between threads with no coordination.** Two threads doing `counter += 1` can lose updates, because the increment is a read, an add and a write. Fix: use a lock or an atomic, or pass messages instead of sharing.
+- **Forking after threads exist.** In a multithreaded Unix process, a child made by `fork()` has only the calling thread, and locks held by other threads at that moment stay locked forever. Fix: fork early, before starting threads, or use a spawn-style start method.
+
+## Tips & tricks
+
+- **Rules of thumb:** for CPU-bound work, about one worker per core, since more just adds switching. For I/O-bound work, workers spend most of their time waiting, so you need more of them than cores. Tune against measurements.
+- **Choosing:** need isolation or CPU parallelism in Python: processes. Many idle connections: an event loop. Blocking libraries and shared in-memory state: threads, with care.
+- **Interview phrasing:** "A process is an address space plus resources; a thread is a stack and registers inside one. Threads share memory cheaply but a bug can take down the whole process; processes isolate faults but communicate through the OS. A thread switch avoids changing the address space, so it is usually cheaper, in microseconds, varies."
+- **What to measure:** context switches per second and the number of runnable threads (`vmstat`, `pidstat -w`), resident versus virtual size per process, thread count, and user versus system CPU. High system CPU with low user CPU points at system-call overhead.

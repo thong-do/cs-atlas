@@ -5,6 +5,8 @@ const ROWS = 4
 const box = (active: boolean) => cn('min-w-0 space-y-1 rounded-md border-2 p-2 text-xs', active && 'border-primary bg-primary/10 ring-2 ring-primary')
 const n = (x: number) => x.toLocaleString('en-US')
 
+const DISK_ROWS = 2
+
 export function PtView({ step }: { step: PtStep }) {
   const { va, page, offset, tlb, table, disk, pa, hits, misses, faults, focus } = step
   const split = va === null ? 'no address yet' : `address ${n(va)} = page ${page}, offset ${offset}`
@@ -36,7 +38,7 @@ export function PtView({ step }: { step: PtStep }) {
         </div>
         <div className={box(focus === 'disk')}>
           <p className="font-semibold">Disk</p>
-          {Array.from({ length: TLB_CAPACITY }, (_, i) => {
+          {Array.from({ length: DISK_ROWS }, (_, i) => {
             const r = disk[i]
             return (
               <p key={i} className={cn('truncate rounded border px-1 py-0.5 font-mono tabular-nums', !r && 'border-dashed text-muted-foreground')}>

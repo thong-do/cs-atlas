@@ -73,7 +73,7 @@ t:   0    5    10   15   20   25   30   35   40   45
 
 Step by step: A runs 0 to 5 (25 left), B 5 to 10 (5 left), C 10 to 15 (done, **15**). A runs 15 to 20 (20 left), B 20 to 25 (done, **25**). A has the core alone for the remaining 20 ms, 25 to 45 (done, **45**). Mean = (15 + 25 + 45) / 3 = 85 / 3 = **28.3 ms**.
 
-The core never idles, so the last job ends at 30 + 10 + 5 = 45 ms under every policy; only the order decides who waits. Round-robin needs no job lengths, yet short jobs escape early. The price is the switches. Assume 0.05 ms per switch for round numbers (real costs vary). With the 5 ms slice, overhead is 0.05 / 5.05, about 1%; with a 0.5 ms slice it would be 0.05 / 0.55, about 9%.
+The core never idles, so the last job ends at 30 + 10 + 5 = 45 ms under every policy; only the order decides who waits. Round-robin needs no job lengths, yet short jobs escape early. The price is the switches. Assume 0.05 ms per switch, counting the cold-cache cost too, for round numbers (real costs vary). With the 5 ms slice, overhead is 0.05 / 5.05, about 1%; with a 0.5 ms slice it would be 0.05 / 0.55, about 9%.
 
 **Why average CPU can mislead.** A service runs on 2 cores and receives a burst of 6 requests every 200 ms, each needing 20 ms of CPU. Work per burst: 6 × 20 = 120 ms of CPU. Capacity per 200 ms: 2 × 200 = 400 core-ms. Utilisation: 120 / 400 = **30%**. But the burst arrives together: two requests run at once, finishing at 20, 20, 40, 40, 60 and 60 ms. A request that takes 20 ms alone can take up to 60 ms, and the run queue length (6 at its peak) is the signal, not the utilisation average.
 

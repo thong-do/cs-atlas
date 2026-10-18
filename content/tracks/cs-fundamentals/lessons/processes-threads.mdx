@@ -74,7 +74,7 @@ The loop runs on one thread, so this server uses one core. Threads win when the 
 - **Running a CPU-bound Python job on threads and expecting speed-up.** In the default build the GIL lets one thread execute bytecode at a time. Fix: use a process pool, and measure on your version.
 - **Blocking the event loop.** One `time.sleep`, a synchronous HTTP call or a big JSON parse stalls every connection. Fix: use the async version of the call, or push blocking work to a thread or process pool.
 - **Treating reserved stack as used memory.** Multiplying 8 MB by thread count and declaring "we're out of RAM" confuses address space with resident memory. Fix: read resident size (RSS) per process, and set stack sizes deliberately if you really need many threads.
-- **Sharing mutable data between threads with no coordination.** Two threads doing `counter += 1` can lose updates, because the increment is a read, an add and a write. Fix: use a lock or an atomic, or pass messages instead of sharing.
+- **Sharing mutable data between threads with no coordination.** Two threads doing `counter += 1` can lose updates, because the increment is a read, an add and a write. Fix: use a lock, or an atomic where the language provides one, or pass messages instead of sharing.
 - **Forking after threads exist.** In a multithreaded Unix process, a child made by `fork()` has only the calling thread, and locks held by other threads at that moment stay locked forever. Fix: fork early, before starting threads, or use a spawn-style start method.
 
 ## Tips & tricks

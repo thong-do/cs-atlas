@@ -53,4 +53,4 @@ flashcards:
     back: "Extra memory beyond the input. Copying a list is O(n); recursion uses stack space proportional to its depth."
   - id: ops-budget
     front: "Operations-per-second estimate"
-    back: "Roughly 10⁸ simple operations per second in compiled code, 10⁷ in CPython (illustrative; hardware-dependent). Use it to filter designs, not predict time."
+    back: "Roughly 10⁸–10⁹ simple operations per second in compiled code, 10⁷ in CPython (illustrative; hardware-dependent). Use it to filter designs, not predict time."

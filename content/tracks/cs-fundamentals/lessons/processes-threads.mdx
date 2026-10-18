@@ -21,7 +21,7 @@ A process is a rented flat; threads are the people living in it. The flat has it
 
 **Isolation versus sharing.** A crash or a wild pointer in one process leaves other processes running; the same bug in one thread can take down every thread in the process. The price of isolation is that processes must exchange data through the OS (pipes, sockets, shared-memory regions), while threads simply read the same variables and must therefore coordinate writes.
 
-**CPython's GIL.** In the default CPython build, a global interpreter lock lets only one thread run Python bytecode at a time. So threads do not speed up CPU-bound pure-Python work, but they do help I/O-bound work, because a thread waiting on a socket releases the lock. Free-threaded builds exist since Python 3.13 but are experimental there; check your version. For CPU-bound Python, use processes (or native extensions that release the lock).
+**CPython's GIL.** In the default CPython build, a global interpreter lock lets only one thread run Python bytecode at a time. So threads do not speed up CPU-bound pure-Python work, but they do help I/O-bound work, because a thread waiting on a socket releases the lock. Free-threaded builds exist since Python 3.13 but are experimental there; check your version. For CPU-bound Python, use processes.
 
 ## Visual
 
@@ -71,7 +71,7 @@ The loop runs on one thread, so this server uses one core. Threads win when the 
 
 ## Pitfalls
 
-- **Running a CPU-bound Python job on threads and expecting speed-up.** In the default build the GIL lets one thread execute bytecode at a time. Fix: use a process pool, or a native library that releases the lock, and measure on your version.
+- **Running a CPU-bound Python job on threads and expecting speed-up.** In the default build the GIL lets one thread execute bytecode at a time. Fix: use a process pool, and measure on your version.
 - **Blocking the event loop.** One `time.sleep`, a synchronous HTTP call or a big JSON parse stalls every connection. Fix: use the async version of the call, or push blocking work to a thread or process pool.
 - **Treating reserved stack as used memory.** Multiplying 8 MB by thread count and declaring "we're out of RAM" confuses address space with resident memory. Fix: read resident size (RSS) per process, and set stack sizes deliberately if you really need many threads.
 - **Sharing mutable data between threads with no coordination.** Two threads doing `counter += 1` can lose updates, because the increment is a read, an add and a write. Fix: use a lock or an atomic, or pass messages instead of sharing.

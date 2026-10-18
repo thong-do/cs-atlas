@@ -1,0 +1,52 @@
+slug: diagnose-slow-growth
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the export that times out"
+lessons: [complexity]
+ladderOrder: 2
+prompt: |
+  An order-export endpoint returns in **0.2 s** for an account with **2,000 orders**, but **times out at 30 s**
+  for an account with **60,000 orders**. The handler counts the distinct customers in the export:
+
+  ```python
+  seen_list = []
+  for order in orders:
+      cid = order.customer_id
+      if cid not in seen_list:
+          seen_list.append(cid)
+  ```
+
+  Estimate the work at both sizes, name the complexity, and explain why 30× the data gives roughly 900× the time.
+  Propose a fix and its memory cost, and say how you would confirm the cause with a profiler.
+hint: "Ask how many items `seen_list` can hold by the time the last order is checked, and what one check of it costs."
+rubric:
+  - id: estimate-work
+    point: "Estimates the comparisons at both sizes with arithmetic: about n²/2, so roughly 2 × 10⁶ at 2,000 orders and 1.8 × 10⁹ at 60,000 (worst case, mostly distinct customers)."
+  - id: complexity
+    point: "Names the cost as O(n²) overall: n checks, each scanning a list that can grow to O(n)."
+  - id: growth-explained
+    point: "Explains that 30× the data gives 30² = 900× the work, so about 180 s if uncapped, and the 30 s limit fires first."
+  - id: fix-and-memory
+    point: "Fixes it with a hash-based set (or dict) of seen ids, giving O(1) average checks and O(n) total time, and states the extra memory, which grows with the number of distinct ids."
+  - id: confirm-profiler
+    point: "Confirms with a profiler that most time sits in the membership check, and re-times at several sizes to check the curve is now linear."
+reference: |
+  **Work.** Worst case, most customers are distinct, so the list grows to about n entries and the average
+  check scans about n/2 of them. Total comparisons ≈ n²/2. At 2,000 orders: 2,000² ÷ 2 = 2 × 10⁶. At 60,000
+  orders: 60,000² ÷ 2 = 3.6 × 10⁹ ÷ 2 = 1.8 × 10⁹.
+
+  **Complexity.** n checks, each O(n): O(n²) time, O(n) space for the list.
+
+  **Why 900×.** 60,000 ÷ 2,000 = 30, and 30² = 900 (1.8 × 10⁹ ÷ 2 × 10⁶ = 900). If the whole 0.2 s scaled that
+  way, the run would take 0.2 × 900 = 180 s; the 30 s cutoff stops it first. Fewer distinct customers would
+  shorten the list and the cost, so this is an upper estimate.
+
+  **Fix.** Keep `seen = set()` and test `cid in seen`, adding each new id to the set after the test. A hash
+  lookup is O(1) on average, so 60,000 checks take about 6 × 10⁴ lookups instead of 1.8 × 10⁹, and the loop becomes
+  O(n). Memory: the set holds one entry per distinct id, so O(k) for k distinct customers, a small constant factor
+  more than the list (roughly 2 MB of table for 60,000 ids on CPython, illustrative). Alternatively sort the ids and
+  compare neighbours: O(n log n).
+
+  **Confirm.** Run a profiler (such as `cProfile`) on the 60,000-order case and expect most time on the
+  membership line. After the fix, time 2,000, 20,000 and 60,000 orders: the time should grow about
+  linearly (10× and 3× steps), not by 100× and 9×.

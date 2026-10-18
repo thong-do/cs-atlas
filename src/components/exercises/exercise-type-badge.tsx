@@ -1,12 +1,7 @@
 import { Badge } from '@/components/ui/badge'
-import type { ExerciseType } from '@/lib/types'
+import { exerciseLabel } from '@/lib/logic/exercise-label'
+import type { ExerciseType, PromptKind } from '@/lib/types'
 
-export const TYPE_LABEL: Record<ExerciseType, string> = {
-  'external-problem': 'LeetCode',
-  quiz: 'Quiz',
-  'design-prompt': 'Design',
-}
-
-export function ExerciseTypeBadge({ type }: { type: ExerciseType }) {
-  return <Badge variant="outline">{TYPE_LABEL[type]}</Badge>
+export function ExerciseTypeBadge({ exercise }: { exercise: { type: ExerciseType; kind?: PromptKind } }) {
+  return <Badge variant="outline">{exerciseLabel(exercise)}</Badge>
 }

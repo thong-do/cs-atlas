@@ -1,0 +1,100 @@
+---
+slug: cpu-scheduling
+title: CPU scheduling
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [processes-threads]
+summary: "Learn how the OS decides which thread runs next, what fairness and responsiveness cost, and why a machine at 40% average CPU can still make requests queue."
+---
+
+## Intuition
+
+A scheduler is a receptionist at a clinic with one doctor. Patients arrive, wait on chairs, and see the doctor one at a time. The receptionist decides who is next, and whether to interrupt a long consultation so a quick one can slip in. Every choice trades something: throughput, fairness, or how long the person with a sore throat waits.
+
+**Thread states.** A thread is **running** (on a core), **ready** (could run, waiting for a core), or **blocked** (waiting for something such as a disk read or a socket). The ready threads sit in a **run queue**. When a blocked thread's event happens, it moves to ready, not straight to running.
+
+**Preemption and time slices.** A **preemptive** scheduler can take the core from a running thread, usually when a timer interrupt fires at the end of a **time slice** (a short budget, often milliseconds; varies by OS and configuration). Without preemption, one looping thread could freeze the machine.
+
+**Policies.**
+
+- **FIFO:** run in arrival order until done or blocked. A long job makes everything behind it wait (a *convoy*).
+- **Shortest-job-first:** minimises mean completion time, but needs to know the lengths in advance, and a stream of short jobs can starve a long one.
+- **Round-robin:** each ready thread gets one slice in turn, then goes to the back of the queue.
+- **Priority:** the highest-priority ready thread runs. A steady supply of high-priority work can starve the rest.
+- **MLFQ (multi-level feedback queue):** several queues by priority. A thread that burns its whole slice drops a level; one that blocks early stays high. Periodically everything is moved back to the top so nothing starves. It learns which threads are interactive without being told.
+
+**Linux.** Linux's long-time default, CFS (the Completely Fair Scheduler), tracked a **virtual runtime** per thread, meaning CPU time consumed (weighted by priority), and always ran the thread with the least. Since Linux 6.6 the default fair scheduler is EEVDF (varies by kernel version and configuration). Both aim at fair sharing; roughly, the least-served thread goes next. (EEVDF picks, among eligible threads, the earliest virtual deadline.)
+
+**CPU-bound versus I/O-bound.** A CPU-bound thread computes until its slice ends. An I/O-bound thread runs briefly, blocks, and sleeps. Because the I/O-bound thread has used little CPU lately, fair-share schedulers tend to run it promptly when it wakes.
+
+**Context-switch overhead.** Each switch (see [Processes & threads](/cs-fundamentals/processes-threads/)) is pure overhead: no useful work happens during it, and the next thread often starts with cold caches. Direct cost is often a few microseconds, varying widely by hardware and OS.
+
+**Load average.** The three numbers from `uptime` are averages over 1, 5 and 15 minutes. On Linux they count threads that are runnable *plus* threads in uninterruptible sleep, usually waiting on disk or network storage; other Unix systems count only runnable ones.
+
+**Priority inversion.** If a low-priority thread holds a lock that a high-priority thread needs, the high-priority one must wait. If a medium-priority thread then keeps the core busy, the low one never runs to release the lock, so the high-priority thread is effectively blocked behind the medium one. Priority inheritance (the lock holder temporarily borrows the waiter's priority) is one fix (see [Concurrency primitives](/cs-fundamentals/concurrency-primitives/)).
+
+## Visual
+
+```text
+        timer expires / preempted
+      +----------------------------+
+      v                            |
+  +-------+   scheduler picks  +---------+
+  | READY | -----------------> | RUNNING |
+  +-------+                    +---------+
+      ^                            |
+      |  event arrives             | waits for I/O or lock
+      |                            v
+      |                       +---------+
+      +-----------------------| BLOCKED |
+                              +---------+
+
+run queue:  [T3] [T7] [T2] [T9]  -> next core free takes the head
+```
+
+The run queue holds only READY threads.
+
+## Example
+
+Three jobs, all arriving at t = 0 on one core, in the order A, B, C: A needs 30 ms, B 10 ms, C 5 ms. Completion time is when the job finishes.
+
+**FIFO (A, B, C).** A finishes at 30, B at 30 + 10 = 40, C at 40 + 5 = 45. Mean = (30 + 40 + 45) / 3 = 115 / 3 = **38.3 ms**.
+
+**Shortest-job-first (C, B, A).** C finishes at 5, B at 5 + 10 = 15, A at 15 + 30 = 45. Mean = (5 + 15 + 45) / 3 = 65 / 3 = **21.7 ms**.
+
+**Round-robin, 5 ms slice (A, B, C, then repeat).** Switch cost is ignored here.
+
+```text
+t:   0    5    10   15   20   25   30   35   40   45
+     | A  | B  | C  | A  | B  | A  | A  | A  | A  |
+     A has 25 left | B 5 left | C done at 15
+     A 20 left | B done at 25 | A runs alone 25 to 45
+```
+
+Step by step: A runs 0 to 5 (25 left), B 5 to 10 (5 left), C 10 to 15 (done, **15**). A runs 15 to 20 (20 left), B 20 to 25 (done, **25**). A has the core alone for the remaining 20 ms, 25 to 45 (done, **45**). Mean = (15 + 25 + 45) / 3 = 85 / 3 = **28.3 ms**.
+
+The core never idles, so the last job ends at 30 + 10 + 5 = 45 ms under every policy; only the order decides who waits. Round-robin needs no job lengths, yet short jobs escape early. The price is the switches. Assume 0.05 ms per switch, counting the cold-cache cost too, for round numbers (real costs vary). With the 5 ms slice, overhead is 0.05 / 5.05, about 1%; with a 0.5 ms slice it would be 0.05 / 0.55, about 9%.
+
+**Why average CPU can mislead.** A service runs on 2 cores and receives a burst of 6 requests every 200 ms, each needing 20 ms of CPU. Work per burst: 6 × 20 = 120 ms of CPU. Capacity per 200 ms: 2 × 200 = 400 core-ms. Utilisation: 120 / 400 = **30%**. But the burst arrives together: two requests run at once, finishing at 20, 20, 40, 40, 60 and 60 ms. A request that takes 20 ms alone can take up to 60 ms, and the run queue length (6 at its peak) is the signal, not the utilisation average.
+
+```python
+# queueing delay when a burst of n equal jobs hits c cores (FIFO)
+def finish_times(n, c, job_ms):
+    return [(i // c + 1) * job_ms for i in range(n)]
+
+print(finish_times(6, 2, 20))   # [20, 20, 40, 40, 60, 60]
+```
+
+## Pitfalls
+
+- **Judging capacity by average CPU.** A service at 30% mean can still queue every burst. Fix: watch run-queue length, request latency percentiles and peak-interval utilisation, not only the mean.
+- **Reading load average as CPU use.** Load counts more than threads wanting a core, so it can disagree with utilisation. Fix: compare load with core count and utilisation, then check what the non-running threads wait on.
+- **Using far more runnable threads than cores for CPU-bound work.** Each extra thread adds switches and cold caches without adding compute. Fix: size CPU-bound pools near the core count.
+- **Mixing long and short jobs in one FIFO queue.** Short requests wait behind long ones. Fix: split long jobs, or give them their own pool.
+- **Tiny time slices to "feel faster".** Very short slices lift overhead and can lower throughput. Fix: leave OS defaults unless profiling shows a problem.
+
+## Tips & tricks
+
+- **Rules of thumb:** mean completion time falls when short jobs go first, but fairness needs preemption. Keep latency-sensitive and batch work in different pools or at different priorities (`nice` on Unix).
+- **Interview phrasing:** "A scheduler moves threads between ready, running and blocked. Round-robin trades some throughput for responsiveness; MLFQ infers interactive threads from behaviour; Linux uses fair-share ideas, CFS with virtual runtime and EEVDF since 6.6 (varies by version). Average CPU hides queueing at peaks."
+- **What to measure:** run-queue length and load average against core count (`vmstat`, `uptime`), context switches per second (`pidstat -w`), CPU utilisation at one-second granularity, and latency percentiles (p95, p99), not only means.

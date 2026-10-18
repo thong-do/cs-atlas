@@ -21,7 +21,7 @@ export function LadderList({ exercises }: { exercises: ExerciseMeta[] }) {
           <span className="w-5 text-right text-xs text-muted-foreground">{i + 1}</span>
           <StatusIcon status={exerciseStatus(progress.get(p.slug))} />
           <Link href={exerciseHref(p.slug)} className="min-w-0 flex-1 truncate hover:underline">{p.title}</Link>
-          <ExerciseTypeBadge type={p.type} />
+          <ExerciseTypeBadge exercise={p} />
           {p.type === 'quiz' && <span className="text-xs text-muted-foreground">{p.questionCount} questions</span>}
           {p.type === 'design-prompt' && <span className="text-xs text-muted-foreground">Self-graded</span>}
           {isProblem(p) && (

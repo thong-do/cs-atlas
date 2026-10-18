@@ -49,7 +49,7 @@ function toExerciseMeta(e: RawExercise): ExerciseMeta {
     case 'quiz':
       return { ...base, type: e.type, questionCount: e.questions.length, flashcardIds: e.flashcards.map((f) => f.id) }
     case 'design-prompt':
-      return { ...base, type: e.type, rubric: e.rubric.map((r) => r.point) }
+      return { ...base, type: e.type, kind: e.kind, rubric: e.rubric.map((r) => r.point) }
   }
 }
 
@@ -95,7 +95,7 @@ export function getExerciseDoc(slug: string): ExerciseDoc | undefined {
       return { ...(meta as QuizDoc), questions: e.questions, flashcards: e.flashcards }
     case 'design-prompt': {
       const d: DesignDoc = {
-        slug: e.slug, title: e.title, lessons: e.lessons, ladderOrder: e.ladderOrder, type: e.type,
+        slug: e.slug, title: e.title, lessons: e.lessons, ladderOrder: e.ladderOrder, type: e.type, kind: e.kind,
         prompt: e.prompt, rubric: e.rubric.map((r) => r.point), rubricPoints: e.rubric, reference: e.reference,
         ...(e.hint ? { hint: e.hint } : {}),
       }

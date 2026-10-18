@@ -1,0 +1,56 @@
+slug: virtual-memory-quiz
+type: quiz
+title: "Virtual memory — quiz"
+lessons: [virtual-memory]
+ladderOrder: 1
+questions:
+  - id: one-read-per-page
+    prompt: "A 256 MiB array of 8-byte values is fully resident in RAM, in 4 KiB pages. Reading one value from each of its 65,536 pages in turn is much slower per access than reading 65,536 values spaced 64 bytes apart (one per cache line). Why?"
+    choices: ["Each read lands on a page whose first touch is a minor fault, because mapped pages that were never read are marked not present until then", "The TLB caches a limited set of translations, so visiting many pages in turn misses and pays walks, while consecutive reads reuse one for 512 values", "Each read of a new page needs a switch into the kernel to check access rights, while consecutive reads stay in user mode and skip that check entirely", "Pages far apart in virtual space sit in physically distant frames, so the memory chips need longer to reach them than neighbouring ones"]
+    answer: 1
+    explanation: "Both patterns touch 65,536 different cache lines, but translations are cached per page: the 64-byte spacing needs only 4,096 ÷ 64 = 64 reads per page, 1,024 pages in all, so the TLB mostly hits, while one page per read misses it. The array is already resident, so there are no faults; the hardware checks permissions during translation without entering the kernel; and frames are not placed to mirror virtual distance."
+  - id: second-reader-faults
+    prompt: "Process A reads a 300 MB file with ordinary `read` calls, which pulls it through the OS page cache. Seconds later process B maps the same file with `mmap` and reads every page. What do B's first-touch faults look like?"
+    choices: ["Major faults, because B's page table starts empty and the OS must fetch every page from storage again for B's own private mapping", "Major faults for the first page of each 2 MB region and minor ones after, because the OS reads storage once per region and maps the rest from that read", "None at all, because with ordinary flags `mmap` copies the whole file into B's memory during the call, so every first touch finds a mapped page", "Minor faults, because the data is already in RAM in the page cache and the OS only has to add entries to B's page table, with no storage read"]
+    answer: 3
+    explanation: "The pages are cached, so B needs mappings but no I/O. Storage reads would happen only if the cache had been dropped; the kernel does not read storage once per 2 MB region, since each cached 4 KiB page just needs a mapping; and `mmap` maps lazily rather than copying the file during the call."
+  - id: map-more-than-the-limit
+    prompt: "A Linux container on a 16 GiB host has a 1 GiB memory limit and no swap, with default overcommit settings. A program maps 3 GiB of anonymous memory in one call, then writes into about 1.2 GiB of it over a minute. What happens (assuming typical kernel settings)?"
+    choices: ["The mapping call fails at once, because 3 GiB is more than the container's limit and the kernel refuses any such request it cannot back in full", "The program is killed at the first write, because the whole 3 GiB mapping is charged to the container as soon as any page of it is touched", "The call succeeds, the charge grows as pages are first written, and around 1 GiB of writes the kernel's OOM handling kills a process there", "The call succeeds and every write completes, because the limit applies to file-backed data in the page cache and not to anonymous memory"]
+    answer: 2
+    explanation: "Charging follows touched pages, so the failure arrives mid-run, not at the call. The call is not refused up front under default settings, a first write charges one page rather than the whole mapping, and anonymous memory counts against a container's limit."
+  - id: scattered-cow-writes
+    prompt: "A parent with 1 GiB of resident data forks a child, on a system using 4 KiB pages and no huge pages. The child writes a single byte into each of 3,000 different pages, then exits. About how much extra physical memory does copy-on-write cost at its peak?"
+    choices: ["About 12 MB, since 3,000 × 4 KiB is 12,288,000 bytes: each first write copies a whole page, however small the change", "About 3 KB, because the kernel copies only the single bytes that changed and keeps the rest of every page shared", "About 1 GiB, because the first write makes the kernel duplicate the whole mapping so that the child owns every page of it", "Nothing extra, because fork shares the frames and both processes keep seeing the child's writes in the very same memory"]
+    answer: 0
+    explanation: "Copying is per page, so 3,000 pages is about 12 MB. The kernel does not track individual bytes, does not duplicate untouched pages, and gives a forked child private copies on write, unlike a shared mapping."
+  - id: swap-storm
+    prompt: "A 16 GiB host runs four instances of a service, each with about 4.6 GiB of private memory in active use (measured on a larger box), with swap on an SSD. Latency jumps from 5 ms to several seconds, `vmstat` shows heavy swap-in and swap-out, and the CPUs are mostly idle. What is the best explanation and first fix?"
+    choices: ["The TLB is too small for the working set, so every access walks the page table; switching to larger pages makes the stalls disappear", "Overcommit let the instances reserve more than the host has, so the OOM killer keeps killing them and a supervisor restarts them; lower the overcommit ratio", "Pages are zeroed on first touch, a minor-fault cost that grows with load; pre-touch the buffers at start-up and the stalls go", "The instances' combined hot data does not fit in RAM, so pages are repeatedly evicted and read back from storage; shrink the hot set or add memory"]
+    answer: 3
+    explanation: "Four times 4.6 GiB is 18.4 GiB, more than the host has, and constant swap traffic with idle CPUs means waiting on storage for pages that do not fit. Larger pages cut TLB misses but do not create swap I/O; OOM kills would show as killed processes, not steady swapping; and zeroing fresh pages costs microseconds, not seconds."
+flashcards:
+  - id: page-frame-offset
+    front: "Page, frame and offset"
+    back: "A page is a block of virtual memory, a frame the same-sized block of RAM. An address is page number + offset; only the page number is translated, the offset is kept."
+  - id: why-multi-level
+    front: "Why page tables are multi-level"
+    back: "A flat table for a 48-bit space with 4 KiB pages needs 2^36 entries, 512 GiB at 8 bytes each. A tree builds branches only for regions in use. x86-64 typically uses 4 levels."
+  - id: tlb-role
+    front: "What the TLB does"
+    back: "A small cache of recent page-to-frame translations. A hit skips the page-table walk; a miss pays several memory reads. Sizes and timings vary by CPU."
+  - id: minor-major-fault
+    front: "Minor versus major page fault"
+    back: "Minor: resolved without disk I/O, such as a zeroed first-touch page or one already in RAM. Major: the page must be read from storage, far slower (varies by device)."
+  - id: demand-paging
+    front: "Demand paging"
+    back: "A new mapping has no frames until first touched. The first access faults, and the OS supplies a frame. Memory arrives lazily, so reserved is not the same as used."
+  - id: cow-mechanism
+    front: "Copy-on-write mechanism"
+    back: "After fork, parent and child share frames marked read-only. The first write faults and the kernel copies that one page for the writer. Untouched pages stay shared."
+  - id: virt-vs-res
+    front: "VIRT versus RES"
+    back: "VIRT is address space reserved; RES (RSS) is pages currently in RAM. A big VIRT is usually harmless. RSS counts a shared page in every process that maps it."
+  - id: overcommit-oom
+    front: "Overcommit and the OOM killer"
+    back: "Linux by default usually allows allocations beyond free memory, betting pages stay untouched. If memory then runs out, the OOM killer picks a victim. Behaviour is configurable and varies."

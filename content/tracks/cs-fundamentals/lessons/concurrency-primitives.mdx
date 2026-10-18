@@ -1,0 +1,139 @@
+---
+slug: concurrency-primitives
+title: Concurrency primitives
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [processes-threads]
+summary: "Learn how mutexes, condition variables, semaphores and atomics keep threads from corrupting shared data, and how deadlock, livelock and starvation arise when they are misused."
+---
+
+## Intuition
+
+A shared workshop has one bandsaw. Without a rule, two people cut at once and someone loses a finger; with one ("take the clipboard, cut, hang it back"), cuts happen one after another. Concurrency primitives are those rules.
+
+[Processes & threads](/cs-fundamentals/processes-threads/) showed that `counter += 1` is a read, an add and a write, so threads can lose updates. That is a **race condition**: the result depends on how the threads interleave. The code touching shared state is a **critical section**; the goal is one thread inside at a time.
+
+**Mutex.** A lock with acquire and release and one owner at a time. A thread acquiring a held mutex *blocks*: the OS marks it blocked (see [CPU scheduling](/cs-fundamentals/cpu-scheduling/)) and runs something else, and release wakes a waiter. Keep critical sections short.
+
+**Spinning versus blocking.** A waiter can *spin*, looping on an atomic instruction until the lock frees, or *block*, sleeping in the kernel. Spinning burns a core but skips the system call and context switch; blocking frees the core but pays for sleep and wake. Spinning tends to win only when the wait is shorter than that round trip; the crossover varies by hardware and OS, and many mutexes spin briefly, then block.
+
+**Condition variable.** A mutex cannot say "wait until there is something to take". A condition variable lets a thread wait for a *state* while atomically releasing the mutex, and be woken when another thread changes it. Always wait in a `while` loop that re-checks the state, never an `if`. POSIX allows *spurious wakeups* (a wait returning although nobody signalled), so a wakeup is a hint, not a guarantee.
+
+**Counting semaphore.** A counter of permits: acquire takes one, blocking at zero; release returns one. Starting at 3, it lets at most 3 threads into a section, bounding concurrency rather than enforcing exclusion.
+
+**Read-write lock.** Many readers may hold it together; a writer needs it alone. It pays off when reads vastly outnumber writes. Policies differ (readers first, writers first, fair) and its bookkeeping has a cost, so measure against a plain mutex.
+
+**Atomics and compare-and-swap.** The CPU can update one memory word indivisibly. **Compare-and-swap (CAS)** writes a new value only if the word still equals the value you read, and reports success. A typical loop reads, computes, tries CAS, retries on failure. No thread can block the others, so some thread always makes progress, hence "lock-free".
+
+**Memory visibility.** Compilers and CPUs may reorder operations and cache values, so one thread's write is not automatically visible to another. In languages with a formal memory model (Java, C++, Go, Rust), releasing a lock and then acquiring it creates a *happens-before* edge: what the first thread wrote before releasing is visible after the second acquires. Exact rules are language specific.
+
+**Deadlock.** Threads wait forever, each holding what another needs. It requires all four **Coffman conditions**: *mutual exclusion* (one holder at a time), *hold and wait* (keeping what you have while waiting for more), *no preemption* (nobody can take a lock away) and *circular wait* (a cycle of threads, each waiting on the next). Remove any one and deadlock is impossible. Breaking circular wait is usually cheapest: rank every lock and always acquire in rank order.
+
+**Livelock and starvation.** In a *livelock* threads keep reacting to each other (two people stepping aside in a corridor, in sync) and make no progress while burning CPU; randomised backoff breaks the symmetry. In *starvation* a thread is perpetually passed over while others proceed, for example by an unfair lock. A deadlocked thread is idle, a livelocked one busy.
+
+Locks protect memory inside one machine. Locks across machines bring new failure modes: see [Distributed transactions](/system-design/distributed-transactions/), and for distributed locks, [Consensus with Raft](/system-design/consensus-raft/).
+
+## Visual
+
+<Visualizer kind="mutex" />
+
+```text
+counter = 0, no lock: both threads read before either writes
+
+time ->   1        2        3         4
+T1:     read 0   add 1   write 1
+T2:              read 0  add 1      write 1
+counter after both: 1   (expected 2, one update lost)
+
+With a mutex, T2 blocks while T1 holds the lock:
+T1: lock, read 0, write 1, unlock
+T2:       blocked.......   lock, read 1, write 2, unlock
+counter: 2
+```
+
+The visualizer steps through exactly this: the first run loses an update; the second ends at 2, at the cost of T2 waiting.
+
+## Example
+
+**A bounded buffer** of capacity 3: the producer waits when it is full, the consumer when it is empty.
+
+```python
+import threading
+from collections import deque
+
+class BoundedBuffer:
+    def __init__(self, capacity):
+        self.items = deque()
+        self.capacity = capacity
+        self.cond = threading.Condition()
+
+    def put(self, item):
+        with self.cond:
+            while len(self.items) == self.capacity:
+                self.cond.wait()
+            self.items.append(item)
+            self.cond.notify_all()
+
+    def get(self):
+        with self.cond:
+            while not self.items:
+                self.cond.wait()
+            item = self.items.popleft()
+            self.cond.notify_all()
+            return item
+
+buf = BoundedBuffer(capacity=3)
+results = []
+
+def producer():
+    for n in range(8):
+        buf.put(n)
+    buf.put(None)                  # sentinel: no more items
+
+def consumer():
+    while (item := buf.get()) is not None:
+        results.append(item * item)
+
+threads = [threading.Thread(target=producer), threading.Thread(target=consumer)]
+for t in threads: t.start()
+for t in threads: t.join()
+print(results)   # [0, 1, 4, 9, 16, 25, 36, 49]
+```
+
+`wait()` releases the mutex while sleeping and re-acquires it before returning. Every state change calls `notify_all`, and each waiter re-checks its own condition, so a wakeup that finds nothing changed just sleeps again.
+
+**A deadlock and its fix.** Each account has a lock, and a transfer takes both.
+
+```python
+def transfer_bad(src, dst, amount):
+    with src.lock:
+        with dst.lock:              # order depends on the arguments
+            src.balance -= amount
+            dst.balance += amount
+
+def transfer(src, dst, amount):
+    if src is dst:
+        return                      # a Lock cannot be taken twice
+    first, second = sorted((src, dst), key=lambda a: a.ident)
+    with first.lock:                # global order: lower ident first
+        with second.lock:
+            src.balance -= amount
+            dst.balance += amount
+```
+
+If one thread runs `transfer_bad(x, y)` while another runs `transfer_bad(y, x)`, each can take its first lock and wait forever for the other's: all four conditions hold. In `transfer`, every thread locks the lower `ident` first, so no cycle can form. From 100 each, transfers of 30 (x to y) and 20 (y to x) end at 90 and 110.
+
+## Pitfalls
+
+- **Assuming `counter += 1` is safe because it is one line.** It is a read, an add and a write, so two threads can both read the same value. Fix: guard it with a mutex (or an atomic increment, in languages that provide one).
+- **Waiting with `if` instead of `while`.** A spurious or stolen wakeup lets the thread proceed on a false condition. Fix: `while not condition: cond.wait()`.
+- **Skipping release on an error path.** An exception leaves the lock held. Fix: `with lock:` releases automatically.
+- **Re-acquiring a lock you already hold.** Python's `threading.Lock` is not reentrant, so a function that locks, then calls another that locks the same mutex, blocks on itself. Fix: lock only in the outer function, or choose `RLock`, which one thread may re-acquire.
+- **Acquiring locks in different orders in different code paths.** Fix: define one global rank, enforce it in review, and sort locks by it before taking them.
+
+## Tips & tricks
+
+- **Rules of thumb:** prefer message passing or immutable data over shared mutable state. If you must share, use the simplest primitive that fits: a mutex for exclusion, a condition variable for waiting on state, a semaphore to cap how many run at once. Use atomics for single-word counters and flags, in languages that provide them; in Python, use a Lock.
+- **Priority inversion:** a high-priority waiter can be stuck behind medium-priority work while a low-priority thread holds the lock. Some mutexes offer priority inheritance, where the holder borrows the waiter's priority; availability varies by OS.
+- **Interview phrasing:** "A race is a result that depends on interleaving. A mutex gives exclusion; a condition variable waits for state, in a loop; a semaphore counts permits. Deadlock needs mutual exclusion, hold and wait, no preemption and circular wait; a global lock order breaks the last."
+- **What to measure:** time spent waiting for locks (contention), wait-queue length, and CPU use. No progress at near-zero CPU suggests deadlock; no progress at high CPU suggests livelock or spinning.

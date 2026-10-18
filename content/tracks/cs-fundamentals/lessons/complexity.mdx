@@ -1,0 +1,89 @@
+---
+slug: complexity
+title: Complexity & Big-O
+level: beginner
+authors: [cs-atlas]
+prerequisites: []
+summary: "Predict how running time and memory grow with input size, so you can rule out a slow design with arithmetic before you write it."
+---
+
+## Intuition
+
+You must find one name in an alphabetical phone book. Reading every entry takes time proportional to the book's thickness. Opening to the middle and discarding half at each step takes a handful of looks even for a huge book. Double the book and the first method does twice the work; the second does **one more look**. **Complexity** is this question: when the input grows, how does the work grow?
+
+**What n means.** n is the *size* of the input: the number of items, characters or nodes. It is not the *value* of anything. Sorting a list of 1,000 numbers has n = 1,000 no matter how big the numbers are. One caveat: a function that loops x times on a single number x is linear in the *value* x but exponential in the number of bits that write it, which is usually called pseudo-polynomial time (the knapsack DP is the classic example).
+
+**Big-O is an upper bound, informally.** "f is O(g)" means that for large enough n, f grows no faster than some constant multiple of g. You drop constants and lower-order terms: 3n² + 50n + 7 is O(n²). Two companions, one line each:
+- **Ω (omega)** is a lower bound: grows at least this fast.
+- **Θ (theta)** is a tight bound: both O and Ω, so it grows exactly at this rate up to constants.
+
+Because O is only an upper bound, "binary search is O(n²)" is true but useless. Say the tightest bound you can.
+
+**Best, worst, average.** These describe *which input* you run on, not which symbol you use. Scanning a list of n items for a target and stopping at the first match costs 1 comparison at best (target first), n at worst (target last or absent), and about n/2 on average if the target is present and equally likely anywhere. Worst and average are both O(n) here. Quote the worst case unless told otherwise.
+
+**Amortized cost** averages over a *sequence* of operations, not over inputs. A dynamic array (Python `list`, Java `ArrayList`) appends in place until its capacity is full, then moves everything to a bigger block. Take the textbook model that doubles capacity, starting at 1. Appending n = 1,000 items resizes when the array holds 1, 2, 4, …, 512 items, copying 1 + 2 + 4 + … + 512 = 1,023 elements. The same sum in general: the last resize happens at some size c < n, and 1 + 2 + … + c = 2c − 1, so total copies stay **below 2n** (here 1,023 < 2,000). Add the 1,000 writes and the total is 2,023, about 2 operations per append. One append is expensive; the average stays O(1). Real implementations grow by other factors (CPython roughly 1.125×, varying by version); any constant factor above 1 keeps appends O(1) amortized.
+
+**Space complexity** counts the extra memory an algorithm needs beyond its input. Copying a list is O(n) space. Recursion uses stack space proportional to its depth.
+
+## Visual
+
+```text
+Operations needed at two input sizes (log base 2, rounded)
+
+class         n = 1,000         n = 1,000,000
+O(1)          1                 1
+O(log n)      10                20
+O(n)          1,000             1,000,000
+O(n log n)    10,000            20,000,000      (10^6 × 20 = 2 × 10^7)
+O(n²)         1,000,000         10^12           (10^6 × 10^6)
+O(2ⁿ)         ≈ 1.07 × 10^301   not computable in practice
+
+Checks: 2^10 = 1,024 ≈ 1,000 so log₂ 1,000 ≈ 10.
+        2^20 = 1,048,576 ≈ 10^6 so log₂ 10^6 ≈ 20.
+```
+
+Read it sideways: with 1,000× more data, O(n) work grows 1,000×, O(n log n) about 2,000× (2 × 10^7 ÷ 10^4), O(n²) a million times (10^12 ÷ 10^6). Logarithmic work only doubles, 10 to 20.
+
+**Log bases don't matter in Big-O.** log₂ n = log₁₀ n × log₂ 10 ≈ 3.32 × log₁₀ n. At n = 10^6 that is 6 × 3.32 ≈ 19.9, which matches the 20 above. A constant factor is dropped, so write O(log n). Halving, as in [Binary search](/algorithms/binary-search/), is where log n usually comes from; single-pass problems in [Arrays & hashing](/algorithms/arrays-hashing/) are good practice for reading off O(n).
+
+## Example
+
+**Can we find duplicates among 200,000 records inside a 1 s budget?** Take the obvious approach, comparing every pair. The number of pairs is n(n − 1) ÷ 2 = 200,000 × 199,999 ÷ 2 = 19,999,900,000 ≈ 2 × 10^10.
+
+A back-of-envelope speed (it depends on hardware, language and what each comparison does): compiled code may manage roughly 10⁸–10⁹ simple operations per second (illustrative; hardware-dependent), and CPython on the order of 10^7. Even at the generous 10^9, 2 × 10^10 ÷ 10^9 = 20 s. At 10^7 it is 2,000 s. Pairwise fails by a wide margin; tuning constants cannot rescue a factor of 20 to 2,000.
+
+Now sort first, then compare neighbours: equal records end up adjacent.
+
+```python
+def has_duplicate_pairs(records):            # O(n²) time, O(1) extra space
+    n = len(records)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if records[i] == records[j]:
+                return True
+    return False
+
+def has_duplicate_sorted(records):           # O(n log n) time, O(n) extra space
+    s = sorted(records)                      # a new list; the input is untouched
+    for i in range(1, len(s)):
+        if s[i] == s[i - 1]:
+            return True
+    return False
+```
+
+Count the work: log₂ 200,000 ≈ 17.6 (2^17 = 131,072 and 2^18 = 262,144 bracket 200,000), so sorting needs at most about 200,000 × 17.6 ≈ 3.5 × 10^6 comparisons, and the scan adds at most 2 × 10^5. Total about 3.7 × 10^6. At the pessimistic 10^7 per second that is about 0.37 s, inside the budget, though you should still measure. The price is memory: `sorted` builds a second list of 200,000 references, about 200,000 × 8 B = 1.6 MB on a 64-bit CPython. That is a good trade here. The pairs estimate is the worst case (no duplicates); with an early duplicate `has_duplicate_pairs` stops sooner.
+
+## Pitfalls
+
+- **Treating Big-O as a stopwatch.** Two O(n) loops can differ a lot in real time. Fix: use Big-O to rule designs in or out, then measure the survivors.
+- **Ignoring constants at small n.** A "better" class with a large constant can lose at your real n. Fix: compare the actual formulas at your real n.
+- **Assuming all operations cost the same.** Walking a contiguous array is usually much faster than following the same number of pointers across scattered memory, because of CPU caches. Fix: remember Big-O hides this; The memory hierarchy is on this track's outline.
+- **Confusing worst case with amortized.** "Append is O(1) amortized" does not mean every append is fast; one append copies the whole array. Fix: where a single slow call would break a latency budget, plan for the worst call.
+- **Forgetting hidden loops.** A slice, a string concatenation or a library call may itself cost O(n) inside your O(n) loop. Fix: read the documented cost of each call you make.
+
+## Tips & tricks
+
+- **Back-of-envelope rule (illustrative, hardware-dependent):** treat roughly 10⁸–10⁹ simple operations per second as what compiled code can do, and roughly 10⁷ for pure CPython. Estimate the operation count from the formula, divide, and see whether the answer is nowhere near your budget. It is a filter, not a prediction.
+- **Reading the input size:** n ≤ 20 can afford O(2ⁿ) (2^20 ≈ 10^6); n around 10^4 can often afford O(n²) in compiled code; n around 10^6 usually needs O(n log n) or better.
+- **Doubling test:** run at n and 2n. Time about 2× suggests linear, about 4× suggests quadratic, a barely changed time suggests logarithmic or constant.
+- **Interview phrasing:** "Brute force is O(n²), about 2 × 10^10 steps at 200,000 items, so too slow. Sorting first is O(n log n) time and O(n) extra space, which fits."

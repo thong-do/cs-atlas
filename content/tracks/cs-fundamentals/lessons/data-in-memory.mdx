@@ -1,0 +1,97 @@
+---
+slug: data-in-memory
+title: Data in memory
+level: beginner
+authors: [cs-atlas]
+prerequisites: [complexity]
+summary: "See how bits, bytes and addresses lay out your arrays, structs, strings and objects, and why layout decides size, speed and aliasing bugs."
+---
+
+## Intuition
+
+Memory is a very long street of identical mailboxes, each holding one byte and each with a house number, its **address**. A **bit** is a 0 or 1; a **byte** is 8 bits, so 256 possible values. Everything your program touches, whether numbers, text or objects, is bytes at some addresses. A type like `int` says how many mailboxes to read together and how to interpret them.
+
+**Arrays are contiguous.** Items sit side by side, so the address of item `i` is `base + i × size`. With 4-byte items at base `0x1000`, item 250 lives at `0x1000 + 250 × 4 = 4096 + 1000 = 5096 = 0x13E8`. That is one multiply and one add, no searching, which is why indexing is O(1). **Linked nodes** are the opposite: each node is allocated separately, wherever there was room, and holds a **pointer** (an address) to the next. Reaching node `k` means following `k` pointers.
+
+**Stack and heap (language-dependent).** In many compiled languages, local variables live on the **stack**, a region that grows and shrinks as functions are called and return, so their lifetime is the call. Data that must outlive the call, or whose size is unknown until runtime, goes on the **heap**, where it lives until you free it (C), a garbage collector reclaims it (Java and Go trace; CPython mainly counts references, plus a cycle collector), or ownership rules end it (Rust). Languages differ in what they put where: Go decides by escape analysis, and in CPython essentially every object is heap-allocated while the interpreter's own call frames are separate.
+
+**Value versus reference.** A *value* variable holds the data itself; a *reference* variable holds an address of data elsewhere. In Python, Java objects and JavaScript objects, assignment copies a reference, not the object. After `b = a` there is one list and two names for it:
+
+```python
+a = [1, 2, 3]
+b = a
+b.append(4)
+print(a)   # [1, 2, 3, 4]: one list, two names
+```
+
+**Alignment and padding.** Many CPUs read memory most efficiently when an *n*-byte value sits at an address divisible by *n*, and some architectures require it, so compilers insert unused **padding** bytes. Rules differ per platform; the numbers below are for common x86-64 ABIs, where `char` is 1 byte and `int` is 4 bytes aligned to 4.
+
+**Endianness.** A multi-byte number needs an order. The integer `0x12345678` is four bytes, and a *little-endian* machine stores the least significant byte first: `78 56 34 12` at rising addresses. Most common CPUs (x86-64 and typical ARM configurations) are little-endian; Internet protocol headers (IP, TCP, UDP) use *big-endian*, called network byte order, while many file and wire formats are little-endian, so multi-byte data crossing a socket or file must be converted explicitly.
+
+**Strings are bytes.** A string is text encoded into bytes. UTF-8 uses 1 to 4 bytes per character, with plain ASCII at 1 byte. So **byte length and character count differ**:
+
+| Text | Characters (Python `len`) | UTF-8 bytes |
+|---|---|---|
+| `café` | 4 | 5 (`é` is `C3 A9`) |
+| `日本` | 2 | 6 (3 each) |
+| `😀` | 1 | 4 |
+
+Python's `len` counts Unicode code points, not bytes and not what a reader sees as a character; `len("café".encode())` is 5. Network and database limits are usually in bytes.
+
+**Managed-language overhead.** In Python, an int is a full object with a header. On CPython 3.12 on a 64-bit machine, `sys.getsizeof(5)` returned 28 and `sys.getsizeof([])` returned 56. Treat those as one data point: exact sizes vary by version, platform and build, and a list of ints also stores 8 bytes per element for the references. So a small Python int is far larger than 4 bytes.
+
+**Locality teaser.** Walking neighbouring addresses is much friendlier to CPU caches than hopping between scattered ones; The memory hierarchy, on this track's outline, explains why.
+
+## Visual
+
+```text
+Array of 4-byte ints, base 0x1000          Linked list nodes (scattered)
+addr   0x1000 0x1004 0x1008 0x100C         0x2F40: [7 | ->0x9A10]
+item   [ 7 ]  [ 3 ]  [ 9 ]  [ 1 ]          0x9A10: [3 | ->0x51C8]
+index    0      1      2      3            0x51C8: [9 | null]
+addr(i) = base + i × 4
+
+struct { char a; int b; char c; }   -> 12 bytes (typical x86-64)
+offset  0    1   2   3    4 5 6 7     8    9  10  11
+       [ a ][pad pad pad][   b    ]  [ c ][pad pad pad]
+
+struct { int b; char a; char c; }   -> 8 bytes
+offset  0 1 2 3    4    5    6   7
+       [   b    ][ a ][ c ][pad pad]
+```
+
+Each pad cell belongs to no field but still costs memory.
+
+## Example
+
+**What does field order cost across 10 million records?** On typical x86-64, take two C structs with the same fields:
+
+```c
+struct A { char a; int b; char c; };   // sizeof == 12 on typical x86-64
+struct B { int b; char a; char c; };   // sizeof == 8
+```
+
+Work out `A`. `a` is at offset 0. `b` needs a multiple of 4, so offsets 1 to 3 are padding and `b` sits at 4 to 7. `c` goes at 8. The struct's total size must be a multiple of its largest alignment (4), so that every element of an array stays aligned: 9 rounds up to 12, with offsets 9 to 11 as tail padding. Fields use 1 + 4 + 1 = 6 bytes, padding 6, total 12.
+
+Now `B`. `b` at 0 to 3, `a` at 4, `c` at 5, and 6 bytes round up to 8 with 2 bytes of padding. The same 6 bytes of data fit in 8.
+
+An array of 10,000,000 of them:
+
+- `A`: 10,000,000 × 12 B = 120,000,000 B = 120 MB
+- `B`: 10,000,000 × 8 B = 80,000,000 B = 80 MB
+
+Reordering saves 40 MB, a third of the memory, with no change to the data. Sorting fields from largest alignment to smallest usually minimises padding. You can verify it: C's `sizeof` and `offsetof` report the layout the compiler chose. [Complexity & Big-O](/cs-fundamentals/complexity/) ignores constants, so this 1.5× is invisible there, yet it can decide whether the array fits in RAM. Compilers and flags can pack differently, so check your target.
+
+## Pitfalls
+
+- **Assuming a type's size is the sum of its fields.** Padding makes `sizeof` bigger. Fix: print `sizeof` for hot structs and order fields by descending alignment.
+- **Using `len` of a string as a byte count.** `len("café")` is 4 but the UTF-8 payload is 5 bytes, so a 255-byte column can overflow. Fix: encode first and measure `len(s.encode("utf-8"))` wherever the limit is in bytes.
+- **Treating assignment as duplication.** `b = a` on a list makes a second name, so a change through one name shows through the other. Fix: before mutating anything you were handed, ask who else holds a reference to it, and document functions that mutate their arguments.
+- **Reading raw multi-byte values without agreeing on byte order.** Bytes from a file or socket decoded with the wrong order give a wildly wrong number, such as `0x78563412` instead of `0x12345678`. Fix: state the byte order in the format, and decode explicitly (for example `int.from_bytes(data, "big")`).
+- **Guessing object sizes.** A Python list of a million ints can cost far more than 4 MB. Fix: measure with `sys.getsizeof` for the container, `tracemalloc` for what a workload really allocates, and use `array` or NumPy when you need packed numbers.
+
+## Tips & tricks
+
+- **What to measure:** `sizeof` and `offsetof` in C, `sys.getsizeof` and `tracemalloc` in Python, resident memory in a process monitor. Memory per record times record count gives the footprint, so multiply before you build.
+- **Interview phrasing:** "A contiguous array gives O(1) indexing by address arithmetic; a linked list needs pointer chasing. For 10 million records, 12-byte versus 8-byte structs is 120 MB versus 80 MB on typical x86-64, so I would reorder fields."
+- **Strings:** decide bytes or characters before validating length, and name the encoding.

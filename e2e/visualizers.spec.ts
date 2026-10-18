@@ -13,6 +13,8 @@ const PAGES = [
   { path: '/system-design/rate-limiting/', final: 'Done: 9 requests allowed, 4 rejected — bursts drained the bucket, steady traffic refilled it' },
   { path: '/system-design/consensus-raft/', final: 'Done: S2 won term 2 with a majority, and x=1 committed on 2 of 3 nodes while S3 was down' },
   { path: '/system-design/distributed-transactions/', final: 'Done: 2PC kept both databases in agreement, but a coordinator crash left them blocked, holding locks, until it recovered' },
+  { path: '/cs-fundamentals/virtual-memory/', final: 'Done: 1 TLB hit, 2 misses and 1 page fault — the fault needed a disk read, far slower than any memory access' },
+  { path: '/cs-fundamentals/concurrency-primitives/', final: 'Done: without a lock one of two updates was lost; with the mutex counter = 2, at the cost of T2 waiting' },
 ]
 const VIEWPORTS = [
   { width: 375, height: 812 },

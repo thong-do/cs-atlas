@@ -1,0 +1,56 @@
+slug: complexity-quiz
+type: quiz
+title: "Complexity & Big-O — quiz"
+lessons: [complexity]
+ladderOrder: 1
+questions:
+  - id: growth-from-timings
+    prompt: "A job takes 4 s on 5,000 records, 16 s on 10,000 and 64 s on 20,000. Which growth fits these timings best?"
+    choices: ["Linear: doubling n doubles the time", "n log n: doubling n multiplies the time by a little over 2", "Quadratic: doubling n multiplies the time by 4", "Logarithmic: doubling n adds a fixed amount of time"]
+    answer: 2
+    explanation: "Each doubling of n multiplies the time by 4 (4 → 16 → 64 s), the signature of n². Linear and n log n would give roughly 2×, and a logarithmic cost would add the same amount each doubling, not 12 s and then 48 s."
+  - id: budget-check
+    prompt: "A Python step with a 1 s budget compares every pair among 40,000 items: 40,000 × 39,999 ÷ 2 ≈ 8 × 10⁸ comparisons. Taking CPython as roughly 10⁷ simple operations per second (illustrative), what is the best judgement?"
+    choices: ["It fits: a CPU runs billions of cycles a second, so 8 × 10⁸ comparisons take well under a second", "About 80 s, so replace the all-pairs step with an algorithm that does far fewer comparisons", "About 80 s, so split the work across four worker processes", "About 0.8 s, so it fits with a little room to spare"]
+    answer: 1
+    explanation: "8 × 10⁸ ÷ 10⁷ = 80 s. Four workers would still need about 20 s, and counting cycles ignores that each interpreted comparison costs many of them; 0.8 s comes from misplacing a factor of 100."
+  - id: array-append-cost
+    prompt: "A dynamic array starts with capacity 2 and triples its capacity whenever it is full, copying the old elements across. You append 50 items. What does the cost look like?"
+    choices: ["2 + 6 + 18 = 26 element copies in total, so the per-append average stays constant as n grows", "Resizes happen at 2, 6 and 18 items, so there are only 3 of them and each append costs O(log n) amortized", "The 19th append copies 18 items, so one costly append means append cannot be called O(1) in any sense", "Tripling means about 50 + 50/3 + 50/9 + … ≈ 75 copies, so it costs more than doubling would"]
+    answer: 0
+    explanation: "Resizes at sizes 2, 6 and 18 copy 26 elements for 50 appends, and the same geometric argument holds for any growth factor above 1. Three resizes is the right count but not the cost per append; the 19th append is expensive, yet amortized cost averages over the whole sequence; and the geometric sum quoted for tripling is not how copies are counted."
+  - id: log-base
+    prompt: "A capacity plan assumes a lookup in a sorted array of 1,000,000 ids costs about 20 probes (binary search). A colleague proposes a 4-way search structure with about 10 levels, where each level may take up to 3 comparisons. How should the plan treat it?"
+    choices: ["Yes, a new class: log₄ n grows more slowly than log₂ n, so it wins at every input size", "No new class, and it is certainly faster, since depth halves from 20 levels to 10 levels", "Both are O(1) in practice, since 20 and 10 are tiny constants, so the plan needs no change at all", "Same O(log n) class: up to 30 comparisons against 20, so measure before assuming it is faster"]
+    answer: 3
+    explanation: "log₄ n is log₂ n halved, a constant factor, so the class does not change, and 10 levels with up to 3 comparisons each can cost more than 20 single probes. Depth alone does not decide speed, and calling both O(1) mislabels a cost that still grows with n."
+  - id: crossover
+    prompt: "Algorithm A takes about 50n steps and algorithm B about n² steps. Your input is always around n = 20 items. Which is cheaper, and what does Big-O say about it?"
+    choices: ["A, because a linear algorithm always beats a quadratic one, whatever the input size", "B (400 against 1,000 steps); Big-O favours A only past n = 50, so constants decide here", "A, because by n = 20 the linear cost has already fallen below the quadratic one", "B, because Big-O says a quadratic algorithm is cheaper than a linear one when inputs are small"]
+    answer: 1
+    explanation: "At n = 20, 20² = 400 beats 50 × 20 = 1,000, and the curves cross at n = 50. Big-O describes growth for large n, so it neither claims linear always wins nor predicts anything about small inputs."
+flashcards:
+  - id: big-o
+    front: "Big-O"
+    back: "An upper bound on growth: f is O(g) if, for large n, f stays below some constant multiple of g. Drop constants and lower-order terms."
+  - id: theta-omega
+    front: "Θ and Ω"
+    back: "Ω is a lower bound (at least this fast). Θ is a tight bound: both O and Ω, so growth matches up to constants."
+  - id: input-size
+    front: "What is n?"
+    back: "The size of the input (items, characters, nodes), not the value of any number in it."
+  - id: log-base
+    front: "Log base in Big-O"
+    back: "Irrelevant: log₂ n = log₁₀ n × log₂ 10 ≈ 3.32 × log₁₀ n, a constant factor. Write O(log n)."
+  - id: amortized
+    front: "Amortized cost"
+    back: "Cost averaged over a sequence of operations. Doubling a dynamic array makes append O(1) amortized, though one append copies everything."
+  - id: case-analysis
+    front: "Best, worst and average case"
+    back: "Which input you run on, not which bound you use. Quote the worst case unless told otherwise."
+  - id: space-complexity
+    front: "Space complexity"
+    back: "Extra memory beyond the input. Copying a list is O(n); recursion uses stack space proportional to its depth."
+  - id: ops-budget
+    front: "Operations-per-second estimate"
+    back: "Roughly 10⁸–10⁹ simple operations per second in compiled code, 10⁷ in CPython (illustrative; hardware-dependent). Use it to filter designs, not predict time."

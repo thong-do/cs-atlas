@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test'
 
-test('tracks page lists both tracks and links to their homes', async ({ page }) => {
+test('tracks page lists all three tracks and links to their homes', async ({ page }) => {
   await page.goto('/tracks/')
   await expect(page.getByRole('heading', { level: 1, name: 'Tracks' })).toBeVisible()
   await expect(page.getByRole('link', { name: /Algorithms/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /System Design/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /CS Fundamentals/ })).toBeVisible()
   await page.getByRole('link', { name: /System Design/ }).click()
   await expect(page).toHaveURL(/\/system-design\/$/)
 })
@@ -32,4 +34,16 @@ test('the palette groups lessons by track', async ({ page }) => {
   await expect(page.getByRole('group', { name: 'System Design' })).toBeVisible()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/system-design\/caching\/$/)
+})
+
+test('the CS Fundamentals home shows modules and coming-soon titles, and Continue opens the first lesson', async ({ page }) => {
+  await page.goto('/cs-fundamentals/')
+  await expect(page.getByRole('heading', { level: 1, name: 'CS Fundamentals' })).toBeVisible()
+  for (const name of ['Foundations', 'Operating systems', 'Networking', 'Databases', 'Machine & math']) {
+    await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
+  }
+  await expect(page.getByText('Coming soon').first()).toBeVisible()
+  await expect(page.getByText('TLS')).toBeVisible()
+  await page.getByRole('link', { name: /^Continue/ }).click()
+  await expect(page).toHaveURL(/\/cs-fundamentals\/complexity\/$/)
 })

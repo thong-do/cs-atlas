@@ -18,6 +18,7 @@ import { NoteEditor } from './note-editor'
 import { ReviewHistory } from './review-history'
 
 export function DesignWorkspace({ design }: { design: DesignDoc }) {
+  const noun = design.kind === 'diagnose' ? 'answer' : 'design'
   const store = useStore()
   const note = useLive((s) => s.getNote(design.slug), [design.slug])
   const progress = useLive((s) => s.getProgress(design.slug), [design.slug])
@@ -76,7 +77,7 @@ export function DesignWorkspace({ design }: { design: DesignDoc }) {
       {!compared && !note && (
         <section className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="design-draft">Your design</Label>
+            <Label htmlFor="design-draft">Your {noun}</Label>
             <Textarea id="design-draft" rows={10} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Markdown supported" />
           </div>
           <div className="space-y-1">
@@ -98,7 +99,7 @@ export function DesignWorkspace({ design }: { design: DesignDoc }) {
 
       {compared && !saved && !note && (
         <section className="space-y-3" aria-labelledby="your-design-heading">
-          <h2 id="your-design-heading" className="text-xl font-semibold">Your design</h2>
+          <h2 id="your-design-heading" className="text-xl font-semibold">Your {noun}</h2>
           <p className="whitespace-pre-wrap break-words rounded-lg border p-4 text-sm">{draft}</p>
           <p className="break-words text-sm"><span className="font-medium">Key insight:</span> {insight.trim()}</p>
           <Button variant="outline" onClick={() => setCompared(false)}>Edit</Button>

@@ -19,7 +19,8 @@ export interface ProblemExercise extends ExerciseBase {
   type: 'external-problem'; leetcodeId: number; url: string; difficulty: Difficulty; recognitionPrompt: string; hint: string
 }
 export interface QuizExercise extends ExerciseBase { type: 'quiz'; questionCount: number; flashcardIds: string[] }
-export interface DesignExercise extends ExerciseBase { type: 'design-prompt'; rubric: string[] } // rubric point texts, for Today's reveal
+export type PromptKind = 'design' | 'diagnose'
+export interface DesignExercise extends ExerciseBase { type: 'design-prompt'; kind: PromptKind; rubric: string[] } // rubric point texts, for Today's reveal
 export type ExerciseMeta = ProblemExercise | QuizExercise | DesignExercise
 export interface QuizQuestion { id: string; prompt: string; choices: string[]; answer: number; explanation: string }
 export interface Flashcard { id: string; front: string; back: string }

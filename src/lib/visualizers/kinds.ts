@@ -16,6 +16,8 @@ export const VISUALIZER_KINDS = [
   'feed-fanout',
   'raft',
   'two-phase-commit',
+  'page-table',
+  'mutex',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

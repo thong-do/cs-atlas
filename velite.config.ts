@@ -95,6 +95,7 @@ const exercises = defineCollection({
       rubric: s.array(s.object({ id, point: s.string().min(1) }).strict()).min(3).max(8),
       reference: s.string().min(1),
       hint: s.string().min(1).optional(),
+      kind: s.enum(['design', 'diagnose']).default('design'),
     }).strict(),
   ]), // unknown fields (e.g. a pasted solution) fail the build
 })

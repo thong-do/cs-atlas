@@ -1,0 +1,23 @@
+slug: cs-fundamentals
+title: CS Fundamentals
+summary: "What the machine, the OS, the network and the database do underneath your code."
+order: 3
+modules:
+  - slug: foundations
+    title: Foundations
+    lessons: [complexity, data-in-memory]
+  - slug: operating-systems
+    title: Operating systems
+    lessons: [processes-threads, cpu-scheduling, virtual-memory, concurrency-primitives]
+  - slug: networking
+    title: Networking
+    lessons: []
+    comingSoon: ["The TCP/IP stack", "TCP vs UDP", "TLS", "HTTP/1.1, HTTP/2 and HTTP/3"]
+  - slug: databases
+    title: Databases
+    lessons: []
+    comingSoon: ["Indexes & B-trees", "Transactions & isolation levels", "Query planning"]
+  - slug: machine-math
+    title: Machine & math
+    lessons: []
+    comingSoon: ["The memory hierarchy", "Number representation", "Discrete math essentials"]

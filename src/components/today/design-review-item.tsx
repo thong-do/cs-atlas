@@ -15,6 +15,7 @@ export function DesignReviewItem({
   onRate: (rating: ReviewRating) => Promise<void>
 }) {
   const [revealed, setRevealed] = useState(false)
+  const noun = exercise.kind === 'diagnose' ? 'answer' : 'design'
   return (
     <article className="space-y-3 rounded-lg border p-4">
       <h3 className="font-semibold">
@@ -22,7 +23,7 @@ export function DesignReviewItem({
       </h3>
       {!revealed ? (
         <>
-          <p className="text-sm text-muted-foreground">Recall your design, then reveal.</p>
+          <p className="text-sm text-muted-foreground">Recall your {noun}, then reveal.</p>
           <Button variant="secondary" onClick={() => setRevealed(true)}>Reveal</Button>
         </>
       ) : (

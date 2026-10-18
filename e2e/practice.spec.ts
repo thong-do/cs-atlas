@@ -111,3 +111,13 @@ test('after the quiz, flashcards come due on Today and can be reviewed', async (
   await expect(cards).toHaveCount(before - 1)
   await expect(later.getByRole('link', { name: 'Take the quiz' })).toBeVisible()
 })
+
+test('a diagnose prompt is labelled Diagnose in the list and asks for "Your answer"', async ({ page }) => {
+  await page.goto('/exercises/')
+  await page.getByLabel('Search exercises').fill('Diagnose: the export')
+  const row = page.getByRole('listitem').filter({ hasText: 'Diagnose: the export that times out' })
+  await expect(row.getByText('Diagnose', { exact: true })).toBeVisible()
+  await row.getByRole('link').first().click()
+  await expect(page).toHaveURL(/\/exercises\/diagnose-slow-growth\/$/)
+  await expect(page.getByLabel('Your answer')).toBeVisible()
+})

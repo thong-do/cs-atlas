@@ -1,0 +1,40 @@
+slug: diagnose-prefork-memory
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the shared catalog that fills the box"
+lessons: [virtual-memory]
+ladderOrder: 2
+prompt: |
+  A pre-fork Python web server loads a **400 MB** in-memory catalog in the parent, then forks **8 workers**. Right after startup the
+  machine's used memory is about **600 MB** in total, even though each worker's RSS already reads about **425 MB**. After an
+  hour of traffic, used memory nears the box's **4 GB** limit, although the catalog is never written by application code.
+
+  Explain how copy-on-write explains the startup numbers, and why reading Python objects can still grow memory over the hour.
+  Say how you would confirm it by separating shared from private memory. Propose fixes, hedged by runtime, and work out
+  roughly how much memory each saves.
+hint: "Ask what a read of an ordinary Python object changes in the object itself, and how many pages that touches."
+rubric:
+  - id: cow
+    point: "Explains copy-on-write: after fork the workers share the parent's frames read-only, a page is copied only when someone writes to it, and RSS counts shared pages in every process, so the 8 × 425 MB of RSS does not add up to real use."
+  - id: reads-write
+    point: "Explains that reading Python objects still writes: each object's header holds a reference count that is updated on access, and each cyclic GC pass writes into the GC header of every tracked object it scans, so even untouched objects get dirtied; either way the page is dirtied; hedged, since this describes CPython and other runtimes differ."
+  - id: confirm
+    point: "Shows how to confirm: compare shared and private memory per worker, for example the Shared_* against Private_* fields and Pss in /proc/PID/smaps_rollup on Linux, and watch private memory grow over time while the sum of Pss matches the system's used memory."
+  - id: fixes
+    point: "Gives fixes with trade-offs: gc.freeze() (Python 3.7+) before forking (skips GC bookkeeping but not reference-count writes, so only a partial help), keeping the data in a non-object form such as an mmap'd array, giving each worker only a slice, or running fewer workers."
+  - id: arithmetic
+    point: "Shows the arithmetic: 400 + 8 × 25 = 600 MB at startup, up to 400 + 8 × (400 + 25) = 3,800 MB after the pages are copied, and the saving of each fix against that figure."
+reference: |
+  **Copy-on-write.** After fork, parent and workers map the same 400 MB read-only; a write copies one page. Each worker's RSS counts the shared pages, so 425 MB each (400 shared + 25 private) overstates use. Real use at startup: 400 + 8 × 25 = 600 MB.
+
+  **Why reads write.** In CPython every object's header holds a reference count, changed when code reads or passes the object, and each cyclic GC pass writes into the GC header of every tracked object it scans, dirtying pages the code never touched. A read dirties the object's page, copying it. A catalog of millions of small objects sits across roughly 100,000 4 KiB pages (400 MB ÷ 4 KiB), so over an hour each worker may copy up to all 400 MB. Other runtimes differ.
+
+  **Confirm.** Per worker, compare the `Shared_*` and `Private_*` fields (the catalog shows as `Shared_Dirty` at first) and `Pss` in `/proc/PID/smaps_rollup`. Private memory climbing over the hour, with summed Pss matching used memory, confirms it.
+
+  **Arithmetic.** Worst case: 400 + 8 × (400 + 25) = 3,800 MB, near 4 GB.
+
+  **Fixes.**
+  - `gc.freeze()` (Python 3.7+) before fork moves objects to a permanent generation so GC passes skip them, but reference counts still change, so some copying remains; it hardly changes the worst case.
+  - Store the catalog as an `mmap`'d array of raw numbers: no per-object headers, reads write nothing, one page-cache copy. About 400 + 8 × 25 = 600 MB, saving 3,200 MB.
+  - Give each worker a 1/8 slice, loaded after forking: 8 × (50 + 25) = 600 MB, saving 3,200 MB, but requests must be routed by slice.
+  - Run 4 workers: 400 + 4 × 425 = 2,100 MB, saving 1,700 MB, at lower concurrency.

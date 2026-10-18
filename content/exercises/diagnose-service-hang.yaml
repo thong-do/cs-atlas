@@ -1,0 +1,43 @@
+slug: diagnose-service-hang
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the instances that stop at 0% CPU"
+lessons: [concurrency-primitives]
+ladderOrder: 2
+prompt: |
+  Under load, **2 of 50 instances** of a service stop responding while their CPU sits at **0%**. A thread dump of a hung instance
+  shows thread A holding the **cache-refresh lock** and waiting for a database connection from a pool of **10**. All 10 connections
+  are held by request threads, and each of them is waiting for the cache-refresh lock.
+
+  Identify the deadlock and map it to the four conditions. Explain why only some instances hang. Say how you would confirm it.
+  Propose fixes.
+hint: "Draw who holds what and who waits for what, then ask which events had to land in a particular order for the cycle to close."
+rubric:
+  - id: deadlock
+    point: "Identifies a deadlock, not a slow dependency: A holds the refresh lock and waits for a connection, while the 10 request threads hold all the connections and wait for the lock, so nobody can ever proceed."
+  - id: conditions
+    point: "Maps the cycle onto all four Coffman conditions: mutual exclusion (one holder of the lock, and of each connection), hold and wait, no preemption (neither can be taken away), and circular wait (A waits on the requests, which wait on A)."
+  - id: timing
+    point: "Explains why only some instances hang: the cycle closes only if a refresh starts while the connections are all or nearly all in use, and the in-flight requests then reach the lock; it depends on timing and load, so 2 of 50 (4%) hit the window."
+  - id: confirm
+    point: "Confirms it from the dumps and metrics: the same cycle in each hung instance's dump, pool usage pinned at 10 of 10 with waiters, no CPU use, and a reproduction with a small pool or a delayed refresh."
+  - id: fixes
+    point: "Gives fixes: never hold the lock while waiting on a slow call or acquiring a connection, add timeouts, keep one consistent acquisition order, and refresh ahead of expiry without taking the lock readers need."
+reference: |
+  **Deadlock.** A holds the refresh lock and waits for a connection. Each of the 10 request threads holds one connection and waits for the lock. A needs a connection only a lock-waiter can free, and they need the lock only A can free, so nothing moves and CPU stays at 0%.
+
+  **Four conditions.**
+  - Mutual exclusion: one holder of the lock, and of each connection.
+  - Hold and wait: A keeps the lock while waiting for a connection; each request keeps its connection while waiting for the lock.
+  - No preemption: neither the lock nor a connection can be taken from its holder.
+  - Circular wait: A waits on the 10 requests, and they wait on A.
+
+  **Why only some instances.** The cycle needs a refresh to start while the connections are all, or almost all, in use, and the requests holding them to reach the lock before A gets a free connection. Load and refresh times differ per instance, so most never line up: 2 ÷ 50 = 0.04, 4% of instances. Once closed, it never clears.
+
+  **Confirm.** Take thread dumps from the two hung instances and find the same cycle. Check pool usage reads 10 of 10 with waiters at idle CPU. Reproduce with a pool of 1 or 2, or a slowed refresh.
+
+  **Fixes.**
+  - Do not hold the lock while waiting for a connection or making a slow call. Fetch first, then lock only to swap in.
+  - Add timeouts to lock and connection waits, so a stuck request fails and lets go.
+  - Acquire in one consistent order everywhere, for example connection before lock, never the reverse.
+  - Refresh ahead of expiry in the background and publish the new value atomically, so readers never take the refresh lock.

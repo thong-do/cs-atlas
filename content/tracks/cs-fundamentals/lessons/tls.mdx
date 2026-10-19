@@ -25,7 +25,7 @@ TLS runs on a reliable byte stream, normally TCP (see [TCP vs UDP](/cs-fundament
 
 **Key exchange and forward secrecy.** Each side generates a throwaway key pair for this connection only and sends the public half (a *key share*). Combining its own private key with the peer's public half gives both ends the same secret (**(EC)DHE**, Diffie-Hellman over elliptic curves or finite fields). The throwaway keys are then deleted. The server's long-term key only *signs* the handshake. If it leaks next year, it cannot unlock traffic recorded today, because the session secret was never sent and no longer exists. That is **forward secrecy**.
 
-**Certificates.** A certificate binds a public key to one or more names, listed in its *SAN* (Subject Alternative Name) field, and is signed by a *certificate authority* (CA). Trust flows along a chain: the leaf certificate is signed by an intermediate CA, whose certificate is signed by a root. The client verifies each signature up to a **root in its trust store**, shipped with the OS or browser. It also checks that the hostname it asked for matches a SAN entry and that the current time is inside the certificate's validity dates.
+**Certificates.** A certificate binds a public key to one or more names, listed in its *SAN* (Subject Alternative Name) field, and is signed by a *certificate authority* (CA). Trust flows along a chain: the leaf certificate is signed by an intermediate CA, whose certificate is signed by a root. The client verifies each signature up to a **root in its trust store**, shipped with the OS or browser. It also checks that the hostname it asked for matches a SAN entry and that the time is inside the validity dates. A wildcard such as `*.example.com` covers exactly one label: `a.example.com`, not `example.com` or `a.b.example.com`.
 
 *Revocation* (a CA withdrawing a certificate early) exists through CRLs and OCSP, but how strictly clients check varies by browser and library.
 
@@ -100,7 +100,7 @@ The connection still encrypts, but nobody checks who answers: a machine in the m
 
 - **Turning off verification to make an error go away** (`verify=False`, `CERT_NONE`, `-k`, a trust-everything manager). The traffic is encrypted but the peer is unchecked. Fix: keep the defaults on, and find out which check failed (name, dates or trust).
 - **Letting a certificate expire.** Clients reject it the moment it is out of date. Fix: automate renewal and alert on days to expiry.
-- **Connecting by IP address or a name not in the SAN.** The hostname check fails even for a valid certificate. Fix: use a listed name.
+- **Connecting by an IP or name not listed in the SAN.** The hostname check fails even for a valid certificate. Fix: use a SAN-listed name.
 - **Sending a non-idempotent request as 0-RTT.** A replayed `POST` could run twice. Fix: allow early data only for idempotent requests, or leave it off.
 - **Opening a new TLS connection per request.** Each pays the round trips and key-exchange work. Fix: reuse connections and enable resumption.
 - **Assuming termination protects the whole path.** A balancer forwarding plain HTTP leaves that hop readable. Fix: re-encrypt to the backends when the network is not trusted.

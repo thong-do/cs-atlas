@@ -1,0 +1,42 @@
+slug: diagnose-slow-long-distance-upload
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the backup that crawls to Frankfurt"
+lessons: [tcp-vs-udp]
+ladderOrder: 2
+prompt: |
+  A nightly backup uploads **50 GB** from Singapore to a bucket in Frankfurt over **one TCP connection**. The link is **1 Gbit/s
+  (125 MB/s)** and the round-trip time is **160 ms**. The same upload to a same-region bucket (RTT **2 ms**) runs at about
+  **110 MB/s**. To Frankfurt it runs at a steady **~3.2 MB/s** and takes about **4.2 hours**. There is no measurable packet loss,
+  and the link is nearly idle. Both hosts cap their socket buffers at **512 KiB**, a setting left by an old tuning script, so the
+  TCP window can never exceed 512 KiB.
+
+  Explain why throughput is stuck near 3.2 MB/s, and why the same settings are fine at 2 ms. Work out how much data must be in
+  flight to fill the link. Say how you would confirm the cause, and propose fixes with their trade-offs.
+hint: "A sender can have at most one window of unacknowledged data outstanding per round trip. What does that make throughput?"
+rubric:
+  - id: window-cap
+    point: "Explains that a sender may have at most one window of unacknowledged data in flight and must then wait for ACKs, so throughput is at most window ÷ RTT: 524,288 B ÷ 0.16 s ≈ 3.28 MB/s, matching the observed ~3.2 MB/s."
+  - id: bdp
+    point: "Computes the bandwidth-delay product needed to fill the link: 125 MB/s × 0.16 s = 20 MB in flight, about 38 times the 512 KiB window (20,000,000 ÷ 524,288)."
+  - id: short-rtt
+    point: "Explains why the same window is fine at 2 ms: 524,288 ÷ 0.002 ≈ 262 MB/s, above the 125 MB/s link, so the link, not the window, is the limit; the cap bites only as RTT grows."
+  - id: confirm
+    point: "Shows how to confirm: ss -ti on the sender shows the window and RTT with no retransmits, or a packet capture shows the sender idle, with about 512 KiB in flight, while it waits for ACKs; the duration check 50,000 MB ÷ 3.28 MB/s ≈ 15,240 s ≈ 4.2 h matches."
+  - id: fixes
+    point: "Gives fixes with trade-offs: raise the socket buffer limits or allow autotuning up to at least 20 MB (more memory per connection), use parallel streams (more connections, each with its own window), or upload to a closer region and replicate (extra cost and a delay before the data reaches Frankfurt)."
+reference: |
+  **Cause.** A sender may have at most one window of unacknowledged bytes in flight, then waits for ACKs. Each round trip moves one window, so throughput ≤ window ÷ RTT. The buffers cap the window at 512 KiB = 524,288 B, so 524,288 ÷ 0.16 s ≈ 3.28 MB/s, about the observed 3.2 MB/s. The link sits mostly idle.
+
+  **Duration check.** 50 GB = 50,000 MB; 50,000 ÷ 3.28 ≈ 15,240 s ≈ 4.2 hours, matching the symptom.
+
+  **Why 2 ms is fine.** 524,288 ÷ 0.002 ≈ 262 MB/s, above the 125 MB/s link, so the link limits it (about 110 MB/s in practice). The cap only bites as RTT grows.
+
+  **What fills the link.** The bandwidth-delay product: 125 MB/s × 0.16 s = 20 MB in flight. The window must be 20,000,000 ÷ 524,288 ≈ 38 times larger.
+
+  **Confirm.** `ss -ti` on the sender shows the window and RTT near 160 ms with no retransmits. A capture shows the sender idle, with roughly 512 KiB outstanding, waiting for ACKs.
+
+  **Fixes.**
+  - Raise the buffer limits, or let autotuning grow them to at least 20 MB. At that size, the full upload takes 50,000 ÷ 125 = 400 s, about 7 minutes. Cost: up to 20 MB of memory per connection, each end.
+  - Use parallel streams: each has its own 512 KiB window, so about 38 of them (125 ÷ 3.28) fill the link, and 40 give 40 × 3.28 = 131 MB/s, which the link caps at 125; 8 give only about 26 MB/s. Cost: more connections and code to split the data.
+  - Upload to a nearby region and replicate. The RTT shrinks, so the old window suffices, but replication adds cost and delay.

@@ -11,8 +11,8 @@ modules:
     lessons: [processes-threads, cpu-scheduling, virtual-memory, concurrency-primitives]
   - slug: networking
     title: Networking
-    lessons: [tcp-ip-stack]
-    comingSoon: ["TCP vs UDP", "TLS", "HTTP/1.1, HTTP/2 and HTTP/3"]
+    lessons: [tcp-ip-stack, tcp-vs-udp]
+    comingSoon: ["TLS", "HTTP/1.1, HTTP/2 and HTTP/3"]
   - slug: databases
     title: Databases
     lessons: []

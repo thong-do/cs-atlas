@@ -29,13 +29,13 @@ TCP builds a **reliable, ordered byte stream** on top of IP, which only tries to
 
 **Head-of-line blocking.** The receiver hands bytes to the application only in order. If one segment is lost, later segments that did arrive wait in the kernel until the gap is filled, so the application sees a stall, then a burst.
 
-**Closing.** Each direction closes with its own `FIN` and ACK: four segments. The side that closed first ends in **TIME_WAIT** (typically 60 s on Linux), keeping the 5-tuple (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)) reserved so stray old segments cannot be mistaken for a new connection and a lost final ACK can be answered again.
+**Closing.** Each direction closes with its own `FIN` and ACK: up to four segments (often three if the peer combines its ACK and FIN). The side that closed first ends in **TIME_WAIT** (typically 60 s on Linux), keeping the 5-tuple (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)) reserved so stray old segments cannot be mistaken for a new connection and a lost final ACK can be answered again.
 
 **UDP** keeps only the ports. Its header is 8 bytes (ports, length, checksum). There is no connection, no ordering, no retransmission and no congestion control: each datagram is sent once, alone. If you need any of that, your application adds it. That makes UDP the right fit when late data is worthless:
 
 - **DNS:** one small question and one answer, so a handshake would double the cost. The client retries on timeout.
 - **Games, voice and video:** a late position or audio frame is useless because a newer one has replaced it. TCP would retransmit the stale one and hold back everything behind it, so a gap beats a late packet.
-- **QUIC** builds its own reliability, ordering and congestion control on top of UDP, per stream. HTTP/3 uses it (see the "HTTP/1.1, HTTP/2 and HTTP/3" lesson in this module).
+- **QUIC** builds its own reliability and ordering per stream, and congestion control per connection, on top of UDP. HTTP/3 uses it (see the "HTTP/1.1, HTTP/2 and HTTP/3" lesson in this module).
 
 ## Visual
 
@@ -59,7 +59,7 @@ Client                                   Server
   |  TIME_WAIT                    CLOSED  |
 ```
 
-Twelve segments: 3 for the handshake, 5 for the data (two data segments, one of them lost and resent, and two ACKs) and 4 for the close. The numbers add up: 100 bytes from seq 101 are acked with 201, and 100 more from 201 with 301. The client's FIN has seq 301 and ack 301, since it has not yet seen the server's FIN. The server acks with 302 = 301 + 1, because a FIN consumes one number. The server's own FIN has seq 301, its next number.
+Twelve segments: 3 for the handshake, 5 for the data (two data segments, one of them lost and resent, and two ACKs) and 4 for the close (separate ACK and FIN here). 100 bytes from seq 101 are acked with 201, and 100 more from 201 with 301. The client's FIN has seq 301 and ack 301, since it has not yet seen the server's FIN. The server acks with 302 = 301 + 1, because a FIN consumes one number. The server's FIN also has seq 301.
 
 <Visualizer kind="tcp-handshake" />
 
@@ -123,10 +123,11 @@ def serve():
 
 threading.Thread(target=serve, daemon=True).start()
 with socket.create_connection(("127.0.0.1", port)) as c:
+    c.settimeout(2)                       # a silent peer raises instead of hanging
     print(read_msg(c), read_msg(c))       # b'hello' b'world!'
 ```
 
-The two messages may share one segment, yet `read_msg` returns them separately. A real server would cap `n` first.
+The two messages may share one segment, yet `read_msg` returns them separately. A real reader would cap `n` first.
 
 ## Pitfalls
 
@@ -140,5 +141,5 @@ The two messages may share one segment, yet `read_msg` returns them separately. 
 ## Tips & tricks
 
 - **Rules of thumb:** need every byte, in order? Use TCP. Is late data worthless, or do you need your own retry policy? Consider UDP, or QUIC for the work done for you.
-- **Interview phrasing:** "TCP numbers every byte, acks cumulatively and retransmits on timeout or three duplicate ACKs, giving a reliable ordered stream. The price is a handshake round trip and head-of-line blocking on loss. UDP is just ports and a checksum; you build the rest."
+- **Interview phrasing:** "TCP numbers every byte, acks cumulatively and retransmits on timeout or three duplicate ACKs, giving a reliable ordered stream, at the price of a handshake and head-of-line blocking. UDP is ports and a checksum; you build the rest."
 - **What to measure:** retransmission counters (`netstat -s | grep -i retrans`), connections by state (`ss -tan | grep -c TIME-WAIT`), and a `tcpdump` of a handshake and close.

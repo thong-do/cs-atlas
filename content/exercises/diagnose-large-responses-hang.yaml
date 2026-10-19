@@ -13,7 +13,7 @@ prompt: |
   SSH logs in, but running `cat` on a large file freezes the session.
 
   Explain why only large packets fail, and work out the usable MTU and the matching IPv4 TCP MSS. Explain how path MTU
-  discovery works and why dropping ICMP breaks it. Show how you would confirm the cause with `ping`, and propose fixes with
+  discovery works and why dropping ICMP breaks it. Show how you would confirm the cause with `ping`, choosing a path that the firewall does not sit on, and propose fixes with
   their trade-offs.
 hint: "Ask what the host does with a 1,500-byte packet once the overlay adds its header, and who is supposed to tell the sender."
 rubric:
@@ -24,7 +24,7 @@ rubric:
   - id: pmtud
     point: "Explains path MTU discovery: packets are sent with the don't-fragment bit set, and a device that cannot forward one sends back an ICMP 'fragmentation needed' message with the next-hop MTU; the firewall drops those, so the sender never learns, keeps retransmitting the same size, and the connection black-holes."
   - id: confirm
-    point: "Shows how to confirm it: `ping -M do -s <size>` on Linux (don't fragment; size is payload plus 28 bytes of IP and ping headers), where 1,422 + 28 = 1,450 passes and 1,423 fails, and a packet capture showing retransmitted full-size segments."
+    point: "Shows how to confirm it: `ping -M do -s <size>` on Linux (don't fragment; size is payload plus 28 bytes of IP and ping headers) to a peer on the same rack over the overlay, so the firewall is not in the path, where 1,422 + 28 = 1,450 passes and 1,423 fails; a packet capture showing retransmitted full-size segments is a second check."
   - id: fixes
     point: "Gives fixes with trade-offs: allow ICMP type 3 code 4 (the real fix, narrow), lower the interface MTU to 1,450 (simple, must reach every host), clamp the MSS to 1,410 at the edge (fixes TCP only, not UDP), or raise the physical MTU to at least 1,550 (needs every device on the path to agree)."
 reference: |
@@ -32,9 +32,9 @@ reference: |
 
   **Arithmetic.** Usable MTU = 1,500 - 50 = 1,450. IPv4 TCP MSS = 1,450 - 20 (IP) - 20 (TCP) = 1,410, not the 1,460 that a 1,500 MTU gives. That is why responses beyond about 1.4 KB hang.
 
-  **Path MTU discovery.** TCP sends with the don't-fragment bit set. A device that cannot forward the packet drops it and returns an ICMP type 3 code 4 "fragmentation needed" message carrying the next-hop MTU, and the sender lowers its packet size. The firewall drops that ICMP, so the sender hears nothing, retransmits the same size until the 30 s timeout, and the path is a black hole.
+  **Path MTU discovery.** On most OSes TCP sends with the don't-fragment bit set by default. A device that cannot forward the packet drops it and returns an ICMP type 3 code 4 "fragmentation needed" message carrying the next-hop MTU, and the sender lowers its packet size. The firewall drops that ICMP, so the sender hears nothing, retransmits the same size until the 30 s timeout, and the path is a black hole.
 
-  **Confirm.** From one host, `ping -M do -s 1422 <peer>` passes (1,422 + 28 = 1,450) and `-s 1423` fails (1,451). A capture shows full-size segments retransmitted with no replies.
+  **Confirm.** Ping a peer on the same rack over the overlay, where the firewall is not in the path: `ping -M do -s 1422 <peer>` passes (1,422 + 28 = 1,450) and `-s 1423` fails (1,451). A capture shows full-size segments retransmitted with no replies.
 
   **Fixes.**
   - Allow ICMP type 3 code 4: fixes the root cause and keeps full discovery; costs a firewall rule.

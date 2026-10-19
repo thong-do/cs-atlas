@@ -21,7 +21,7 @@ The OSI model's seven layers map roughly onto these, with its physical and data-
 
 **Encapsulation.** Each layer wraps what it receives from above in its own header. The minimums, without options, are: Ethernet 14 bytes (plus a 4-byte trailer, the FCS, a checksum), IPv4 20, IPv6 40, TCP 20, UDP 8. Real headers can be longer.
 
-**MTU and MSS.** The **MTU** is the largest packet a link carries, commonly 1,500 bytes on Ethernet (it excludes the Ethernet header). The **MSS** is the largest TCP payload per segment: 1,500 − 20 (IPv4) − 20 (TCP) = **1,460 bytes**. A router that meets a packet bigger than the next link's MTU fragments it or drops it. Big writes are therefore cut into many segments.
+**MTU and MSS.** The **MTU** is the largest packet a link carries, commonly 1,500 bytes on Ethernet (it excludes the Ethernet header). The **MSS** is the largest TCP payload per segment: 1,500 − 20 (IPv4) − 20 (TCP) = **1,460 bytes**. A router that meets a packet bigger than the next link's MTU fragments it or drops it. A TCP sender cuts a big write into MSS-sized segments.
 
 **Addresses and CIDR.** An IPv4 address is 32 bits. `10.1.2.0/24` means the first 24 bits name the network and the other 32 − 24 = 8 bits name hosts: 2⁸ = 256 addresses, of which 254 are usable hosts, because the first (network) and last (broadcast) are reserved in classic subnets. A `/16` has 2¹⁶ = 65,536 addresses. **Private ranges** (not routed on the public internet) are `10.0.0.0/8`, `172.16.0.0/12` and `192.168.0.0/16`. **IPv6** has 128-bit addresses, a fixed 40-byte header and a *hop limit* in place of TTL; subnets are commonly /64.
 
@@ -98,11 +98,11 @@ Each established line shows local address:port and peer address:port, which with
 - **Sending tiny messages one at a time.** 54 bytes of headers for 1 byte is the worst case. Fix: batch small writes into fewer, larger ones.
 - **Confusing TTLs.** The IP TTL counts hops. A DNS record's TTL counts seconds of caching (see [DNS & CDNs](/system-design/dns-cdn/)). Fix: say which one you mean.
 - **Treating a private address as reachable.** `192.168.x.x` means nothing outside its own network, and NAT blocks unsolicited inbound traffic. Fix: use port forwarding, a public address or a relay.
-- **Misreading a subnet size.** A `/24` has 254 usable hosts, not 256, and each prefix bit you add halves the size. Fix: compute 2^(32 − prefix) − 2 for IPv4.
+- **Misreading a subnet size.** A `/24` has 254 usable hosts, not 256, and each prefix bit you add halves the size. Fix: compute 2^(32 − prefix) − 2 for IPv4 in classic subnets (/30 and larger blocks).
 - **Calling `* * *` an outage.** Fix: check whether later hops answer, and test the real service rather than trusting traceroute alone.
 
 ## Tips & tricks
 
 - **Rules of thumb:** headers cost at least 54 bytes per Ethernet frame (IPv4, TCP), a typical MSS is 1,460, and bulk transfers lose only a few percent to headers while tiny messages lose most of it.
 - **Interview phrasing:** "Application data is wrapped in a TCP segment, then an IP packet, then an Ethernet frame. IP routes hop by hop; TCP and UDP use ports so the kernel can deliver to the right socket. A connection is the 5-tuple."
-- **What to measure:** `ping` (round-trip time and loss; some hosts don't answer), `traceroute` (per-hop path and latency), `ss -s` and `ss -tn` (socket counts and states), and `tcpdump -i any -n port 443` (real packets, header sizes, retransmissions).
+- **What to measure:** `ping` (round-trip time and loss; some hosts don't answer), `traceroute` (per-hop path and latency), `ss -s` and `ss -tn` (socket counts and states; `netstat -tan` on macOS and older systems), and `tcpdump -i any -n port 443` (real packets, header sizes, retransmissions).

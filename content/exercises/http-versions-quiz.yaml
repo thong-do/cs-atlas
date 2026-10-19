@@ -1,0 +1,56 @@
+slug: http-versions-quiz
+type: quiz
+title: "HTTP/1.1, HTTP/2 and HTTP/3 — quiz"
+lessons: [http-versions]
+ladderOrder: 1
+questions:
+  - id: quic-stream-loss
+    prompt: "An HTTP/3 page load has three active streams, numbered 4, 8 and 12. One UDP datagram carrying only stream 4's data is lost, while later datagrams carrying streams 8 and 12 arrive intact. What does the receiving application see until stream 4's data is retransmitted?"
+    choices: ["All three streams stall, because QUIC hands data upward in a single connection-wide order, the same rule that makes TCP deliver every byte strictly in sequence", "Streams 8 and 12 carry on, and the loss is handled entirely inside stream 4, window included, so the sender's rate on the other two streams is unaffected", "Streams 8 and 12 are delivered as they arrive while stream 4 waits, and the loss still counts toward the one congestion controller the whole connection shares", "Stream 4 is left with a permanent gap that HTTP/3 reports to the application, because UDP datagrams are never retransmitted and QUIC only orders what arrives"]
+    answer: 2
+    explanation: "QUIC delivers each stream in order independently, so only stream 4 waits, but congestion control belongs to the connection, so the loss slows the sender on all streams. The first choice describes TCP's single byte stream, the second wrongly isolates congestion control per stream, and the last forgets that QUIC adds its own retransmission on top of UDP."
+  - id: h1-h2-round-trips
+    prompt: "A client fetches 40 small assets from one host at 50 ms RTT, ignoring bandwidth, server time and the congestion window. Over HTTP/1.1 it uses 8 parallel connections with one request in flight on each; over HTTP/2 it uses one connection and sends all 40 requests at once. Both start with no connection open, use TLS 1.3, and count TCP setup as 1 RTT. What are the two completion times?"
+    choices: ["HTTP/1.1 takes 300 ms and HTTP/2 takes 100 ms, because the 40 assets need 5 rounds of 8 and 1 round respectively, plus 1 RTT of setup", "HTTP/1.1 takes 450 ms and HTTP/2 takes 150 ms, because the 40 assets need 7 rounds of 6 and 1 round, plus 2 RTT of setup", "HTTP/1.1 takes 350 ms and HTTP/2 takes 100 ms, because the 40 assets need 5 rounds of 8, while HTTP/2 sends them with its handshake in 2 RTT", "HTTP/1.1 takes 350 ms and HTTP/2 takes 150 ms, because the 40 assets need 5 rounds of 8 and 1 round, plus 2 RTT of TCP and TLS setup"]
+    answer: 3
+    explanation: "HTTP/1.1: 2 setup + ⌈40 ÷ 8⌉ = 5 rounds = 7 RTT = 350 ms; HTTP/2: 2 setup + 1 round = 3 RTT = 150 ms. The first choice leaves out the TLS round trip, the second uses 6 connections although the stem says 8, and the third drops HTTP/2's request round, which cannot ride inside a TLS 1.3 handshake on a new connection."
+  - id: wifi-to-cellular
+    prompt: "A phone downloads a 600 MB file over HTTP/2 on wifi. The user walks out of range and the phone moves to cellular with a new IP address. The transfer stalls and restarts through a new TCP and TLS handshake. The same app over HTTP/3 pauses briefly and then carries on with the same connection. Which difference explains this?"
+    choices: ["A TCP connection is its address 4-tuple, so a new source IP is a new connection; a QUIC connection is identified by an ID that survives the address change", "The HTTP/3 client keeps a session ticket and so repeats a 0-RTT handshake to the new address, which costs no round trip at all, including for the transport", "QUIC's loss recovery can resend packets that went to the old address from the new one, which TCP's retransmission logic is unable to do", "HTTP/2 stream ids are tied to the client's IP address, while HTTP/3 stream ids are allocated independently of it, so streams can continue"]
+    answer: 0
+    explanation: "Identity is the difference: a changed address breaks a TCP connection but not a QUIC one with a connection ID. A ticket only shortens a handshake and still starts a new connection, retransmission does not select the connection, and stream ids never depended on IP addresses."
+  - id: alt-svc-udp-blocked
+    prompt: "A browser that supports HTTP/3 loaded a site over HTTP/2 and cached the response header `alt-svc: h3=\":443\"; ma=86400`. A day later, on a network that silently drops all outbound UDP, the user reloads the page. What most likely happens?"
+    choices: ["The page fails after a timeout, because the cached alt-svc entry told the browser that the origin's only valid endpoint is now UDP port 443", "The page loads over HTTP/2 on TCP: the QUIC attempt gets no reply and the browser falls back, because alt-svc only advertises an option", "The page loads over HTTP/1.1, because HTTP/2 negotiation shares the UDP path with QUIC and drops out when that path is blocked", "The page loads over HTTP/3 anyway, because QUIC retries its handshake over TCP port 443 once the UDP datagrams are not answered"]
+    answer: 1
+    explanation: "Alt-Svc is an offer, not a redirect, so clients keep a fallback to HTTP/2 over TCP, which is not affected by a UDP block. HTTP/2 is negotiated by ALPN inside a TLS handshake over TCP, and QUIC never runs over TCP."
+  - id: large-download-no-gain
+    prompt: "A team moves a CDN edge from HTTP/2 to HTTP/3. Clients on clean wired links each open a new connection and download one 4 GB file from a nearby cache, taking minutes. Measured throughput is unchanged. Why was no gain expected?"
+    choices: ["QUIC's per-stream loss recovery falls back to retransmitting the whole connection's data when only one stream is active, which makes it as slow as TCP's recovery would be", "The handshake saving only applies to a connection that is already warm, and a download that starts the connection never benefits from it", "HTTP/3's main gain is that QPACK shrinks headers compared with HTTP/2, and a single download carries just one header block, so nothing is saved", "With one stream and almost no loss there is no blocking to remove, the saved handshake round trip is small against minutes of transfer, and the link sets the pace"]
+    answer: 3
+    explanation: "The wins are removing blocking after loss and a shorter handshake, and neither matters for one large transfer on a clean link. Per-stream recovery does not degrade with a single stream, the handshake saving applies to new connections rather than warm ones, and HPACK in HTTP/2 already compresses headers, so QPACK is not HTTP/3's main gain."
+flashcards:
+  - id: h1-blocking
+    front: "HTTP/1.1 head-of-line blocking"
+    back: "A response must finish before the next starts on a connection, so one slow response delays the rest. Browsers open about 6 connections per host; sharding, bundles and sprites worked around it."
+  - id: h2-multiplexing
+    front: "HTTP/2 streams and frames"
+    back: "Messages are split into binary frames tagged with a stream id and interleaved on one TCP connection (multiplexing). Flow control works per stream; HPACK compresses headers."
+  - id: h2-tcp-loss
+    front: "HTTP/2 and packet loss"
+    back: "It is one TCP connection delivering bytes in order, so one lost segment stalls every stream until it is retransmitted. HTTP-level blocking is gone; TCP-level blocking is not."
+  - id: quic-handshake
+    front: "QUIC handshake"
+    back: "QUIC runs over UDP with TLS 1.3 built in, so the transport and crypto handshake together take 1 RTT for a new connection, plus 0-RTT early data on resumption (replayable)."
+  - id: quic-streams
+    front: "QUIC loss and congestion"
+    back: "Loss recovery is per stream, so a lost packet delays only the streams whose data it carried. Congestion control is shared by the whole connection."
+  - id: conn-migration
+    front: "Connection migration"
+    back: "A QUIC connection is identified by a connection ID, not the address 4-tuple, so it can continue when the client changes network, for example from wifi to cellular."
+  - id: alt-svc
+    front: "Alt-Svc and fallback"
+    back: "A server advertises HTTP/3 with an Alt-Svc header (DNS HTTPS records can also do it). If UDP is blocked, the client falls back to HTTP/2 over TCP."
+  - id: h3-no-help
+    front: "When HTTP/3 does not help"
+    back: "A single large download on a clean network: no blocking to remove, and the handshake saving is small against the transfer. It helps most on lossy or changing networks."

@@ -1,0 +1,41 @@
+slug: diagnose-uneven-backend-load
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the new pods that get no traffic"
+lessons: [http-versions]
+ladderOrder: 2
+prompt: |
+  An internal gRPC service (gRPC runs over HTTP/2) sits behind a **layer-4 TCP load balancer**. Its **4 client instances** each open
+  **one long-lived connection** and send about **500 requests per second** over it, **2,000 requests per second** in total.
+
+  At **10:00** the service was scaled from **3 to 6 pods**, because one pod sat at **90% CPU** while the other two sat at **45%**.
+  An hour later, the **3 new pods still show 0 requests per second**, and the old pods are still at **90%, 45% and 45%**.
+
+  Explain why a layer-4 balancer spreads connections rather than requests, and why multiplexing makes a few connections carry
+  everything. Work through the arithmetic to show that the CPU figures follow from it. Show how you would confirm it, and give
+  fixes with their trade-offs.
+hint: "Ask what the balancer can see and decide when a connection opens, and what happens to the requests that follow on that connection."
+rubric:
+  - id: l4
+    point: "Explains that a layer-4 balancer picks a backend once, when a TCP connection opens, and never sees the requests inside it, so it balances connections, not requests."
+  - id: multiplexing
+    point: "Explains that HTTP/2 multiplexes all of a client's requests over its one connection, so each connection carries a whole client's load and the number of connections, not the request count, decides the spread."
+  - id: arithmetic
+    point: "Works the arithmetic: 4 connections over 3 pods split no better than 2/1/1, so 1,000/500/500 requests per second, matching 90%/45%/45% CPU; existing connections do not move when pods are added, so the 3 new pods get 0."
+  - id: confirm
+    point: "Shows how to confirm it: per-pod connection counts (for example `ss -tn state established` on each pod) and per-pod request rates, expecting 2/1/1/0/0/0 connections, and requests per connection near 500 per second."
+  - id: fixes
+    point: "Gives fixes with trade-offs: an HTTP/2-aware layer-7 proxy that balances each request (extra hop and cost), client-side balancing across all pods (needs discovery and client support), or a maximum connection age so clients reconnect and rebalance (framework-dependent, and coarse with only 4 connections)."
+reference: |
+  **Why connections, not requests.** A layer-4 balancer sees only IPs and ports. It picks a pod when a TCP connection opens and forwards that connection's bytes to the same pod. It never sees the requests inside.
+
+  **Why a few connections carry everything.** HTTP/2 multiplexes every request from a client over one connection. Each connection therefore carries a whole client: 500 requests per second. The spread depends on how the 4 connections landed, not on 2,000 requests.
+
+  **Arithmetic.** 4 connections over 3 pods cannot beat 2/1/1: 2 x 500 = 1,000 on one pod and 500 on each of the others. 1,000 requests per second matches 90% CPU, and 500 matches 45%, about 0.09% CPU per request per second. At 10:00 the 4 connections stayed where they were. No new connection opened, so the balancer never chose again, and the 3 new pods get 0.
+
+  **Confirm.** On each pod, count established connections with `ss -tn state established` filtered to the service port, and compare per-pod request rates. Expect 2/1/1/0/0/0 connections, and each connection near 500 requests per second.
+
+  **Fixes.**
+  - An HTTP/2-aware layer-7 proxy balances each request. 2,000 / 6 is about 333 requests per second per pod, roughly 30% CPU by the same ratio. Cost: an extra hop and proxy capacity.
+  - Client-side balancing: each client opens a connection to every pod. Cost: service discovery and client support, and clients must update on every scaling event.
+  - A maximum connection age, so the server asks clients to reconnect (HTTP/2 GOAWAY, framework-dependent) and the balancer chooses again. It is coarse: 4 connections over 6 pods give at best 4 pods at 500 requests per second, not 333, and each reconnect briefly disturbs traffic.

@@ -1,0 +1,96 @@
+---
+slug: http-versions
+title: "HTTP/1.1, HTTP/2 and HTTP/3"
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [tcp-vs-udp, tls]
+summary: "See how each HTTP version moves requests over the wire, why multiplexing helped and then hit TCP's limits, and what QUIC changes for loss, handshakes and network switches."
+---
+
+## Intuition
+
+Picture a shop with one checkout lane. HTTP/1.1 is that lane: one customer at a time, so a slow customer holds up everyone behind. The workaround was to open more lanes (more connections). HTTP/2 keeps one lane but lets the cashier serve several carts in interleaved pieces. HTTP/3 gives each cart its own sub-lane, so a jammed cart no longer blocks the others.
+
+The one-line versions are in [Client–server & HTTP](/system-design/client-server-http/). This lesson looks at the wire. Three layers matter: **HTTP** (requests and responses), **TLS** (see [TLS](/cs-fundamentals/tls/)) and the transport, **TCP** or **QUIC** (see [TCP vs UDP](/cs-fundamentals/tcp-vs-udp/)). Each version mostly changes how HTTP uses the transport below it.
+
+**HTTP/1.1: text, one request at a time.** Requests and responses are plain text lines. With **keep-alive** a connection is reused, but a response must finish before the next one starts on that connection (pipelining exists but is effectively unused). That is **application-level head-of-line blocking**: one slow response holds up every request queued behind it. Browsers cope by opening several connections per host, typically about 6 (a convention, not a guarantee). Developers added workarounds: **domain sharding** (spreading assets across hostnames to get more connections), **concatenated bundles** and **image sprites** (fewer, larger requests).
+
+**HTTP/2: binary frames on one connection.** Messages are cut into binary **frames** tagged with a **stream** id, so many requests and responses interleave on one TCP connection. That is **multiplexing**. Other changes:
+
+- **HPACK** compresses headers using a table shared by both ends, so repeated headers such as cookies shrink to a few bytes.
+- **Flow control** works per stream (with an overall window too), so a slow consumer on one stream does not exhaust the connection's buffers.
+- **Priorities** let a client hint which streams matter most. The original scheme was complicated and later simplified in newer RFCs, so support varies.
+- **Server push** let a server send resources unasked. In practice it rarely helped, and major browsers have removed it.
+- **ALPN** (see [TLS](/cs-fundamentals/tls/)) is how client and server agree on `h2` inside the TLS handshake, at no extra round trip.
+
+HTTP/2 removes the HTTP-level blocking, but it is still one TCP connection. TCP delivers bytes in order, so one lost segment stalls **every** stream until it is retransmitted (see [TCP vs UDP](/cs-fundamentals/tcp-vs-udp/)). On a lossy link, one connection can do worse than six.
+
+**HTTP/3: HTTP over QUIC.** **QUIC** runs over UDP but supplies its own reliability, streams and congestion control, and it has TLS 1.3 built in.
+
+- **One combined handshake.** The transport and crypto handshake together take 1 RTT for a new connection, and a resumed connection can send **0-RTT** early data (with the replay caveat from the TLS lesson).
+- **Loss recovery is per stream.** A lost packet delays only the streams whose data it carried. Congestion control is still shared by the whole connection.
+- **Connection IDs.** A QUIC connection is identified by an ID, not by the address 4-tuple, so it can **migrate** when the client moves from wifi to cellular, instead of being torn down.
+- **QPACK** is HPACK redesigned so header compression does not depend on in-order delivery across streams.
+
+**Discovery and fallback.** A client usually cannot know in advance that a server speaks HTTP/3. The server advertises it with an `Alt-Svc` response header on an earlier HTTP/1.1 or HTTP/2 connection (DNS HTTPS records can do the same before the first connection, where supported). Because some networks block UDP, clients keep a fallback: if QUIC fails, they use HTTP/2 over TCP.
+
+**When each wins.** HTTP/2 wins over HTTP/1.1 for pages with many small assets. HTTP/3 helps most on lossy or changing networks (mobile) and for first visits, thanks to the shorter handshake. It does **not** help a single large download on a clean network: there is no blocking to remove, and the bytes still move at the congestion window's pace.
+
+## Visual
+
+```text
+HTTP/1.1               HTTP/2                    HTTP/3
+6 TCP conns            1 TCP conn                1 QUIC conn (UDP)
+ c1 |A|B|C|              |A1|B1|A2|C1|B2|         s1 |A1|A2|
+ c2 |D|E|F|              frames of streams         s2 |B1|B2|    loss in s2
+ ...                     interleaved                s3 |C1|      delays only s2
+ one at a time          loss: ALL streams wait    TLS 1.3 inside QUIC
+
+Setup, new connection:  TCP 1 + TLS 1 = 2 RTT     QUIC 1 RTT
+```
+
+## Example
+
+Load **30 small assets** from one host at an illustrative **100 ms RTT**. Ignore bandwidth and server time, so only round trips count, and ignore the congestion window (a real first load would also be slowed by it).
+
+| Version | Setup | Request rounds | Total |
+|---|---|---|---|
+| HTTP/1.1, 6 connections | TCP 1 + TLS 1.3 1 = 2 RTT (the 6 connections set up in parallel) | ⌈30 ÷ 6⌉ = 5 sequential rounds | 2 + 5 = 7 RTT = 700 ms |
+| HTTP/2, 1 connection | TCP 1 + TLS 1 = 2 RTT | 1 round: all 30 streams at once | 2 + 1 = 3 RTT = 300 ms |
+| HTTP/3 | QUIC 1 RTT | 1 round | 1 + 1 = 2 RTT = 200 ms |
+
+```python
+import math
+rtt_ms, assets, conns = 100, 30, 6
+h1 = (2 + math.ceil(assets / conns)) * rtt_ms   # (2 + 5) * 100 = 700
+h2 = (2 + 1) * rtt_ms                           # 300
+h3 = (1 + 1) * rtt_ms                           # 200
+print(h1, h2, h3)
+```
+
+The gaps come from round trips, not bandwidth, which is why they shrink on a fast, close server and grow on a long path. To see which protocol a server negotiates with your client:
+
+```bash
+curl -sI -o /dev/null -w '%{http_version}\n' --http1.1 https://example.com   # 1.1
+curl -sI -o /dev/null -w '%{http_version}\n' --http2   https://example.com   # 2 if offered
+curl -sI -o /dev/null -w '%{http_version}\n' --http3   https://example.com   # 3 if offered
+```
+
+`--http3` needs a curl built with HTTP/3 support (check `curl --version`). To see whether a server advertises HTTP/3, look for `alt-svc: h3=...` in `curl -sI https://example.com`.
+
+## Pitfalls
+
+- **Keeping HTTP/1.1 workarounds on HTTP/2.** Domain sharding splits traffic over extra connections, each with its own handshake and its own HPACK table and gives up the one-connection benefit of multiplexing. Fix: one hostname for assets, and measure before keeping giant bundles.
+- **Assuming HTTP/2 fixed head-of-line blocking.** It fixed the HTTP-level kind only. On a lossy network one lost segment still stalls all streams. Fix: test on a throttled, lossy link, and offer HTTP/3.
+- **Assuming HTTP/3 is always faster.** On a clean network, a single large download gains almost nothing, and QUIC often costs more CPU, since it usually runs in user space rather than the kernel. Fix: measure real traffic, not one benchmark.
+- **Enabling HTTP/3 without a fallback path.** Some firewalls drop UDP, and a server that is only reachable over QUIC strands those clients. Fix: keep HTTP/2 over TCP enabled, and open UDP port 443 on your edge.
+- **Relying on server push.** Browsers have removed it, so it does nothing there. Fix: use `Link: rel=preload` or 103 Early Hints.
+- **Treating 0-RTT as free.** Early data can be replayed. Fix: only for idempotent requests, as in the TLS lesson.
+
+## Tips & tricks
+
+- **Rules of thumb.** Count round trips: with TLS 1.3, a new HTTP/2 connection costs 2 RTT before the request, HTTP/3 costs 1. Fewer, reused connections beat many short ones.
+- **Interview phrasing.** "HTTP/2 multiplexes streams over one TCP connection, which removes HTTP-level blocking but not TCP's. HTTP/3 moves to QUIC, so loss stalls only one stream, the handshake is 1 RTT, and the connection survives a change of network."
+- **Debugging.** Browser dev tools can show a Protocol column (`h2`, `h3`). Use `curl -v` to see ALPN and `alt-svc`. If `h3` never appears, check UDP reachability.
+- **Measure.** Compare page load time and tail latency by protocol on mobile and on desktop, and track the share of requests that fall back from HTTP/3 to HTTP/2.
+- **Keep the layers straight.** HTTP/2 frames and HPACK are HTTP; ordering and retransmission are TCP's job under HTTP/2 and QUIC's job under HTTP/3.

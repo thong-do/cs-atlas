@@ -44,6 +44,7 @@ test('the CS Fundamentals home shows modules and coming-soon titles, and Continu
   }
   await expect(page.getByText('Coming soon').first()).toBeVisible()
   await expect(page.getByText('TLS')).toBeVisible()
+  await expect(page.getByRole('link', { name: /HTTP\/1\.1, HTTP\/2 and HTTP\/3/ })).toHaveAttribute('href', '/cs-fundamentals/http-versions/')
   await page.getByRole('link', { name: /^Continue/ }).click()
   await expect(page).toHaveURL(/\/cs-fundamentals\/complexity\/$/)
 })

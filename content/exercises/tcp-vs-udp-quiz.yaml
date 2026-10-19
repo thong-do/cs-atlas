@@ -13,7 +13,7 @@ questions:
     prompt: "A game client sends its position over one TCP connection 60 times a second, with TCP_NODELAY set so small writes are sent at once. When a single segment is lost, the other players see that avatar freeze for a fraction of a second, then jump forward through several updates at once. What best explains this?"
     choices: ["After a loss the sender stops transmitting new data until the lost segment is acknowledged, so no positions are in flight during the wait", "The receiver holds the later positions that did arrive until the lost one is resent and fills the gap, then hands them all over together", "After a loss the congestion window collapses to one segment, so updates queue at the sender until the window regrows", "The receive window shrinks to nothing during the loss, so the sender cannot send more until the application reads again"]
     answer: 1
-    explanation: "TCP delivers bytes only in order, so segments after the gap wait in the kernel (head-of-line blocking) and then arrive as a burst. With fast retransmit the window only halves and the sender keeps sending, so the queueing is at the receiver; and the receive window reflects the reader's free buffer space, not loss."
+    explanation: "TCP delivers bytes only in order, so segments after the gap wait in the kernel (head-of-line blocking) and then arrive as a burst. With fast retransmit the window is only reduced (roughly halved in classic Reno, less with CUBIC), not reset to one segment, and the sender keeps sending, so the queueing is at the receiver; and the receive window reflects the reader's free buffer space, not loss."
   - id: ephemeral-ports
     prompt: "A Linux client's ephemeral port range is 32768–60999, which is 28,232 ports. A batch job on it opens 40,000 short TCP connections within 30 seconds, all to the same server IP and port 443, closing each itself. The first 28,000 or so succeed, then `connect` fails with \"Cannot assign requested address\". Why do the failures start there?"
     choices: ["Each connection to one server address needs its own local port, and ports of connections the client closed stay held for about a minute", "The server's listen backlog overflows at around 28,000 half-open connections, so it stops completing handshakes and the client gives up", "The client process hits its open-file limit, because every closed socket keeps a descriptor until the server finishes its side of the close", "Port 443 on the server can carry only about 28,000 simultaneous connections, so later clients find no free server-side port to join"]
@@ -50,7 +50,7 @@ flashcards:
     back: "TCP delivers bytes in order, so one lost segment holds back later bytes that already arrived. The application sees a stall, then a burst after the retransmission."
   - id: time-wait
     front: "TIME_WAIT"
-    back: "The side that closes first keeps the 5-tuple reserved, typically 60 s on Linux, so stray old segments are not taken for a new connection and a lost final ACK can be re-answered."
+    back: "The side that closes first keeps the 5-tuple reserved, fixed at 60 s on Linux, so stray old segments are not taken for a new connection and a lost final ACK can be re-answered."
   - id: when-udp
     front: "When to choose UDP"
     back: "Choose it when late data is worthless (voice, games) or the app wants its own retry rules (DNS, QUIC). It has an 8-byte header and no ordering, retransmission or congestion control."

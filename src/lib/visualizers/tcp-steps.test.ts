@@ -19,7 +19,7 @@ const EXPECTED: [string, string, TcpSegment | null, number[], string][] = [
   ['FIN_WAIT_2', 'CLOSE_WAIT', seg('server', ['ACK'], 301, 302, 0), [10, 1, 1, 200], 'The server acked the FIN with ack = 301 + 1 = 302'],
   ['FIN_WAIT_2', 'LAST_ACK', seg('server', ['FIN', 'ACK'], 301, 302, 0), [11, 1, 1, 200], 'The server sent its own FIN with seq = 301'],
   ['TIME_WAIT', 'CLOSED', seg('client', ['ACK'], 302, 302, 0), [12, 1, 1, 200], 'The client acked with ack = 302 and waited in TIME_WAIT; the server closed'],
-  ['TIME_WAIT', 'CLOSED', null, [12, 1, 1, 200], 'Done: 200 bytes arrived in 12 segments; the 1 lost segment was resent after a timeout'],
+  ['TIME_WAIT', 'CLOSED', null, [12, 1, 1, 200], 'Done: 200 bytes arrived; 12 segments were sent and the 1 lost one was resent after a timeout'],
 ]
 
 describe('tcpHandshakeSteps', () => {

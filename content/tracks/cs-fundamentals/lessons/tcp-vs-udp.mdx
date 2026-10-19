@@ -35,7 +35,7 @@ TCP builds a **reliable, ordered byte stream** on top of IP, which only tries to
 
 - **DNS:** one small question and one answer, so a handshake would double the cost. The client retries on timeout.
 - **Games, voice and video:** a late position or audio frame is useless because a newer one has replaced it. TCP would retransmit the stale one and hold back everything behind it, so a gap beats a late packet.
-- **QUIC** builds its own reliability and ordering per stream, and congestion control per connection, on top of UDP. HTTP/3 uses it (see the "HTTP/1.1, HTTP/2 and HTTP/3" lesson in this module).
+- **QUIC** builds its own reliability and ordering per stream, and congestion control per connection, on top of UDP. HTTP/3 uses it (see [HTTP/1.1, HTTP/2 and HTTP/3](/cs-fundamentals/http-versions/)).
 
 ## Visual
 
@@ -136,7 +136,7 @@ The two messages may share one segment, yet `read_msg` returns them separately. 
 - **Blocking forever on a silent peer.** An idle connection can look healthy long after the peer vanished. Fix: set timeouts and send heartbeats.
 - **Assuming UDP delivers.** A datagram can be lost, duplicated or reordered, and a returning `sendto` says nothing about arrival. Fix: add sequence numbers, ACKs or retries where needed, and tolerate duplicates.
 - **Opening a connection per request.** Each pays the handshake, restarts congestion control from a small window and leaves a socket in TIME_WAIT. Fix: reuse connections with keep-alive or a pool.
-- **Sending big UDP datagrams.** Past the path MTU (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)), IP fragments them, and one lost fragment loses the whole datagram. Fix: keep payloads small, about 1,200 bytes or less unless you have measured.
+- **Sending big UDP datagrams.** Past the MTU (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)), IPv4 may fragment them, and one lost fragment loses the whole datagram. Fix: keep payloads small, about 1,200 bytes or less unless you have measured.
 
 ## Tips & tricks
 

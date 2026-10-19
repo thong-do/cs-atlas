@@ -29,12 +29,12 @@ HTTP/2 removes the HTTP-level blocking, but it is still one TCP connection. TCP 
 
 - **One combined handshake.** The transport and crypto handshake together take 1 RTT for a new connection, and a resumed connection can send **0-RTT** early data (with the replay caveat from the TLS lesson).
 - **Loss recovery is per stream.** A lost packet delays only the streams whose data it carried. Congestion control is still shared by the whole connection.
-- **Connection IDs.** A QUIC connection is identified by an ID, not by the address 4-tuple, so it can **migrate** when the client moves from wifi to cellular, instead of being torn down.
+- **Connection IDs.** A QUIC connection is identified by an ID, not by addresses and ports, so it can **migrate** when the client moves from wifi to cellular, instead of being torn down.
 - **QPACK** is HPACK redesigned so header compression does not depend on in-order delivery across streams.
 
 **Discovery and fallback.** A client usually cannot know in advance that a server speaks HTTP/3. The server advertises it with an `Alt-Svc` response header on an earlier HTTP/1.1 or HTTP/2 connection (DNS HTTPS records can do the same before the first connection, where supported). Because some networks block UDP, clients keep a fallback: if QUIC fails, they use HTTP/2 over TCP.
 
-**When each wins.** HTTP/2 wins over HTTP/1.1 for pages with many small assets. HTTP/3 helps most on lossy or changing networks (mobile) and for first visits, thanks to the shorter handshake. It does **not** help a single large download on a clean network: there is no blocking to remove, and the bytes still move at the congestion window's pace.
+**When each wins.** HTTP/2 wins over HTTP/1.1 for pages with many small assets. HTTP/3 helps most on lossy or changing networks (mobile) and for new connections, thanks to the shorter handshake. It does **not** help a single large download on a clean network: there is no blocking to remove, and the bytes still move at the congestion window's pace.
 
 ## Visual
 
@@ -51,7 +51,7 @@ Setup, new connection:  TCP 1 + TLS 1 = 2 RTT     QUIC 1 RTT
 
 ## Example
 
-Load **30 small assets** from one host on a first visit (no session ticket) at an illustrative **100 ms RTT**. Ignore bandwidth and server time, so only round trips count, and ignore the congestion window (a real first load would also be slowed by it).
+Load **30 small assets** from one host on new connections (no session ticket; HTTP/3 to a server already known to speak it, via Alt-Svc or a DNS HTTPS record) at an illustrative **100 ms RTT**. Ignore bandwidth, server time and the congestion window, so only round trips count.
 
 | Version | Setup | Request rounds | Total |
 |---|---|---|---|
@@ -68,7 +68,7 @@ h3 = (1 + 1) * rtt_ms                           # 200
 print(h1, h2, h3)
 ```
 
-The gaps come from round trips, not bandwidth, which is why they shrink on a fast, close server and grow on a long path. To see which protocol a server negotiates with your client:
+The gaps come from round trips, not bandwidth, so they shrink on a close server and grow on a long path. To see which protocol a server negotiates with your client:
 
 ```bash
 curl -sI -o /dev/null -w '%{http_version}\n' --http1.1 https://example.com   # 1.1

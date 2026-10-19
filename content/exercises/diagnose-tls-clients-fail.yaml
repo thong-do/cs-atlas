@@ -11,7 +11,7 @@ prompt: |
   **35%** of the traffic. The certificate is valid, the hostname is correct, and nothing else changed.
 
   Explain the cause and why the server must behave the way you describe. Explain why browsers still work. Show how you would
-  confirm it from a shell. Give fixes, and say why adding the missing piece to every client's trust store is the wrong one.
+  confirm it from a shell. Give fixes, and say why fixing it on every client is the wrong approach.
 hint: "Ask which certificates the server actually sends in the handshake, and what a client needs in hand to link the server's certificate to a root it already trusts."
 rubric:
   - id: cause

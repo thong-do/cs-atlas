@@ -125,7 +125,7 @@ export function tcpHandshakeSteps(): TcpStep[] {
 
   push(
     null,
-    `Done: ${delivered} bytes arrived in ${sent} ${plural(sent, 'segment', 'segments')}; the ${lost} lost ${plural(lost, 'segment was', 'segments were')} resent after a timeout`,
+    `Done: ${delivered} bytes arrived; ${sent} ${plural(sent, 'segment was', 'segments were')} sent and the ${lost} lost ${plural(lost, 'one was', 'ones were')} resent after a timeout`,
     true,
   )
   return steps

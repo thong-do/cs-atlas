@@ -12,8 +12,8 @@ prompt: |
   Health checks and small JSON calls succeed. Any response larger than about **1.4 KB** hangs until the client's **30 s** timeout.
   SSH logs in, but running `cat` on a large file freezes the session.
 
-  Explain why only large packets fail, and work out the usable MTU and the matching IPv4 TCP MSS. Explain how path MTU
-  discovery works and why dropping ICMP breaks it. Show how you would confirm the cause with `ping`, choosing a path that the firewall does not sit on, and propose fixes with
+  Explain why only large packets fail, and work out the usable MTU and the matching IPv4 TCP MSS. Explain why the hosts never
+  adapt to the smaller packet size on their own. Show how you would confirm the cause from a host, and propose fixes with
   their trade-offs.
 hint: "Ask what the host does with a 1,500-byte packet once the overlay adds its header, and who is supposed to tell the sender."
 rubric:

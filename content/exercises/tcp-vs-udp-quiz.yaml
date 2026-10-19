@@ -1,0 +1,56 @@
+slug: tcp-vs-udp-quiz
+type: quiz
+title: "TCP vs UDP — quiz"
+lessons: [tcp-vs-udp]
+ladderOrder: 1
+questions:
+  - id: ack-after-gap
+    prompt: "A TCP client with initial sequence number 7000 finishes the handshake, then sends two 400-byte segments back to back: the first at seq 7001, the second at seq 7401. The first is lost; the second arrives. What ack number does the server send when the second arrives?"
+    choices: ["7801, because a cumulative ack reports the highest byte it has received so far, and the second segment reached it intact", "7401, because the ack names the sequence number of the segment that most recently arrived, so the sender can tell which one got through", "Nothing yet, because the server acks only when the bytes are in order, so it stays silent until the first segment is resent", "7001, because it names the next byte the server still needs, and it will repeat that number for each further segment that arrives"]
+    answer: 3
+    explanation: "A cumulative ack means everything before this number has arrived, so the gap at 7001 pins it there; the repeats are the duplicate ACKs that trigger fast retransmit. It does not report the highest byte or the latest segment's number, and a receiver acks out-of-order arrivals at once rather than staying silent."
+  - id: game-freeze
+    prompt: "A game client sends its position over one TCP connection 60 times a second, with TCP_NODELAY set so small writes are sent at once. When a single segment is lost, the other players see that avatar freeze for a fraction of a second, then jump forward through several updates at once. What best explains this?"
+    choices: ["After a loss the sender stops transmitting new data until the lost segment is acknowledged, so no positions are in flight during the wait", "The receiver holds the later positions that did arrive until the lost one is resent and fills the gap, then hands them all over together", "After a loss the congestion window collapses to one segment, so updates queue at the sender until the window regrows", "The receive window shrinks to nothing during the loss, so the sender cannot send more until the application reads again"]
+    answer: 1
+    explanation: "TCP delivers bytes only in order, so segments after the gap wait in the kernel (head-of-line blocking) and then arrive as a burst. With fast retransmit the window is only reduced (roughly halved in classic Reno, less with CUBIC), not reset to one segment, and the sender keeps sending, so the queueing is at the receiver; and the receive window reflects the reader's free buffer space, not loss."
+  - id: ephemeral-ports
+    prompt: "A Linux client's ephemeral port range is 32768–60999, which is 28,232 ports. A batch job on it opens 40,000 short TCP connections within 30 seconds, all to the same server IP and port 443, closing each itself. The first 28,000 or so succeed, then `connect` fails with \"Cannot assign requested address\". Why do the failures start there?"
+    choices: ["Each connection to one server address needs its own local port, and ports of connections the client closed stay held for about a minute", "The server's listen backlog overflows at around 28,000 half-open connections, so it stops completing handshakes and the client gives up", "The client process hits its open-file limit, because every closed socket keeps a descriptor until the server finishes its side of the close", "Port 443 on the server can carry only about 28,000 simultaneous connections, so later clients find no free server-side port to join"]
+    answer: 0
+    explanation: "With one client IP and one server address, only the local port varies, so the range caps how many connections can be live or lingering; the closer holds each port reserved for about 60 s on Linux. A backlog overflow shows up as refused or timed-out connects, a descriptor limit gives a too-many-open-files error, and a server port is shared by all connections, since the 5-tuple differs by client port."
+  - id: stock-ticker
+    prompt: "A team sends the latest price of each stock to dashboards 20 times a second and moves the feed from TCP to UDP. What should they plan for?"
+    choices: ["The kernel resends a lost datagram once after a short timeout, so only the rare double loss needs the application's attention", "A lost datagram raises an error on the receiving socket, so the dashboard can ask the sender to repeat that price", "Datagrams can arrive late or out of order, so each should carry a sequence number or timestamp, and older ones get ignored", "Datagrams from one sender on one port arrive in order, so no extra field is needed and only a lost one needs handling"]
+    answer: 2
+    explanation: "A newer price supersedes an old one, so skipping a loss is fine, but a delayed older datagram must not overwrite a newer one. UDP has no kernel retransmission, gives the receiver no loss notification, and does not promise ordering."
+  - id: slow-start-rounds
+    prompt: "A fresh TCP connection must send a 200,000-byte response. Assume an initial congestion window of 10 segments, an MSS of 1,460 bytes, doubling each round trip with no loss, and no other limit. Counting from the first data segment, about how many round trips does the sender need?"
+    choices: ["14, because 200,000 ÷ 1,460 is about 137 segments and the window sends 10 of them per round trip", "8, because the window must double up from 1 segment until it passes the 137 needed, and 2⁸ = 256 is the first power of two above 137", "4, because the windows of 10, 20, 40 and 80 segments add up to 150, which covers the 137 segments needed", "3, because the windows of 10, 20 and 40 segments are enough, since each round trip's data is acked within the next"]
+    answer: 2
+    explanation: "The response needs ⌈200,000 ÷ 1,460⌉ = 137 segments. Cumulative totals are 10, 30, 70 and 150, so 4 round trips. Ignoring growth gives 14; doubling up from 1 segment ignores the stated initial window of 10, and the total sent, not the window, must reach 137; 3 rounds carry only 70 segments, about 102,000 bytes."
+flashcards:
+  - id: seq-and-ack
+    front: "Sequence numbers and ACKs"
+    back: "TCP numbers bytes, not segments. SYN and FIN each consume one number. An ACK is cumulative: it names the next byte expected, meaning every earlier byte has arrived."
+  - id: tcp-byte-stream
+    front: "TCP is a byte stream"
+    back: "TCP keeps no message boundaries: one recv may return part of a message or several. Frame messages yourself, for example with a length prefix, and loop until you have n bytes."
+  - id: fast-retransmit
+    front: "Fast retransmit"
+    back: "While a gap is open, each later segment makes the receiver repeat its ACK. Typically 3 duplicate ACKs make the sender resend at once, without waiting for the timeout."
+  - id: flow-vs-congestion
+    front: "Flow control vs congestion control"
+    back: "Flow control protects the receiver: its advertised window says how much it can take. Congestion control protects the network: the sender limits itself with a congestion window."
+  - id: aimd
+    front: "AIMD congestion window"
+    back: "After slow start, the window adds about one segment per round trip and cuts sharply on loss. Loss is the classic signal; CUBIC and BBR are common algorithms, varying by OS."
+  - id: head-of-line-blocking
+    front: "Head-of-line blocking"
+    back: "TCP delivers bytes in order, so one lost segment holds back later bytes that already arrived. The application sees a stall, then a burst after the retransmission."
+  - id: time-wait
+    front: "TIME_WAIT"
+    back: "The side that closes first keeps the 5-tuple reserved, fixed at 60 s on Linux, so stray old segments are not taken for a new connection and a lost final ACK can be re-answered."
+  - id: when-udp
+    front: "When to choose UDP"
+    back: "Choose it when late data is worthless (voice, games) or the app wants its own retry rules (DNS, QUIC). It has an 8-byte header and no ordering, retransmission or congestion control."

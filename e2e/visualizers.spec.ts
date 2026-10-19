@@ -15,6 +15,7 @@ const PAGES = [
   { path: '/system-design/distributed-transactions/', final: 'Done: 2PC kept both databases in agreement, but a coordinator crash left them blocked, holding locks, until it recovered' },
   { path: '/cs-fundamentals/virtual-memory/', final: 'Done: 1 TLB hit, 2 misses and 1 page fault — the fault needed a disk read, far slower than any memory access' },
   { path: '/cs-fundamentals/concurrency-primitives/', final: 'Done: without a lock one of two updates was lost; with the mutex counter = 2, at the cost of T2 waiting' },
+  { path: '/cs-fundamentals/tcp-vs-udp/', final: 'Done: 200 bytes arrived; 12 segments were sent and the 1 lost one was resent after a timeout' },
 ]
 const VIEWPORTS = [
   { width: 375, height: 812 },

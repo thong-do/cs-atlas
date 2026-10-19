@@ -1,0 +1,56 @@
+slug: tcp-ip-stack-quiz
+type: quiz
+title: "The TCP/IP stack — quiz"
+lessons: [tcp-ip-stack]
+ladderOrder: 1
+questions:
+  - id: ipv6-mss
+    prompt: "A host sends TCP over IPv6 on an Ethernet link with a 1,500-byte MTU. There are no IPv6 extension headers and no TCP options. What is the largest TCP payload per segment?"
+    choices: ["1,460 bytes, since the MSS is a property of TCP and Ethernet, and the longer IPv6 addresses are carried without using any of the payload room", "1,426 bytes, since the 14-byte Ethernet header also has to fit inside the 1,500-byte MTU next to the IPv6 and TCP headers", "1,440 bytes, which is the 1,500-byte MTU minus a 40-byte IPv6 header and a 20-byte TCP header, with the link header left outside it", "1,480 bytes, since the 40-byte IPv6 header is part of the link's own framing, so only the 20-byte TCP header comes out of the 1,500-byte MTU"]
+    answer: 2
+    explanation: "The MTU covers the IP packet but not the Ethernet header, so 1,500 - 40 - 20 = 1,440. The MSS shrinks because the IPv6 header is 20 bytes bigger than IPv4's, the Ethernet header sits outside the MTU, and the IP header is counted inside the MTU rather than in link framing."
+  - id: carve-subnets
+    prompt: "In classic IPv4 subnetting, a team splits 10.20.0.0/22 into /26 subnets. How many subnets result, and how many usable host addresses does each have?"
+    choices: ["32 subnets of 30 usable hosts: the prefix grows by 5 bits counting both ends, so 2^5 blocks of 2^5 = 32 addresses, less two reserved ones", "16 subnets of 126 usable hosts: the prefix grows by 4 bits, so 2^4 blocks of 2^(32-25) = 128 addresses, less two reserved ones", "64 subnets of 14 usable hosts: the prefix grows by 6 bits, so 2^6 blocks of 2^4 = 16 addresses, less two reserved ones", "16 subnets of 62 usable hosts: the prefix grows by 26 - 22 = 4 bits, so 2^4 blocks of 2^(32-26) = 64 addresses, less two reserved ones"]
+    answer: 3
+    explanation: "Four extra prefix bits give 16 subnets, and the 32 - 26 = 6 remaining host bits give 64 addresses each, 62 usable. The other answers each miscount the prefix growth or the host bits by one or more places."
+  - id: two-connections-one-server
+    prompt: "A browser on 198.51.100.7 opens two TCP connections to the same server address and port, 203.0.113.10:443. Which value must differ between the two connections so the kernel can tell them apart?"
+    choices: ["The server's port: the server's kernel moves each accepted connection to a fresh port, so that two sockets never share one", "The client's source port: the client's kernel picks a different one for each connection, since the other values are identical", "The client's source address: one local address can carry only a single connection to a given server, so a second needs another", "Nothing: both connections can share every value, and the kernel alternates delivery between their sockets in order of arrival"]
+    answer: 1
+    explanation: "Protocol, both addresses and the server port are the same, so the client's source port is the one that differs. Accepted sockets keep the listening port, one address can carry many connections to a server, and packets are never shared out between sockets in turn."
+  - id: stars-but-service-works
+    prompt: "From a laptop, traceroute to a service prints replies for hops 1-6, then `* * *` on every line until it gives up. From the same laptop, `curl` to the service returns normally. What is the best reading?"
+    choices: ["The path beyond hop 6 is down for most traffic, and `curl` works only because the response is served from a cache on the laptop", "A NAT device at hop 6 resets every probe's TTL, so the probes never expire again and no later router sends back a reply", "Each later router is too slow to answer, so the per-hop timeout expires first, and a longer timeout would reveal their replies", "A device at or after hop 6 blocks the probes or their replies yet passes traffic to the service port, so try a TCP-based probe"]
+    answer: 3
+    explanation: "Traffic reaching the service shows the path works, so the stars point to filtering of probe traffic or its replies. A working fresh `curl` rules out a dead path, NAT does not reset TTLs, and a router's expiry reply is quick, not slow."
+  - id: reply-after-idle
+    prompt: "A laptop behind a home NAT opens a TCP connection to a server and sends a request. The NAT device expires idle mappings after 5 minutes, and the server's reply comes 15 minutes later, with nothing sent in between. What happens when it arrives?"
+    choices: ["The NAT has no entry for it any more, so it drops the reply, and the connection hangs; keepalives sent more often than the timeout avoid this", "The NAT rebuilds the mapping from the reply's addresses and ports, since they match the original outbound packet, and forwards it to the laptop", "The reply is delivered, because the NAT filters only new connections and leaves packets of an established TCP connection alone", "The NAT asks the laptop to confirm the connection with an ARP exchange, which restores the mapping so the reply can then be forwarded"]
+    answer: 0
+    explanation: "Mappings are created by outbound packets and removed when idle, so a late reply matches nothing and is dropped. A NAT cannot rebuild the mapping from an inbound packet, it keeps state per connection rather than trusting established ones, and ARP works only on the local link."
+flashcards:
+  - id: four-layers
+    front: "The four TCP/IP layers"
+    back: "Link moves frames between neighbours, internet (IP) routes packets across networks, transport (TCP or UDP) adds ports, application is HTTP, DNS, SSH and so on."
+  - id: encapsulation-headers
+    front: "Encapsulation and header sizes"
+    back: "Each layer wraps data in its header. Minimums without options: Ethernet 14 bytes (plus a 4-byte FCS), IPv4 20, IPv6 40, TCP 20, UDP 8."
+  - id: mtu-versus-mss
+    front: "MTU versus MSS"
+    back: "MTU is the largest packet a link carries, commonly 1,500 on Ethernet. MSS is the largest TCP payload: 1,500 - 20 - 20 = 1,460 over IPv4 without options."
+  - id: cidr-sizes
+    front: "CIDR prefix to host count"
+    back: "A /n IPv4 prefix leaves 32 - n host bits: 2^(32-n) addresses. A /24 has 256, of which 254 are usable in classic subnets (network and broadcast reserved)."
+  - id: private-ranges
+    front: "Private IPv4 ranges"
+    back: "10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16 are not routed on the public internet. Hosts on them reach the internet through NAT."
+  - id: ip-ttl
+    front: "IP TTL and traceroute"
+    back: "Each router decrements the TTL (IPv6: hop limit) and drops the packet at zero, stopping loops. Traceroute sends probes with rising TTLs and reads each router's reply."
+  - id: five-tuple
+    front: "The 5-tuple"
+    back: "Protocol, source IP, source port, destination IP, destination port. It identifies a connection, so the kernel can deliver each packet to the right socket."
+  - id: nat-inbound
+    front: "NAT and inbound connections"
+    back: "NAT rewrites source address and port on outbound traffic and remembers the mapping. Unsolicited inbound packets match no mapping and are dropped without port forwarding."

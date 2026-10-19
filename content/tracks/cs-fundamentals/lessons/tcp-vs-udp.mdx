@@ -1,0 +1,145 @@
+---
+slug: tcp-vs-udp
+title: TCP vs UDP
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [tcp-ip-stack]
+summary: "Learn how TCP builds a reliable, ordered byte stream out of numbered bytes, acknowledgements and retransmission, what it costs, and when UDP's bare datagrams are the better tool."
+---
+
+## Intuition
+
+UDP is dropping postcards in a mailbox: each travels alone, may arrive out of order or never, and nobody tells you. TCP is a phone call: you dial first, both sides confirm they can hear, words arrive in order, and either side can say "say that again".
+
+TCP builds a **reliable, ordered byte stream** on top of IP, which only tries to deliver each packet.
+
+**Sequence numbers count bytes.** Each side picks an *initial sequence number* (ISN) and numbers every byte it sends from there. A `SYN` (open) and a `FIN` (close) each consume one number, even though they carry no data.
+
+**Cumulative ACKs.** An acknowledgement number means "I have every byte before this one; send me this one next". It names the next byte the receiver expects, not the last one it got.
+
+**Retransmission.** If no ACK arrives before a timer expires, the sender resends. Faster: while a gap is open, each later segment makes the receiver repeat the same ACK, and a sender seeing 3 duplicate ACKs typically resends at once (*fast retransmit*).
+
+**The handshake costs a round trip.** `SYN`, `SYN-ACK`, `ACK` establish both ISNs. The client can send data right after its ACK, one round trip in, which is the "TCP handshake" bar in the timeline of [Client–server & HTTP](/system-design/client-server-http/).
+
+**TCP is a stream, not messages.** The kernel keeps no message boundaries. Two 300-byte `send` calls may reach you as one `recv` of 600 bytes, or as 450 then 150. Applications must **frame** their messages (a length prefix or delimiter).
+
+**Flow control.** The receiver advertises a *receive window*: how much more data it has room for. A slow reader makes it shrink, and the sender must slow down rather than overrun it.
+
+**Congestion control.** The sender also limits itself to a *congestion window*, to avoid swamping the network. It starts small and roughly doubles each round trip (*slow start*), then adds about one segment per round trip and cuts the window sharply on loss: additive increase, multiplicative decrease (**AIMD**). Loss is the classic signal. CUBIC and BBR are common algorithms; the default varies by OS and version.
+
+**Head-of-line blocking.** The receiver hands bytes to the application only in order. If one segment is lost, later segments that did arrive wait in the kernel until the gap is filled, so the application sees a stall, then a burst.
+
+**Closing.** Each direction closes with its own `FIN` and ACK: up to four segments (often three if the peer combines its ACK and FIN). The side that closed first ends in **TIME_WAIT** (fixed 60 s on Linux), keeping the 5-tuple (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)) reserved so stray old segments cannot be mistaken for a new connection and a lost final ACK can be answered again.
+
+**UDP** keeps only the ports. Its header is 8 bytes (ports, length, checksum). There is no connection, no ordering, no retransmission and no congestion control: each datagram is sent once, alone. If you need any of that, your application adds it. That makes UDP the right fit when late data is worthless:
+
+- **DNS:** one small question and one answer, so a handshake would double the cost. The client retries on timeout.
+- **Games, voice and video:** a late position or audio frame is useless because a newer one has replaced it. TCP would retransmit the stale one and hold back everything behind it, so a gap beats a late packet.
+- **QUIC** builds its own reliability and ordering per stream, and congestion control per connection, on top of UDP. HTTP/3 uses it (see [HTTP/1.1, HTTP/2 and HTTP/3](/cs-fundamentals/http-versions/)).
+
+## Visual
+
+The stepper's scenario: client ISN 100, server ISN 300, 200 bytes in two segments (the second lost once), then the close.
+
+```text
+Client                                   Server
+  |--- SYN seq=100 ---------------------->|   SYN consumes 100
+  |<-- SYN-ACK seq=300 ack=101 -----------|
+  |--- ACK seq=101 ack=301 -------------->|   established
+  |--- 100 bytes seq=101 ---------------->|
+  |<-- ACK ack=201 -----------------------|   101 + 100
+  |--- 100 bytes seq=201 -----X  (lost)   |
+  |    ... timer expires ...              |
+  |--- 100 bytes seq=201 (resent) ------->|
+  |<-- ACK ack=301 -----------------------|   201 + 100
+  |--- FIN seq=301 ---------------------->|   FIN consumes 301
+  |<-- ACK ack=302 -----------------------|
+  |<-- FIN seq=301 -----------------------|   server's own FIN
+  |--- ACK ack=302 ---------------------->|
+  |  TIME_WAIT                    CLOSED  |
+```
+
+Twelve segments: 3 for the handshake, 5 for the data (two data segments, one of them lost and resent, and two ACKs) and 4 for the close (separate ACK and FIN here). 100 bytes from seq 101 are acked with 201, and 100 more from 201 with 301. The client's FIN has seq 301 and ack 301, since it has not yet seen the server's FIN. The server acks with 302 = 301 + 1, because a FIN consumes one number. The server's FIN also has seq 301.
+
+<Visualizer kind="tcp-handshake" />
+
+## Example
+
+**Part 1: UDP, where a lost datagram never arrives.** The sender skips datagram 2 to stand in for a drop (loopback rarely loses packets). The receiver gets 1 and 3, then its timeout fires.
+
+```python
+import socket
+
+rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+rx.bind(("127.0.0.1", 0))                 # port 0: the OS picks a port
+rx.settimeout(0.5)                        # else recv could wait forever
+addr = rx.getsockname()
+
+tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+for i in (1, 2, 3):
+    if i == 2:
+        continue                          # simulate a drop: nothing is sent
+    tx.sendto(f"datagram {i}".encode(), addr)
+
+try:
+    while True:
+        data, _ = rx.recvfrom(2048)       # one datagram per call
+        print(data.decode())
+except socket.timeout:
+    print("no more datagrams: 2 never arrived, and nothing resends it")
+```
+
+`recvfrom` returns one whole datagram or nothing: UDP keeps message boundaries; TCP does not.
+
+**Part 2: TCP framing.** Prefix each message with its length as 4 bytes in network byte order (`!I`), and read exactly that many bytes. One `recv` may return fewer than asked, so loop.
+
+```python
+import socket, struct, threading
+
+def recv_exact(sock, n):
+    buf = b""
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:                     # b"" means the peer closed
+            raise ConnectionError("closed mid-message")
+        buf += chunk
+    return buf
+
+def send_msg(sock, payload):
+    sock.sendall(struct.pack("!I", len(payload)) + payload)
+
+def read_msg(sock):
+    (n,) = struct.unpack("!I", recv_exact(sock, 4))
+    return recv_exact(sock, n)
+
+srv = socket.create_server(("127.0.0.1", 0))
+port = srv.getsockname()[1]
+
+def serve():
+    conn, _ = srv.accept()
+    with conn:
+        send_msg(conn, b"hello")
+        send_msg(conn, b"world!")
+
+threading.Thread(target=serve, daemon=True).start()
+with socket.create_connection(("127.0.0.1", port)) as c:
+    c.settimeout(2)                       # a silent peer raises instead of hanging
+    print(read_msg(c), read_msg(c))       # b'hello' b'world!'
+```
+
+The two messages may share one segment, yet `read_msg` returns them separately. A real reader would cap `n` first.
+
+## Pitfalls
+
+- **Treating one `recv` as one message.** It returns whatever has arrived, up to the size you asked for. Fix: frame messages and loop with `recv_exact`.
+- **Using `send` where you need `sendall`.** `send` may write only part of the buffer. Fix: use `sendall`, or check the returned count.
+- **Blocking forever on a silent peer.** An idle connection can look healthy long after the peer vanished. Fix: set timeouts and send heartbeats.
+- **Assuming UDP delivers.** A datagram can be lost, duplicated or reordered, and a returning `sendto` says nothing about arrival. Fix: add sequence numbers, ACKs or retries where needed, and tolerate duplicates.
+- **Opening a connection per request.** Each pays the handshake, restarts congestion control from a small window and leaves a socket in TIME_WAIT. Fix: reuse connections with keep-alive or a pool.
+- **Sending big UDP datagrams.** Past the MTU (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)), IPv4 may fragment them, and one lost fragment loses the whole datagram. Fix: keep payloads small, about 1,200 bytes or less unless you have measured.
+
+## Tips & tricks
+
+- **Rules of thumb:** need every byte, in order? Use TCP. Is late data worthless, or do you need your own retry policy? Consider UDP, or QUIC for the work done for you.
+- **Interview phrasing:** "TCP numbers every byte, acks cumulatively and retransmits on timeout or three duplicate ACKs, giving a reliable ordered stream, at the price of a handshake and head-of-line blocking. UDP is ports and a checksum; you build the rest."
+- **What to measure:** retransmission counters (`netstat -s | grep -i retrans`), connections by state (`ss -tan | grep -c TIME-WAIT`), and a `tcpdump` of a handshake and close.

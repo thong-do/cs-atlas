@@ -140,9 +140,11 @@ describe('content inventory', () => {
       'cpu-scheduling': { prerequisites: ['processes-threads'], exercises: ['cpu-scheduling-quiz', 'diagnose-cpu-throttling'] },
       'virtual-memory': { prerequisites: ['processes-threads'], exercises: ['virtual-memory-quiz', 'diagnose-prefork-memory'] },
       'concurrency-primitives': { prerequisites: ['processes-threads'], exercises: ['concurrency-primitives-quiz', 'diagnose-service-hang'] },
+      'tcp-ip-stack': { prerequisites: [], exercises: ['tcp-ip-stack-quiz', 'diagnose-large-responses-hang'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
     expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
+    expect(lessons.find((l) => l.slug === 'tcp-ip-stack')!.prerequisites).toEqual([])
     for (const [slug, want] of Object.entries(CSF)) {
       expect(lessons.find((l) => l.slug === slug), slug).toMatchObject({ track: 'cs-fundamentals', prerequisites: want.prerequisites })
       expect(getLessonDoc(slug)!.toc.map((t) => t.title), slug).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])

@@ -1,0 +1,56 @@
+slug: tcp-ip-stack-quiz
+type: quiz
+title: "The TCP/IP stack — quiz"
+lessons: [tcp-ip-stack]
+ladderOrder: 1
+questions:
+  - id: ipv6-mss
+    prompt: "A host sends TCP over IPv6 on an Ethernet link with a 1,500-byte MTU. There are no IPv6 extension headers and no TCP options. What is the largest TCP payload per segment?"
+    choices: ["1,460 bytes, since the MSS is a property of TCP and Ethernet, and the longer IPv6 addresses are carried without using any of the payload room", "1,426 bytes, since the 14-byte Ethernet header also has to fit inside the 1,500-byte MTU next to the IPv6 and TCP headers", "1,440 bytes, which is the 1,500-byte MTU minus a 40-byte IPv6 header and a 20-byte TCP header, with the link header left outside it", "1,452 bytes, since every IPv6 packet also carries an 8-byte extension header next to the base header and the 20-byte TCP header"]
+    answer: 2
+    explanation: "The MTU covers the IP packet but not the Ethernet header, so 1,500 - 40 - 20 = 1,440. The MSS shrinks because the IPv6 header is 20 bytes bigger than IPv4's, the Ethernet header sits outside the MTU, and extension headers are optional rather than present in every packet."
+  - id: carve-subnets
+    prompt: "In classic IPv4 subnetting, a team splits 10.20.0.0/22 into /26 subnets. How many subnets result, and how many usable host addresses does each have?"
+    choices: ["64 subnets with 14 usable hosts each, since the 26 prefix bits give 2^6 subnets and leave 4 bits for host numbering", "16 subnets with 64 usable hosts each, since every address in a /26 block can be handed to a machine without exception", "32 subnets with 30 usable hosts each, since the 4 extra prefix bits double five times over and the host part keeps 5 bits", "16 subnets with 62 usable hosts each: 2^(26-22) = 16 blocks of 2^6 = 64 addresses, minus the network and broadcast ones"]
+    answer: 3
+    explanation: "Four extra prefix bits give 2^4 = 16 subnets, and 32 - 26 = 6 host bits give 64 addresses each, 62 once the network and broadcast addresses are set aside. The other counts misread the exponents or treat the reserved addresses as usable."
+  - id: many-clients-one-port
+    prompt: "A server listens on TCP port 443 and has 40,000 established connections from different clients. What lets the kernel deliver each arriving packet to the right socket?"
+    choices: ["Each accepted connection is moved to its own server-side port, so the kernel finds the socket from the destination port alone", "The 5-tuple of protocol, both addresses and both ports, which differs per connection through the client's address and port numbers", "The listening socket receives every packet and the application sorts them by the client identifier it finds in the payload bytes", "The client's source port alone, which is unique on the server, since the kernel hands every client a distinct number when it connects"]
+    answer: 1
+    explanation: "Connections are told apart by the full 5-tuple, so one server port can serve them all. Accepted sockets keep the listening port, the kernel does not sort by payload, and a source port number is only unique per client address, not across clients."
+  - id: traceroute-stars
+    prompt: "A traceroute to a service prints replies for hops 1-4, then `* * *` for hop 5, then normal replies for hops 6-9 and the destination. What is the best reading?"
+    choices: ["Hop 5 has no route onward, so traffic is being lost there, and the later replies must have come back over a different return path", "The probes expired exactly at hop 5 because their TTL was set one too high, so that router discarded them before it could answer", "Hop 5 forwarded the probes but sent no time-exceeded replies, perhaps by policy or rate limiting, so traffic passes on through it", "The link before hop 5 is congested enough to lose every probe, which also explains why hops 6-9 answer with unusually high latencies"]
+    answer: 2
+    explanation: "A router can forward packets without answering expiring ones, and replies from later hops show the traffic passes. A missing route would stop every later hop, a probe cannot expire on a router while its TTL is still too high, and a lossy link would not let later probes through unscathed."
+  - id: friend-cannot-connect
+    prompt: "A developer runs a web server on a laptop at home on port 8080. The laptop reaches the internet fine, but a friend connecting to the home's public IP on port 8080 times out. The router performs NAT. What is the most likely cause?"
+    choices: ["The router has no mapping for an unsolicited inbound packet, since mappings come from outbound traffic, so it drops it by default", "The router only forwards ports below 1024 to the inside of the network, so a connection to port 8080 never reaches the laptop", "The laptop has a private address that cannot carry TCP traffic, so only UDP from outside can get through the router to it", "The laptop does not know the friend's hardware address, so its neighbour lookup for the friend fails and its replies are never framed"]
+    answer: 0
+    explanation: "NAT mappings come from inside-out traffic, so an unsolicited inbound packet matches nothing. Nothing about a port number above 1,023 blocks it, private addresses carry TCP normally, and neighbour lookups apply only on the local link and never to a remote friend."
+flashcards:
+  - id: four-layers
+    front: "The four TCP/IP layers"
+    back: "Link moves frames between neighbours, internet (IP) routes packets across networks, transport (TCP or UDP) adds ports, application is HTTP, DNS, SSH and so on."
+  - id: encapsulation-headers
+    front: "Encapsulation and header sizes"
+    back: "Each layer wraps data in its header. Minimums without options: Ethernet 14 bytes (plus a 4-byte FCS), IPv4 20, IPv6 40, TCP 20, UDP 8."
+  - id: mtu-versus-mss
+    front: "MTU versus MSS"
+    back: "MTU is the largest packet a link carries, commonly 1,500 on Ethernet. MSS is the largest TCP payload: 1,500 - 20 - 20 = 1,460 over IPv4 without options."
+  - id: cidr-sizes
+    front: "CIDR prefix to host count"
+    back: "A /n IPv4 prefix leaves 32 - n host bits: 2^(32-n) addresses. A /24 has 256, of which 254 are usable in classic subnets (network and broadcast reserved)."
+  - id: private-ranges
+    front: "Private IPv4 ranges"
+    back: "10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16 are not routed on the public internet. Hosts on them reach the internet through NAT."
+  - id: ip-ttl
+    front: "IP TTL and traceroute"
+    back: "Each router decrements the TTL (IPv6: hop limit) and drops the packet at zero, stopping loops. Traceroute sends probes with rising TTLs and reads each router's reply."
+  - id: five-tuple
+    front: "The 5-tuple"
+    back: "Protocol, source IP, source port, destination IP, destination port. It identifies a connection, so the kernel can deliver each packet to the right socket."
+  - id: nat-inbound
+    front: "NAT and inbound connections"
+    back: "NAT rewrites source address and port on outbound traffic and remembers the mapping. Unsolicited inbound packets match no mapping and are dropped without port forwarding."

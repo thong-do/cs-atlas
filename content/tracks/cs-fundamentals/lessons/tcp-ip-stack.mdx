@@ -1,0 +1,108 @@
+---
+slug: tcp-ip-stack
+title: The TCP/IP stack
+level: beginner
+authors: [cs-atlas]
+prerequisites: []
+summary: "Learn how your data is wrapped in headers as it moves down the four layers, what MTU, MSS, CIDR, routing, ports and NAT mean, and how to read ping, traceroute, ss and tcpdump."
+---
+
+## Intuition
+
+The network is a postal system with nested envelopes. You write a letter (your data), put it in an envelope addressed to a person at a building (a port on a host), put that in a bag labelled for a city (an IP address), and a local courier carries the bag to the next sorting office (the link). Each office reads only the outermost label, then relabels for the next leg.
+
+**Four layers.** The TCP/IP model has four.
+- **Link:** moves a frame between two directly connected devices (Ethernet, Wi-Fi).
+- **Internet:** IP gets a packet across many networks using addresses.
+- **Transport:** TCP or UDP, which add ports. TCP adds a reliable ordered stream (see [Client–server & HTTP](/system-design/client-server-http/)).
+- **Application:** HTTP, DNS, SSH, your own protocol.
+
+The OSI model's seven layers map roughly onto these, with its physical and data-link layers as the link layer and its top three as the application layer. It is a teaching model; real stacks don't split at 7 layers.
+
+**Encapsulation.** Each layer wraps what it receives from above in its own header. The minimums, without options, are: Ethernet 14 bytes (plus a 4-byte trailer, the FCS, a checksum), IPv4 20, IPv6 40, TCP 20, UDP 8. Real headers can be longer.
+
+**MTU and MSS.** The **MTU** is the largest packet a link carries, commonly 1,500 bytes on Ethernet (it excludes the Ethernet header). The **MSS** is the largest TCP payload per segment: 1,500 − 20 (IPv4) − 20 (TCP) = **1,460 bytes**. A router that meets a packet bigger than the next link's MTU fragments it or drops it. Big writes are therefore cut into many segments.
+
+**Addresses and CIDR.** An IPv4 address is 32 bits. `10.1.2.0/24` means the first 24 bits name the network and the other 32 − 24 = 8 bits name hosts: 2⁸ = 256 addresses, of which 254 are usable hosts, because the first (network) and last (broadcast) are reserved in classic subnets. A `/16` has 2¹⁶ = 65,536 addresses. **Private ranges** (not routed on the public internet) are `10.0.0.0/8`, `172.16.0.0/12` and `192.168.0.0/16`. **IPv6** has 128-bit addresses, a fixed 40-byte header and a *hop limit* in place of TTL; subnets are commonly /64.
+
+**Routing.** A host sends anything off its own subnet to its **default gateway**. Each router looks up the destination in its table and forwards to the next hop; no one router knows the whole path. Every router decrements the **TTL** (IPv6: hop limit) and discards the packet at zero. That stops loops, and **traceroute** exploits it.
+
+**Finding the next hop's address.** On a LAN, **ARP** (IPv4) or neighbour discovery (IPv6) asks "who has this IP?" so the sender learns the MAC address to put in the frame.
+
+**Ports, sockets and the 5-tuple.** An IP address finds a host and a port finds a program. A connection is identified by five values: protocol, source IP, source port, destination IP, destination port. The kernel matches each arriving packet to a **socket** by that tuple. One listening port can serve thousands of connections, because the client halves differ.
+
+**NAT.** Home and cloud networks share one public address among many private hosts. The NAT device rewrites source address and port on the way out and remembers the mapping, so replies find their way back. A packet arriving from outside with no mapping matches nothing and is dropped. That is why inbound connections to a host behind NAT fail without port forwarding.
+
+**Where DNS sits.** DNS is an application-layer protocol: it turns a name into an IP address *before* any connection starts. See [DNS & CDNs](/system-design/dns-cdn/). A layer-4 balancer ([Load balancing](/system-design/load-balancing/)) works on IPs and ports.
+
+## Visual
+
+One HTTP request on its way down the stack, sizes are minimums without options:
+
+```text
+Application   GET /index.html HTTP/1.1 ...   (N bytes of data)
+                  |
+Transport     [ TCP 20 ][ data ]                 segment
+                  |
+Internet      [ IPv4 20 ][ TCP 20 ][ data ]      packet
+                  |
+Link          [ Eth 14 ][ IPv4 20 ][ TCP 20 ][ data <= 1,460 ][ FCS 4 ]  frame
+                        |--- packet: at most 1,500 (MTU) ----|
+                                             |-- MSS 1,460 --|
+```
+
+At most 1,460 bytes of data fit in each frame (IPv4, TCP, no options). The receiver peels headers off in reverse order.
+
+## Example
+
+**Part 1: a 1,000,000-byte response.** Send it over IPv4 and TCP on Ethernet, without options.
+
+- Segments: 1,000,000 ÷ 1,460 = 684.9, so ⌈684.9⌉ = **685** (684 full ones carry 998,640 bytes; the last carries 1,360).
+- Headers per frame: 14 + 20 + 20 = **54 bytes** (ignoring the FCS).
+- Total overhead: 685 × 54 = **36,990 bytes**, which is 36,990 ÷ 1,000,000 ≈ **3.7%**.
+
+```python
+import math
+
+mtu, ip, tcp, eth = 1500, 20, 20, 14
+mss = mtu - ip - tcp                      # 1460
+frames = math.ceil(1_000_000 / mss)       # 685
+overhead = frames * (eth + ip + tcp)      # 685 * 54 = 36990
+print(mss, frames, overhead, overhead / 1_000_000)
+```
+
+**Part 2: a 1-byte payload.** The same 54 bytes of headers carry 1 byte, so 98% of the frame (54 of 55 bytes) is overhead. Ethernet also enforces a minimum frame size (commonly 64 bytes including the FCS), so a tiny frame is padded further.
+
+**Looking at the wire.**
+
+```bash
+traceroute -n example.com
+#  1  192.168.1.1   1.2 ms      <- default gateway
+#  2  10.20.0.1     8.5 ms
+#  3  * * *                     <- no reply within timeout
+#  4  203.0.113.9   14.1 ms
+```
+
+Traceroute sends probes with TTL 1, 2, 3, and so on. Each router that discards one usually answers with a "time exceeded" message, which reveals its address and a round-trip time. `* * *` means no reply, not necessarily a broken hop: a router may forward traffic but not answer. Output varies by OS and network.
+
+```bash
+ss -tn state established '( dport = :443 )'   # live connections to port 443
+ss -tlnp                                      # listening sockets and their processes
+```
+
+Each established line shows local address:port and peer address:port, which with the protocol is the 5-tuple. `-l` lists listeners, `-p` adds the process (may need root).
+
+## Pitfalls
+
+- **Assuming one `send` is one packet.** The stack cuts writes to the MSS and TCP may merge small writes, so reads don't line up with writes. Fix: frame your own messages with a length prefix or delimiter.
+- **Sending tiny messages one at a time.** 54 bytes of headers for 1 byte is the worst case. Fix: batch small writes into fewer, larger ones.
+- **Confusing TTLs.** The IP TTL counts hops. A DNS record's TTL counts seconds of caching (see [DNS & CDNs](/system-design/dns-cdn/)). Fix: say which one you mean.
+- **Treating a private address as reachable.** `192.168.x.x` means nothing outside its own network, and NAT blocks unsolicited inbound traffic. Fix: use port forwarding, a public address or a relay.
+- **Misreading a subnet size.** A `/24` has 254 usable hosts, not 256, and each prefix bit you add halves the size. Fix: compute 2^(32 − prefix) − 2 for IPv4.
+- **Calling `* * *` an outage.** Fix: check whether later hops answer, and test the real service rather than trusting traceroute alone.
+
+## Tips & tricks
+
+- **Rules of thumb:** headers cost at least 54 bytes per Ethernet frame (IPv4, TCP), a typical MSS is 1,460, and bulk transfers lose only a few percent to headers while tiny messages lose most of it.
+- **Interview phrasing:** "Application data is wrapped in a TCP segment, then an IP packet, then an Ethernet frame. IP routes hop by hop; TCP and UDP use ports so the kernel can deliver to the right socket. A connection is the 5-tuple."
+- **What to measure:** `ping` (round-trip time and loss; some hosts don't answer), `traceroute` (per-hop path and latency), `ss -s` and `ss -tn` (socket counts and states), and `tcpdump -i any -n port 443` (real packets, header sizes, retransmissions).

@@ -29,7 +29,7 @@ TCP builds a **reliable, ordered byte stream** on top of IP, which only tries to
 
 **Head-of-line blocking.** The receiver hands bytes to the application only in order. If one segment is lost, later segments that did arrive wait in the kernel until the gap is filled, so the application sees a stall, then a burst.
 
-**Closing.** Each direction closes with its own `FIN` and ACK: up to four segments (often three if the peer combines its ACK and FIN). The side that closed first ends in **TIME_WAIT** (typically 60 s on Linux), keeping the 5-tuple (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)) reserved so stray old segments cannot be mistaken for a new connection and a lost final ACK can be answered again.
+**Closing.** Each direction closes with its own `FIN` and ACK: up to four segments (often three if the peer combines its ACK and FIN). The side that closed first ends in **TIME_WAIT** (fixed 60 s on Linux), keeping the 5-tuple (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)) reserved so stray old segments cannot be mistaken for a new connection and a lost final ACK can be answered again.
 
 **UDP** keeps only the ports. Its header is 8 bytes (ports, length, checksum). There is no connection, no ordering, no retransmission and no congestion control: each datagram is sent once, alone. If you need any of that, your application adds it. That makes UDP the right fit when late data is worthless:
 

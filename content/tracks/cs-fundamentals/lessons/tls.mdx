@@ -1,0 +1,114 @@
+---
+slug: tls
+title: TLS
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [tcp-vs-udp]
+summary: "Learn what TLS gives a TCP connection, how a certificate and a key exchange set up an encrypted channel in one round trip, and what a handshake costs in latency."
+---
+
+## Intuition
+
+TLS is a passport check plus a tamper-evident envelope. You agree on a secret with a stranger across a crowded room, the stranger shows a passport you can verify, and every message then goes in an envelope that shows if anyone altered it.
+
+TLS runs on a reliable byte stream, normally TCP (see [TCP vs UDP](/cs-fundamentals/tcp-vs-udp/)). HTTPS is HTTP carried inside it; TLS is not HTTP, and TCP still does the delivery.
+
+**What it gives.**
+
+- **Confidentiality:** an eavesdropper sees ciphertext.
+- **Integrity:** any change to the bytes in transit is detected, and the connection fails.
+- **Server authentication:** the client checks it is talking to the owner of the name it asked for. With **mTLS** (mutual TLS) the server also demands a certificate from the client.
+
+**What it does not hide.** The IP addresses, because routers need them; the server name in the *SNI* field of the first message, by default (Encrypted Client Hello can hide it, but deployment varies); and the sizes and timing of what you send, which can hint at which page you loaded.
+
+**Why two kinds of crypto.** *Asymmetric* crypto (key pairs, signatures, key agreement) lets strangers agree on a secret but is slow. *Symmetric* crypto uses one shared key and is fast. TLS uses the first to agree on a key, then the second for the data, with an **AEAD** cipher such as AES-GCM or ChaCha20-Poly1305 that encrypts and authenticates each record together. Bulk encryption is hardware-accelerated on most modern CPUs, so the cost today is mostly handshakes, not data.
+
+**Key exchange and forward secrecy.** Each side generates a throwaway key pair for this connection only and sends the public half (a *key share*). Combining its own private key with the peer's public half gives both ends the same secret (**(EC)DHE**, Diffie-Hellman over elliptic curves or finite fields). The throwaway keys are then deleted. The server's long-term key only *signs* the handshake. If it leaks next year, it cannot unlock traffic recorded today, because the session secret was never sent and no longer exists. That is **forward secrecy**.
+
+**Certificates.** A certificate binds a public key to one or more names, listed in its *SAN* (Subject Alternative Name) field, and is signed by a *certificate authority* (CA). Trust flows along a chain: the leaf certificate is signed by an intermediate CA, whose certificate is signed by a root. The client verifies each signature up to a **root in its trust store**, shipped with the OS or browser. It also checks that the hostname it asked for matches a SAN entry and that the current time is inside the certificate's validity dates.
+
+*Revocation* (a CA withdrawing a certificate early) exists through CRLs and OCSP, but how strictly clients check varies by browser and library.
+
+**The TLS 1.3 handshake takes 1 round trip.** The client's `ClientHello` carries its key share and a list of protocols. The server's `ServerHello` carries its own share, and from that point the server's reply is encrypted: certificate, signature and `Finished`. The client verifies, sends its `Finished`, and can send application data in the same flight. A full TLS 1.2 handshake needs 2 round trips.
+
+**Resumption and 0-RTT.** The server can hand the client a *session ticket*; next time the client presents it and skips the certificate work. In TLS 1.3 a resumed handshake still takes 1 round trip, but the client may also put a request in the first flight as **0-RTT early data**. An attacker can *replay* those bytes, and 0-RTT lacks forward secrecy, so use it only for idempotent requests such as a `GET` (servers decide whether to accept it).
+
+**ALPN.** *Application-Layer Protocol Negotiation* lets the client list `h2` and `http/1.1` in the `ClientHello` and the server pick one, so choosing the HTTP version costs no extra round trip.
+
+**Termination and mTLS.** A [load balancer](/system-design/load-balancing/) often **terminates TLS**: it holds the certificate, decrypts, and forwards over plain HTTP or a second TLS hop. Between services, mTLS lets each side prove who it is, so calls are accepted by identity, not network location.
+
+## Visual
+
+```text
+TLS 1.3, new connection             Client                  Server
+ TCP handshake  (1 RTT)              |--- SYN ------------->|
+                                     |<-- SYN-ACK ----------|
+                                     |--- ACK ------------->|
+ TLS handshake  (1 RTT)              |--- ClientHello ----->|  key share, ALPN, SNI
+                                     |<-- ServerHello ------|  key share
+                                     |<== {Certificate,     |  encrypted from here
+                                     |     Finished} =======|
+ request        (1 RTT)              |=== {Finished,    ===>|
+                                     |     GET /} ==========|
+                                     |<== {response} =======|
+
+TLS 1.2 full handshake: 2 RTT before the request.
+
+Chain:  leaf (names, public key)  <-signed by-  intermediate  <-signed by-  root (in trust store)
+```
+
+## Example
+
+**Part 1: what a handshake costs.** Use an illustrative RTT of 80 ms, and ignore server work so only round trips count.
+
+| Case | Round trips | Time |
+|---|---|---|
+| New connection, TLS 1.3 | TCP 1 + TLS 1 + request 1 = 3 | 3 × 80 = 240 ms |
+| New connection, TLS 1.2 | TCP 1 + TLS 2 + request 1 = 4 | 4 × 80 = 320 ms |
+| TLS 1.3 resumed, 0-RTT | TCP 1 + request 1 = 2 | 2 × 80 = 160 ms |
+| Reused connection | request 1 = 1 | 80 ms |
+
+The 0-RTT request rides with the TLS handshake. The first row matches the first-visit timeline in [Client–server & HTTP](/system-design/client-server-http/); the last row is why keep-alive matters.
+
+**Part 2: what the client sees.** `ssl.create_default_context()` turns on certificate and hostname checking. This opens a connection to `example.com` and prints what was negotiated (it needs network access; values vary by server).
+
+```python
+import socket, ssl
+
+host = "example.com"
+ctx = ssl.create_default_context()        # verification and hostname check ON
+
+with socket.create_connection((host, 443), timeout=5) as raw:
+    with ctx.wrap_socket(raw, server_hostname=host) as tls:   # SNI + name check
+        print(tls.version())              # e.g. 'TLSv1.3'
+        print(tls.cipher())               # (name, protocol, secret bits)
+        cert = tls.getpeercert()
+        print(dict(rdn[0] for rdn in cert["subject"]))
+        print([v for k, v in cert["subjectAltName"] if k == "DNS"])
+```
+
+`server_hostname` is both sent as the SNI and matched against the SAN. Now the classic mistake:
+
+```python
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE           # accepts ANY certificate: never in production
+```
+
+The connection still encrypts, but nobody checks who answers: a machine in the middle can present its own certificate, read everything and pass it on.
+
+## Pitfalls
+
+- **Turning off verification to make an error go away** (`verify=False`, `CERT_NONE`, `-k`, a trust-everything manager). The traffic is encrypted but the peer is unchecked. Fix: keep the defaults on, and find out which check failed (name, dates or trust).
+- **Letting a certificate expire.** Clients reject it the moment it is out of date. Fix: automate renewal and alert on days to expiry.
+- **Connecting by IP address or a name not in the SAN.** The hostname check fails even for a valid certificate. Fix: use a listed name.
+- **Sending a non-idempotent request as 0-RTT.** A replayed `POST` could run twice. Fix: allow early data only for idempotent requests, or leave it off.
+- **Opening a new TLS connection per request.** Each pays the round trips and key-exchange work. Fix: reuse connections and enable resumption.
+- **Assuming termination protects the whole path.** A balancer forwarding plain HTTP leaves that hop readable. Fix: re-encrypt to the backends when the network is not trusted.
+
+## Tips & tricks
+
+- **Rules of thumb.** Count handshake cost in round trips: 3 for TCP + TLS 1.3 + request, 4 with TLS 1.2. Prefer TLS 1.3; keep connections warm.
+- **Interview phrasing.** "The server proves its identity with a CA-signed certificate, both sides agree a key by ephemeral Diffie-Hellman, and records are encrypted with a symmetric AEAD cipher, all in one round trip in TLS 1.3."
+- **Debugging.** `curl -v https://host` prints the negotiated version, cipher and certificate details. Check the SAN, not just the common name, and the expiry date.
+- **Measure.** Time DNS, connect and TLS separately (`curl -w` has timers for each) and track the share of resumed handshakes.
+- **Between services.** Use mTLS when identity matters more than network position; rotate certificates automatically.

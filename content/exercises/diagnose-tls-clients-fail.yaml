@@ -1,0 +1,41 @@
+slug: diagnose-tls-clients-fail
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the API that only browsers can reach"
+lessons: [tls]
+ladderOrder: 2
+prompt: |
+  An HTTPS API serves **40,000 requests per minute**. At **02:00** a new automation job renews its TLS certificate. Right after,
+  **0%** of desktop browser requests fail, but **100%** of requests from the company's Java backend jobs and from partners
+  using `curl` fail with "unable to get local issuer certificate" or "PKIX path building failed". These clients account for
+  **35%** of the traffic. The certificate is valid, the hostname is correct, and nothing else changed.
+
+  Explain the cause and why the server must behave the way you describe. Explain why browsers still work. Show how you would
+  confirm it from a shell. Give fixes, and say why adding the missing piece to every client's trust store is the wrong one.
+hint: "Ask which certificates the server actually sends in the handshake, and what a client needs in hand to link the server's certificate to a root it already trusts."
+rubric:
+  - id: cause
+    point: "Identifies the cause and quantifies it: the job installed `cert.pem` (the leaf only) instead of `fullchain.pem`, so the server sends no intermediate certificate; 35% of 40,000 requests per minute is 14,000 failures per minute."
+  - id: chain
+    point: "Explains chain building: the client verifies leaf, intermediate, root up to a root in its trust store, and the trust store holds roots, not intermediates, so the server must send the intermediates for the client to link its leaf to a root."
+  - id: browsers
+    point: "Explains why browsers still worked: they can reuse intermediates cached from other sites or fetch a missing one from the URL in the certificate's Authority Information Access (AIA) field (behaviour varies by browser), while Java and curl typically do neither."
+  - id: confirm
+    point: "Shows how to confirm it: `openssl s_client -connect host:443 -servername host -showcerts` lists only the certificate at depth 0 and ends with a verify error, where a correct server shows the intermediate at depth 1 too."
+  - id: fixes
+    point: "Gives fixes and rejects the trust-store workaround: serve `fullchain.pem`, add a deploy-time check that the chain verifies, monitor from a non-browser client; installing the intermediate in every client's trust store is wrong because it touches every client, partners included, and breaks again at the next intermediate change."
+reference: |
+  **Cause.** The renewal job installed `cert.pem`, the leaf alone, instead of `fullchain.pem`. The server now sends only its own certificate. Impact: 35% x 40,000 = 14,000 failing requests per minute, while the remaining 26,000 (65%) succeed.
+
+  **Chain building.** A client trusts roots in its trust store. It must link the leaf to one of them through a chain: leaf, signed by an intermediate, signed by a root. Trust stores hold roots, not intermediates, so the server must send the intermediates. With none, the client cannot connect the leaf to any root and rejects it ("unable to get local issuer certificate", "PKIX path building failed").
+
+  **Why browsers work.** They may already have the intermediate cached from visiting other sites, or fetch it from the certificate's Authority Information Access (AIA) URL (behaviour varies by browser). Java and `curl` typically do neither, so they fail.
+
+  **Confirm.** Run `openssl s_client -connect host:443 -servername host -showcerts`. It prints only the depth 0 certificate and a verify error; a correct chain also lists depth 1.
+
+  **Fixes.**
+  - Serve `fullchain.pem` (leaf plus intermediates) and reload the server. This fixes the cause for every client.
+  - Add a deploy-time check that fetches the served chain and verifies it against a roots-only trust store.
+  - Monitor from a non-browser client, so a browser's tolerance cannot hide the fault.
+
+  **Why not edit trust stores.** The fix would have to reach every Java truststore and every partner's machine, which you do not control. It also breaks when the CA changes intermediates at the next renewal, and it hides a server mistake that one file change fixes.

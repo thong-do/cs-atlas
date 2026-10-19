@@ -1,0 +1,56 @@
+slug: tls-quiz
+type: quiz
+title: "TLS — quiz"
+lessons: [tls]
+ladderOrder: 1
+questions:
+  - id: leaked-rsa-key
+    prompt: "A security team audits a legacy TLS 1.2 server that uses static RSA key exchange: the client picks the session secret and sends it encrypted under the certificate's public key. A rival has recorded all of its traffic for a year. Today the server's private key leaks. What can the rival now do?"
+    choices: ["Decrypt only the sessions that began after the leak, because the recorded ones used session keys that expired when those connections closed", "Decrypt every recorded session, because each session's secret was sent to the server wrapped in the very key that leaked", "Decrypt only the sessions that used resumption, because those reuse a ticket key derived from the certificate key", "Decrypt nothing already recorded, because the integrity tag on each record cannot be forged without the session's symmetric key"]
+    answer: 1
+    explanation: "With static RSA the session secret travels under the long-term key, so whoever holds that key can unwrap every recorded handshake. An ephemeral (EC)DHE exchange avoids this. Session keys closing with the connection is irrelevant when the secret was recoverable, and the integrity tag only stops forgery, not decryption."
+  - id: wildcard-names
+    prompt: "A server presents a valid, unexpired certificate whose SAN list contains only the entry DNS:*.shop.example. Under the usual hostname-matching rules (RFC 6125 style), a Python client with default settings connects to three names that all resolve to this server. Which connection passes the hostname check?"
+    choices: ["https://shop.example, because the wildcard covers the whole domain including the bare name", "https://eu.api.shop.example, because the wildcard stands for any number of labels", "https://api.shop.example, because the wildcard stands for exactly one label in that position", "All three, because the certificate was issued to the owner of shop.example and the check compares owners"]
+    answer: 2
+    explanation: "A wildcard replaces one DNS label, so api.shop.example matches while the bare shop.example and the two-label eu.api.shop.example do not. The check compares the requested name with the SAN entries; it never compares owners."
+  - id: first-run-early-data
+    prompt: "A mobile app, installed an hour ago, opens its first-ever connection to an API whose TLS 1.3 server has 0-RTT enabled. The request is a harmless GET. A trace shows the client waiting for the server's handshake reply before it sends the GET. What is the most likely reason?"
+    choices: ["The client holds no session ticket from an earlier connection, and early data is encrypted under a key derived from one", "The client must see the server's certificate chain first, because early data is only sent to servers whose chain it has verified in this connection", "The server's ALPN reply has to pick HTTP/2 before any application bytes may be sent, and that reply comes in the second flight", "Early data is only allowed once TCP has retransmitted a segment, which proves the path is stable enough to accept it"]
+    answer: 0
+    explanation: "0-RTT is a resumption feature: the first flight is protected by a secret from a previous session's ticket, so a first visit has none and falls back to the normal 1-RTT handshake. Resumed connections skip the certificate step, ALPN is offered in the first flight rather than needed beforehand, and TCP retransmission is unrelated."
+  - id: resumed-tls12
+    prompt: "A client in another region has an RTT of 100 ms to a server that supports only TLS 1.2. The client holds a valid session ticket from an earlier visit and opens a new TCP connection to resume. Ignoring server work, about how long until the first response bytes arrive?"
+    choices: ["200 ms, because resumption reuses the saved secret, so TLS needs no handshake round trip before the request", "400 ms, because TLS 1.2 repeats the full two-round-trip handshake and the ticket only saves computation", "300 ms, because the TCP connect, an abbreviated resumption handshake and the request each take one round trip", "500 ms, because a resumed session still needs a fresh certificate check, which adds a round trip to a full handshake"]
+    answer: 2
+    explanation: "A TLS 1.2 resumption handshake still takes 1 round trip (the client cannot send early data in 1.2), so TCP 1 + TLS 1 + request 1 = 3 x 100 = 300 ms. A full handshake would be 4 round trips; skipping the handshake needs TLS 1.3 0-RTT, and resumption does not add a certificate check."
+  - id: capture-handshake
+    prompt: "An analyst captures a new TLS 1.3 connection on the wire, with no key log and no Encrypted Client Hello, and inspects the handshake packets in Wireshark. What can the analyst read?"
+    choices: ["Nothing from the handshake, because TLS 1.3 encrypts every message from the client's first byte onwards", "Both the SNI hostname and the server's certificate, because the certificate is sent before the keys are agreed", "The server's certificate but not the SNI, because the server name is only sent after the handshake keys exist", "The SNI hostname and key shares in the hellos, but not the certificate, which is sent encrypted after the ServerHello"]
+    answer: 3
+    explanation: "Keys exist only after the two key shares are exchanged, so the ClientHello (with SNI) and ServerHello are plaintext while the certificate, which follows, is encrypted in TLS 1.3. In TLS 1.2 the certificate would be visible, and the SNI is sent in the first message, not after the keys."
+flashcards:
+  - id: what-tls-gives
+    front: "What TLS gives"
+    back: "Confidentiality, integrity and server authentication; with mTLS, client authentication too. It does not hide IP addresses, traffic sizes or timing, and by default not the SNI hostname."
+  - id: hybrid-crypto
+    front: "Why TLS uses both kinds of crypto"
+    back: "Asymmetric crypto lets strangers agree on a secret but is slow. Symmetric AEAD ciphers (AES-GCM, ChaCha20-Poly1305) are fast, so they encrypt the data once a key is agreed."
+  - id: forward-secrecy
+    front: "Forward secrecy"
+    back: "Each connection uses throwaway (EC)DHE key pairs that are then deleted, so a later leak of the server's long-term key cannot decrypt traffic someone recorded earlier."
+  - id: cert-checks
+    front: "What a client checks in a certificate"
+    back: "A signature chain up to a root in its trust store, that the requested hostname matches a SAN entry, and that today is inside the validity dates. Revocation checking varies by client."
+  - id: tls13-round-trips
+    front: "TLS 1.3 vs TLS 1.2 handshake"
+    back: "TLS 1.3 needs 1 round trip because the hellos carry key shares and the rest is encrypted. A full TLS 1.2 handshake needs 2. Add 1 for TCP and 1 for the request."
+  - id: zero-rtt
+    front: "0-RTT early data"
+    back: "A resumed TLS 1.3 client can send a request in its first flight using a session ticket. It can be replayed by an attacker, so allow it only for idempotent requests."
+  - id: alpn
+    front: "ALPN"
+    back: "Application-Layer Protocol Negotiation: the client lists protocols such as h2 and http/1.1 in the ClientHello and the server picks one, so the HTTP version is chosen without an extra round trip."
+  - id: tls-termination
+    front: "TLS termination"
+    back: "A load balancer holds the certificate and decrypts, then forwards to backends in plain HTTP or over a second TLS hop. Re-encrypt if the network behind it is not trusted."

@@ -11,9 +11,8 @@ prompt: |
   At **10:00** the service was scaled from **3 to 6 pods**, because one pod sat at **90% CPU** while the other two sat at **45%**.
   An hour later, the **3 new pods still show 0 requests per second**, and the old pods are still at **90%, 45% and 45%**.
 
-  Explain why a layer-4 balancer spreads connections rather than requests, and why multiplexing makes a few connections carry
-  everything. Work through the arithmetic to show that the CPU figures follow from it. Show how you would confirm it, and give
-  fixes with their trade-offs.
+  Explain why the load is split this way and why scaling did not help. Work through the arithmetic to show that the CPU
+  figures follow from it. Show how you would confirm it, and give fixes with their trade-offs.
 hint: "Ask what the balancer can see and decide when a connection opens, and what happens to the requests that follow on that connection."
 rubric:
   - id: l4

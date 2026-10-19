@@ -51,7 +51,7 @@ Setup, new connection:  TCP 1 + TLS 1 = 2 RTT     QUIC 1 RTT
 
 ## Example
 
-Load **30 small assets** from one host at an illustrative **100 ms RTT**. Ignore bandwidth and server time, so only round trips count, and ignore the congestion window (a real first load would also be slowed by it).
+Load **30 small assets** from one host on a first visit (no session ticket) at an illustrative **100 ms RTT**. Ignore bandwidth and server time, so only round trips count, and ignore the congestion window (a real first load would also be slowed by it).
 
 | Version | Setup | Request rounds | Total |
 |---|---|---|---|
@@ -80,7 +80,7 @@ curl -sI -o /dev/null -w '%{http_version}\n' --http3   https://example.com   # 3
 
 ## Pitfalls
 
-- **Keeping HTTP/1.1 workarounds on HTTP/2.** Domain sharding splits traffic over extra connections, each with its own handshake and its own HPACK table and gives up the one-connection benefit of multiplexing. Fix: one hostname for assets, and measure before keeping giant bundles.
+- **Keeping HTTP/1.1 workarounds on HTTP/2.** Domain sharding splits traffic over extra connections, each with its own handshake and its own HPACK table, and gives up the one-connection benefit of multiplexing. Fix: one hostname for assets, and measure before keeping giant bundles.
 - **Assuming HTTP/2 fixed head-of-line blocking.** It fixed the HTTP-level kind only. On a lossy network one lost segment still stalls all streams. Fix: test on a throttled, lossy link, and offer HTTP/3.
 - **Assuming HTTP/3 is always faster.** On a clean network, a single large download gains almost nothing, and QUIC often costs more CPU, since it usually runs in user space rather than the kernel. Fix: measure real traffic, not one benchmark.
 - **Enabling HTTP/3 without a fallback path.** Some firewalls drop UDP, and a server that is only reachable over QUIC strands those clients. Fix: keep HTTP/2 over TCP enabled, and open UDP port 443 on your edge.

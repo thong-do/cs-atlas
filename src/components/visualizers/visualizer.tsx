@@ -16,6 +16,8 @@ import { raftSteps } from '@/lib/visualizers/raft-steps'
 import { twoPhaseCommitSteps } from '@/lib/visualizers/tpc-steps'
 import { pageTableSteps } from '@/lib/visualizers/pt-steps'
 import { mutexSteps } from '@/lib/visualizers/mutex-steps'
+import { tcpHandshakeSteps } from '@/lib/visualizers/tcp-steps'
+import { TcpView } from './tcp-view'
 import { PtView } from './pt-view'
 import { MutexView } from './mutex-view'
 import { RaftView } from './raft-view'
@@ -132,6 +134,11 @@ function MutexVisualizer() {
   return <StepPlayer steps={steps} title="Mutex: two threads increment a counter, without and with a lock" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <MutexView step={s} />} />
 }
 
+function TcpHandshakeVisualizer() {
+  const steps = useMemo(() => tcpHandshakeSteps(), [])
+  return <StepPlayer steps={steps} title="TCP: handshake, a lost segment and the close" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <TcpView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -162,6 +169,8 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <PageTableVisualizer />
     case 'mutex':
       return <MutexVisualizer />
+    case 'tcp-handshake':
+      return <TcpHandshakeVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

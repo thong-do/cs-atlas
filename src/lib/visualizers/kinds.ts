@@ -18,6 +18,7 @@ export const VISUALIZER_KINDS = [
   'two-phase-commit',
   'page-table',
   'mutex',
+  'tcp-handshake',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

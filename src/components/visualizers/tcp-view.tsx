@@ -55,7 +55,7 @@ export function TcpView({ step }: { step: TcpStep }) {
           <p className="font-mono text-base">—</p>
         )}
       </div>
-      <p className="text-xs tabular-nums">
+      <p className="text-xs tabular-nums max-[374px]:min-h-8">
         Sent {sent} · Lost {lost} · Resent {retransmits} · Delivered {delivered} bytes
       </p>
     </div>

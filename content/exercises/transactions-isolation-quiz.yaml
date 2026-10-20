@@ -1,0 +1,56 @@
+slug: transactions-isolation-quiz
+type: quiz
+title: "Transactions & isolation levels — quiz"
+lessons: [transactions-isolation]
+ladderOrder: 1
+questions:
+  - id: report-totals-disagree
+    prompt: "In PostgreSQL at READ COMMITTED, a report transaction runs three plain SELECTs over about 90 seconds: total revenue, then revenue per region, then an order count. New orders commit throughout. The regional figures add up to more than the total printed first. Which explanation fits?"
+    choices: ["The first query read rows that other transactions had written but not yet committed, and some of those later rolled back, so the total was built from data that was never real", "Each statement takes its own snapshot at READ COMMITTED, so the regional query also saw orders that had committed after the first query computed the total", "The regional query used a different index from the total, and Postgres updates indexes a moment after the table, so it counted rows the table did not yet hold", "Plain SELECTs take no locks, so a writer can change a row while the report reads it, and the report counts both the old and the new version of that row"]
+    answer: 1
+    explanation: "At READ COMMITTED each statement sees everything committed when it starts, so later statements see later orders. The other choices describe dirty reads (which Postgres never shows), indexes lagging the table (they are updated with it), and a reader seeing two versions of one row (a snapshot shows one)."
+  - id: idle-session-table-growth
+    prompt: "In PostgreSQL, a `jobs` table of about 100,000 live rows is updated constantly and autovacuum runs every minute, yet the table has grown to 40 times its usual size. `pg_stat_activity` shows one session `idle in transaction` for 14 hours: a REPEATABLE READ transaction that ran one SELECT on `jobs` and then stopped. Why can autovacuum not reclaim the dead row versions?"
+    choices: ["Autovacuum cannot take the table lock while a transaction has the table open, so it gives up each minute and removes nothing, and ending the session lets it take the lock", "The table's indexes still point at the dead versions until the open transaction commits, and vacuum cannot edit an index while a reader might still follow its entries", "Dead versions are removed only at a checkpoint, and an open transaction delays the next checkpoint, so nothing is reclaimed until the session ends", "The idle session's snapshot could still see the old versions of rows updated since it began, so vacuum must keep every version replaced during those 14 hours"]
+    answer: 3
+    explanation: "A version is removable only when no snapshot can still see it, and this session's snapshot is 14 hours old. Vacuum's lock does not conflict with readers, vacuum itself (not checkpoints) removes versions, and indexes are cleaned by vacuum as it removes the versions."
+  - id: crash-between-commit-and-page-write
+    prompt: "PostgreSQL with default durability settings loses power. Transaction T1's COMMIT had returned to its client. Transaction T2 had updated 3 rows and not committed, but its change records had already been flushed to the WAL along with a neighbour's commit. No data page of either transaction had reached the data files. After restart, what do you find?"
+    choices: ["T1's change is present, rebuilt by replaying its WAL records; T2's is not visible, since its row versions have no commit record", "Both changes are present, because T2's records reached the disk and replay applies every record that is in the log", "T1's change is lost, because its data pages never reached the data files, and a commit only promises the log was queued for writing", "T1's change is present, and recovery reads an undo log to roll T2's replayed changes out of the data pages before the database opens"]
+    answer: 0
+    explanation: "A commit returns only after its commit record is flushed, so replay rebuilds T1; T2 has no commit record, so its versions are never treated as committed. The other choices apply uncommitted records, treat a commit as a promise to write later, or use an undo log, which is not how Postgres rolls back."
+  - id: conditional-update-after-concurrent-commit
+    prompt: "PostgreSQL at READ COMMITTED: two sessions both read `stock = 5` for product 7. Each runs `UPDATE products SET stock = 4 WHERE id = 7 AND stock = 5`. A's statement runs first and A has not committed when B sends its own; then A commits. What does B's statement do?"
+    choices: ["It fails at once with a serialization error (SQLSTATE 40001), because B's earlier read showed 5 and the row has since changed", "It matches the row version B read first, writes 4 as well, and leaves 4 in place, which hides that two sales happened", "It waits for A's lock, re-checks WHERE on the new version (stock 4), no longer matches, and reports UPDATE 0 with no error", "It skips the locked row and reports UPDATE 0 immediately, without waiting for A, and B's transaction stays open"]
+    answer: 2
+    explanation: "B's statement waits on the row lock, then re-evaluates its WHERE against the latest committed version, finds stock 4 and updates nothing. The other choices describe the REPEATABLE READ failure, a write from a stale version (the recheck prevents it), and SKIP LOCKED behaviour, which this statement does not use."
+  - id: hot-row-throughput
+    prompt: "PostgreSQL at READ COMMITTED with a pool of 100 connections. Each request runs `BEGIN`, `UPDATE counters SET n = n + 1 WHERE id = 1`, calls an external API for 40 ms, then `COMMIT`; the UPDATE and COMMIT take about 2 ms together. Every request updates the same row. About how many requests per second can the service complete?"
+    choices: ["About 24: the UPDATE's row lock is held until COMMIT, roughly 42 ms, and one transaction at a time can hold it, so 1,000 ÷ 42 ≈ 24 per second whatever the pool size", "About 2,380: MVCC gives each connection its own version of the row, so all 100 run in parallel and 100 × 1,000 ÷ 42 ≈ 2,380 per second, with versions merged at commit", "About 500: at READ COMMITTED the lock is released when the UPDATE statement finishes, so only the 2 ms of database work is serialised, and 1,000 ÷ 2 = 500 per second", "About 12: each transaction waits for its predecessor to commit and then spends its own 40 ms call, so a cycle takes about 84 ms and 1,000 ÷ 84 ≈ 12 per second"]
+    answer: 0
+    explanation: "Row locks last until the transaction ends, so the 40 ms call sits inside the lock and writers on one row queue behind each other: 1,000 ÷ 42 ≈ 24. The other choices have MVCC merge concurrent row versions (it does not), release the lock per statement, or count the wait twice."
+flashcards:
+  - id: wal-commit
+    front: "What does COMMIT wait for?"
+    back: "The engine appends a commit record to the write-ahead log and flushes the log to disk, then returns. Data pages are written later; crash recovery replays the log."
+  - id: lost-update
+    front: "Lost update"
+    back: "Two transactions read a value, each computes a new one, and the second write erases the first. Fix with SET x = x - 1, FOR UPDATE, or a stronger level plus retry."
+  - id: standard-levels
+    front: "SQL standard isolation levels"
+    back: "READ UNCOMMITTED allows dirty reads. READ COMMITTED forbids them. REPEATABLE READ also forbids non-repeatable reads. SERIALIZABLE also forbids phantoms."
+  - id: postgres-levels
+    front: "Postgres isolation defaults"
+    back: "READ COMMITTED by default; READ UNCOMMITTED behaves as READ COMMITTED; REPEATABLE READ is snapshot isolation, so no phantoms. SERIALIZABLE can fail with 40001."
+  - id: mvcc-snapshot
+    front: "MVCC snapshot"
+    back: "An update creates a new row version. Each transaction reads the versions its snapshot allows, so plain reads do not block writers. Old versions need cleanup."
+  - id: version-cleanup
+    front: "Cleaning up old row versions"
+    back: "Postgres VACUUM removes versions no snapshot can see; InnoDB purges its undo log. An open transaction holds back cleanup behind its snapshot."
+  - id: for-update
+    front: "SELECT ... FOR UPDATE"
+    back: "Locks the rows it returns until the transaction ends, so a read-decide-write on one row cannot be interleaved. Other writers of those rows wait."
+  - id: deadlock-abort
+    front: "Deadlock between transactions"
+    back: "Transactions that wait on each other's row locks never finish. The engine detects the cycle, aborts one, and the application retries it. Lock rows in a fixed order."

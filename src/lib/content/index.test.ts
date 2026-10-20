@@ -145,6 +145,7 @@ describe('content inventory', () => {
       tls: { prerequisites: ['tcp-vs-udp'], exercises: ['tls-quiz', 'diagnose-tls-clients-fail'] },
       'http-versions': { prerequisites: ['tcp-vs-udp', 'tls'], exercises: ['http-versions-quiz', 'diagnose-uneven-backend-load'] },
       'indexes-btrees': { prerequisites: ['data-in-memory'], exercises: ['indexes-btrees-quiz', 'diagnose-slowing-bulk-import'] },
+      'transactions-isolation': { prerequisites: ['indexes-btrees'], exercises: ['transactions-isolation-quiz', 'diagnose-double-booking'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
     expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)

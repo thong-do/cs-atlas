@@ -1,0 +1,113 @@
+---
+slug: transactions-isolation
+title: Transactions & isolation levels
+level: advanced
+authors: [cs-atlas]
+prerequisites: [indexes-btrees]
+summary: "See how a database makes a transaction atomic and durable with a write-ahead log, what each isolation level allows, and how MVCC and locks keep concurrent writers from overwriting each other."
+---
+
+## Intuition
+
+Two clerks share one paper ledger. Each copies a line's balance onto scrap paper, does the sum and writes it back. Whoever writes second erases the first clerk's work, and nobody notices. A **transaction** is the database's answer: a group of statements that behave as one unit while other clients work at the same time. [SQL vs NoSQL](/system-design/sql-vs-nosql/) introduces ACID; this lesson shows the machinery.
+
+**Atomicity and durability: the write-ahead log.** Writing every changed data page to disk at commit would be slow and scattered. Instead the engine appends a description of each change to the **write-ahead log (WAL)**, a sequential file, and edits pages in memory. At `COMMIT` it appends a **commit record** and **flushes the log to disk** (`fsync`). Only then does `COMMIT` return. After a crash, recovery replays the log: a transaction with a commit record survives, and one without it does not count. Data pages reach disk later. That flush is often the dominant cost of a small transaction and depends on the storage, so measure it; settings that skip it trade durability for speed.
+
+**Anomalies.** When transactions interleave, four things can go wrong:
+
+- **Dirty read:** you read a change another transaction has not committed, and it may roll back.
+- **Non-repeatable read:** you read a row twice and get different values, because someone committed in between.
+- **Phantom read:** you run the same query twice and the set of matching rows changes.
+- **Lost update:** two transactions read a value, each computes a new one, and the second write erases the first.
+
+**Isolation levels.** The SQL standard defines four levels by which of the first three anomalies they forbid:
+
+| SQL standard level | Dirty read | Non-repeatable read | Phantom read |
+|---|---|---|---|
+| READ UNCOMMITTED | allowed | allowed | allowed |
+| READ COMMITTED | no | allowed | allowed |
+| REPEATABLE READ | no | no | allowed |
+| SERIALIZABLE | no | no | no |
+
+The standard says nothing about lost updates, and engines differ from this table:
+
+- **PostgreSQL** defaults to READ COMMITTED. It treats READ UNCOMMITTED as READ COMMITTED, so it never shows dirty reads. Its REPEATABLE READ is **snapshot isolation**: one snapshot for the whole transaction, which also prevents phantoms. Its SERIALIZABLE uses a technique called SSI and may abort a transaction with a **serialization failure** (SQLSTATE `40001`) that the application must retry.
+- **MySQL InnoDB** defaults to REPEATABLE READ. It also keeps a snapshot for plain reads, but `UPDATE` and locking reads act on the latest committed row, so do not assume Postgres behaviour.
+
+SERIALIZABLE means the outcome equals some one-at-a-time order of the transactions. It prevents every anomaly of concurrent execution, at the cost of aborts and retries. It is not linearizability: see [Consistency models](/system-design/consistency-models/). Spanning several databases is a different problem: [Distributed transactions](/system-design/distributed-transactions/).
+
+**MVCC: how readers avoid blocking writers.** Postgres and InnoDB use **multi-version concurrency control**. An update does not overwrite a row; it creates a new **version**, and each transaction reads through a **snapshot** that decides which versions are visible to it. A reader sees the version its snapshot allows while a writer builds the next, so plain reads take no row locks and writers do not wait for readers. Writers still wait for other writers on the same row. Postgres takes a new snapshot per statement under READ COMMITTED and one per transaction under REPEATABLE READ.
+
+Old versions pile up, so they need cleanup. Postgres uses `VACUUM` (autovacuum runs it), which removes versions no snapshot can still see and marks pages all-visible, as in [Indexes & B-trees](/cs-fundamentals/indexes-btrees/). InnoDB keeps old versions in an undo log and purges them. A transaction left open holds its snapshot, so cleanup behind it stalls.
+
+**Locks.** A writer takes a **row lock** that lasts until the transaction ends. `SELECT … FOR UPDATE` takes the same lock on the rows it reads, so you can read, decide and write one row with no one slipping in. Two transactions waiting on each other's locks form a **deadlock**; the engine detects it after a timeout (Postgres defaults to 1 s) and aborts one. See [Concurrency primitives](/cs-fundamentals/concurrency-primitives/).
+
+## Visual
+
+One commit, and the versions behind a snapshot.
+
+```text
+Commit path (WAL)                          Row versions (MVCC) for product 7
+  1 change page in memory                    version   stock   created by   state
+  2 append change record to WAL (log)        v1          5       tx 90      replaced by tx 101
+  3 append COMMIT record                     v2          4       tx 101     committed
+  4 fsync WAL to disk  <-- COMMIT returns    v3          3       tx 102     not committed yet
+  5 data pages written to disk later
+                                             A snapshot taken after tx 101 and before
+  Crash after 4: replay WAL, change kept     tx 102 commits sees v2. VACUUM can drop
+  Crash before 3: change does not count      v1 once no snapshot needs it.
+```
+
+## Example
+
+A `products` row has `stock = 5`. Two customers each buy one, so the stock should end at 3. This is PostgreSQL at READ COMMITTED, with the application computing the new value.
+
+```text
+time  session A                          session B
+t1    BEGIN;                             BEGIN;
+t2    SELECT stock FROM products
+      WHERE id = 7;           -> 5       SELECT stock ... WHERE id = 7;  -> 5
+t3    UPDATE products SET stock = 4
+      WHERE id = 7; COMMIT;
+t4                                       UPDATE products SET stock = 4
+                                         WHERE id = 7; COMMIT;
+                                         -- B waited for A's lock, then wrote 4
+final stock = 4   (two sales, one decrement: a lost update)
+```
+
+Three fixes, all for one row:
+
+1. **Atomic update.** The database does the read and the write in one statement.
+
+```sql
+UPDATE products SET stock = stock - 1 WHERE id = 7 AND stock > 0;
+```
+
+B waits for A's lock, then re-checks `WHERE` against the new row version (stock 4), and writes 3. If it reports 0 rows updated, the item is sold out.
+
+2. **`SELECT … FOR UPDATE`.**
+
+```sql
+BEGIN;
+SELECT stock FROM products WHERE id = 7 FOR UPDATE;
+UPDATE products SET stock = 3 WHERE id = 7;  -- the application computed 4 - 1
+COMMIT;
+```
+
+B's `SELECT` blocks until A commits, then returns 4, so B computes 3. The cost: B waits.
+
+3. **REPEATABLE READ.** Both transactions read 5 from their snapshot. After A commits, B's `UPDATE` finds a row version created after B's snapshot and fails with `ERROR: could not serialize access due to concurrent update` (SQLSTATE `40001`). B rolls back, **re-runs the whole transaction**, now reads 4, and writes 3. The cost: the application needs a retry loop.
+
+## Pitfalls
+
+- **Read in the application, then write an absolute value.** Two requests overwrite each other. Fix: use `SET x = x - 1` with a condition, or lock the row with `FOR UPDATE`.
+- **Assuming one engine's level behaves like another's.** Postgres and InnoDB differ at REPEATABLE READ, and the standard's table is not either engine. Fix: read your engine's documentation and test the interleaving with two sessions.
+- **A transaction open across a network call.** Row locks and the snapshot are held for the whole round trip, so waiters queue and cleanup stalls. Fix: do slow work before `BEGIN` or after `COMMIT`.
+- **Locking rows in different orders.** Two jobs that touch the same rows in opposite order deadlock, and one is aborted. Fix: lock in a consistent order, such as by id, and retry the aborted transaction.
+- **Using a stronger level without retries.** `40001` is a normal signal. Fix: wrap the transaction in a loop that re-runs it from the start.
+
+## Tips & tricks
+
+- **Rules of thumb:** keep transactions short, update with expressions instead of read-modify-write, and retry on `40001` and deadlocks.
+- **Interview phrasing:** "A commit is a flushed WAL record. MVCC gives readers snapshots, so they don't block writers. I name the engine, since Postgres and InnoDB differ."
+- **What to measure:** `pg_stat_activity` for sessions that are `idle in transaction`, `pg_locks` for waiters, deadlock messages in the log, and retry counts for `40001`.

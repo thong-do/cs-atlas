@@ -19,6 +19,7 @@ export const VISUALIZER_KINDS = [
   'page-table',
   'mutex',
   'tcp-handshake',
+  'b-tree-insert',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

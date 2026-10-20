@@ -17,6 +17,8 @@ import { twoPhaseCommitSteps } from '@/lib/visualizers/tpc-steps'
 import { pageTableSteps } from '@/lib/visualizers/pt-steps'
 import { mutexSteps } from '@/lib/visualizers/mutex-steps'
 import { tcpHandshakeSteps } from '@/lib/visualizers/tcp-steps'
+import { bTreeInsertSteps } from '@/lib/visualizers/btree-steps'
+import { BTreeView } from './btree-view'
 import { TcpView } from './tcp-view'
 import { PtView } from './pt-view'
 import { MutexView } from './mutex-view'
@@ -139,6 +141,11 @@ function TcpHandshakeVisualizer() {
   return <StepPlayer steps={steps} title="TCP: handshake, a lost segment and the close" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <TcpView step={s} />} />
 }
 
+function BTreeInsertVisualizer() {
+  const steps = useMemo(() => bTreeInsertSteps(), [])
+  return <StepPlayer steps={steps} title="B-tree insert: leaf splits and a root split" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <BTreeView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -171,6 +178,8 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <MutexVisualizer />
     case 'tcp-handshake':
       return <TcpHandshakeVisualizer />
+    case 'b-tree-insert':
+      return <BTreeInsertVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

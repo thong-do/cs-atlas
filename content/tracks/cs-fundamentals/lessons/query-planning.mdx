@@ -71,7 +71,7 @@ FROM orders o JOIN customers c ON c.id = o.customer_id
 WHERE o.promo = 'FLASH10' AND o.channel = 'kiosk';
 ```
 
-The planner multiplies the selectivities: 50,000,000 × 0.001 × 0.001 = 50 rows, not 48,000. `EXPLAIN (ANALYZE)`, trimmed: Times are from a mostly cached run.
+The planner multiplies the selectivities: 50,000,000 × 0.001 × 0.001 = 50 rows, not 48,000. `EXPLAIN (ANALYZE)`, trimmed, with illustrative timings (orders rows cached, customer lookups not):
 
 ```text
 Nested Loop  (cost=0.85..440.50 rows=50) (actual time=0.06..5830.2 rows=48000 loops=1)
@@ -84,7 +84,7 @@ Nested Loop  (cost=0.85..440.50 rows=50) (actual time=0.06..5830.2 rows=48000 lo
 Execution Time: 5832 ms
 ```
 
-- **Why a nested loop:** for 50 outer rows, 50 × 4 = 200 for the scan plus 50 × 4.80 = 240 for probes is about 440. A hash join would read all 2,000,000 customers (about 44,260) plus roughly 5,000 CPU, about 49,500, so the nested loop looked over 100 times cheaper.
+- **Why a nested loop:** for 50 outer rows, 50 × 4 = 200 for the scan plus 50 × 4.80 = 240 for probes is about 440. A hash join would cost 200 + 44,260 + ~5,000 CPU ≈ 49,500, so the nested loop looked over 100 times cheaper.
 - **Where the time went:** the inner node shows 0.12 ms, but `loops=48000`. That is 0.12 × 48,000 ≈ 5,760 ms of the 5,832.
 
 After `ANALYZE` and extended statistics on the two columns (Postgres `CREATE STATISTICS`), the estimate becomes about 48,000 and the planner picks:

@@ -24,7 +24,7 @@ rubric:
   - id: confirm
     point: "Confirms with EXPLAIN (ANALYZE, BUFFERS) showing a Seq Scan on users with Filter: (lower(email) = ...) instead of an index scan, and pg_stat_statements showing the login query's mean and total time."
   - id: fixes
-    point: "Gives fixes with trade-offs: roll back first; an index on lower(email) via CREATE INDEX CONCURRENTLY (slow, outside a transaction block, can leave an invalid index, UNIQUE only after checking for emails differing by case); citext (table rewrite and lock, same duplicate check); or a stored normalised column (backfill, write-path changes)."
+    point: "Gives fixes with trade-offs: roll back first; an index on lower(email) via CREATE INDEX CONCURRENTLY (slow, outside a transaction block, can leave an invalid index, UNIQUE only after checking for emails differing by case); citext (exclusive lock and index rebuild, same duplicate check); or a stored normalised column (backfill, write-path changes)."
 reference: |
   **Cause.** The B-tree is sorted by the stored `email` values. A condition on `lower(email)` asks about different values, so the index cannot narrow the search. The planner has no usable index path, so it scans the table and tests every row.
 
@@ -37,5 +37,5 @@ reference: |
   **Fixes.**
   - **Roll back first.** It restores 2 ms but loses case-insensitive login.
   - **Index on `lower(email)`:** `CREATE INDEX CONCURRENTLY`. It does not block writes but cannot run in a transaction block (many migration tools use one), is slow while CPUs are saturated, and a failure leaves an invalid index to drop. Make it UNIQUE only after checking that no two emails differ only by case, or the build fails.
-  - **`citext` column:** the query returns to `email = $1`. Cost: an extension, and `ALTER ... TYPE` rewrites the table under an exclusive lock and rebuilds the unique index, failing on the same case duplicates.
+  - **`citext` column:** the query returns to `email = $1`. Cost: an extension, and `ALTER ... TYPE` takes an exclusive lock and rebuilds the indexes, so the unique index fails on the same case duplicates.
   - **Normalised email column:** store the lower-cased value, index and query it. Cost: a backfill, and every write path must maintain it.

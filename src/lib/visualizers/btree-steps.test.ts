@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bTreeInsertSteps } from './btree-steps'
 
-// levels, inserting, focus, overflow, [splits, height], caption
 const L12 = [[[50]], [[20], [70]], [[10], [30, 40], [60], [80]]]
 
 type Focus = { level: number; node: number } | null
@@ -23,6 +22,13 @@ const EXPECTED: [number[][][], number | null, Focus, boolean, number[], string][
   [L12, null, null, false, [4, 3], 'Done: 8 keys and 4 splits; the tree grew taller only when the root split'],
 ]
 
+const CC_LEAF1 = [[0]]
+const CC_L2 = [[2], [0, 0]]
+const CC_L2_3 = [[3], [0, 0, 0]]
+const CC_L2_4 = [[4], [0, 0, 0, 0]]
+const CC_L3 = [[2], [2, 2], [0, 0, 0, 0]]
+const CHILD_COUNTS = [CC_LEAF1, CC_LEAF1, CC_LEAF1, CC_LEAF1, CC_L2, CC_L2, CC_L2, CC_L2_3, CC_L2_3, CC_L2_3, CC_L2_3, CC_L2_4, CC_L3, CC_L3]
+
 describe('bTreeInsertSteps', () => {
   const steps = bTreeInsertSteps()
 
@@ -34,6 +40,10 @@ describe('bTreeInsertSteps', () => {
 
   it('pins levels at every step', () => {
     expect(steps.map((s) => s.levels)).toEqual(EXPECTED.map((e) => e[0]))
+  })
+
+  it('pins childCounts (step 11 has a transient 4-child root)', () => {
+    expect(steps.map((s) => s.childCounts)).toEqual(CHILD_COUNTS)
   })
 
   it('pins inserting, focus, overflow, splits and height', () => {

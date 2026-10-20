@@ -1,6 +1,8 @@
 export interface BTreeStep {
   /** levels[0] is the root level; each level lists its nodes left to right; each node lists its keys ascending. */
   levels: number[][][]
+  /** Per level, per node: how many children it has (0 for leaves). Derived from the real tree. */
+  childCounts: number[][]
   inserting: number | null
   focus: { level: number; node: number } | null
   /** True while the focused node holds 3 keys. */
@@ -22,14 +24,16 @@ interface BNode {
 const fmt = (keys: number[]) => `[${keys.join(', ')}]`
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
-function toLevels(root: BNode): number[][][] {
+function toLevels(root: BNode): { levels: number[][][]; childCounts: number[][] } {
   const levels: number[][][] = []
+  const childCounts: number[][] = []
   let row: BNode[] = [root]
   while (row.length) {
     levels.push(row.map((n) => [...n.keys]))
+    childCounts.push(row.map((n) => n.children.length))
     row = row.flatMap((n) => n.children)
   }
-  return levels
+  return { levels, childCounts }
 }
 
 function locate(root: BNode, target: BNode): { level: number; node: number } {
@@ -56,10 +60,10 @@ export function bTreeInsertSteps(): BTreeStep[] {
   let splits = 0
 
   const push = (inserting: number | null, focus: BNode | null, caption: string, done?: boolean) => {
-    const levels = toLevels(root)
+    const { levels, childCounts } = toLevels(root)
     const pos = focus ? locate(root, focus) : null
     for (const level of levels) for (const keys of level) if (keys.length > MAX_KEYS + 1) throw new Error(`node holds ${keys.length} keys`)
-    steps.push({ levels, inserting, focus: pos, overflow: !!focus && focus.keys.length > MAX_KEYS, splits, height: levels.length, caption, ...(done ? { done: true } : {}) })
+    steps.push({ levels, childCounts, inserting, focus: pos, overflow: !!focus && focus.keys.length > MAX_KEYS, splits, height: levels.length, caption, ...(done ? { done: true } : {}) })
   }
 
   push(null, null, 'An empty order-3 B-tree: each node held at most 2 keys')
@@ -102,7 +106,7 @@ export function bTreeInsertSteps(): BTreeStep[] {
       if (d === 0) {
         root = { keys: [mid], children: [node, right] }
         if (isLeaf) push(null, root, `The root split: ${mid} moved up into a new root above ${fmt(node.keys)} and ${fmt(right.keys)}`)
-        else push(null, root, `The root split: ${mid} moved up into a new root, and the tree grew to ${toLevels(root).length} levels`)
+        else push(null, root, `The root split: ${mid} moved up into a new root, and the tree grew to ${toLevels(root).levels.length} levels`)
       } else {
         const parent = path[d - 1]
         const idx = parent.children.indexOf(node)

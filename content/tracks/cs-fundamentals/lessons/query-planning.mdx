@@ -1,0 +1,119 @@
+---
+slug: query-planning
+title: Query planning
+level: advanced
+authors: [cs-atlas]
+prerequisites: [indexes-btrees]
+summary: "See how the planner prices access paths and join algorithms from table statistics, why a seq scan can beat an index, and how to read EXPLAIN ANALYZE."
+---
+
+## Intuition
+
+A navigation app does not ask which roads to take. You give a destination, and it prices routes from its map and traffic data. SQL works the same way: you state *what* you want, and the **planner** chooses *how*. When the map is stale, it confidently sends you down the wrong road.
+
+A statement passes four stages: **parse** (syntax check), **rewrite** (expand views and rules), **plan** (choose a strategy), **execute** (run it). The same query has many equivalent plans: which index, which join order, which join algorithm. The planner estimates each plan's cost and runs the cheapest.
+
+**The cost model** (Postgres-flavoured; other engines differ in detail). Cost is in arbitrary units built from estimated pages and rows. Reading a page sequentially costs `seq_page_cost` (default 1); a random page read costs `random_page_cost` (default 4); each row processed adds a small CPU charge. Defaults assume spinning disks, so many SSD setups lower the random figure. Cost units are not milliseconds.
+
+**Statistics** are the planner's map. `ANALYZE` samples each table and stores, per column: distinct values, the **most common values** with frequencies, and a **histogram** of the rest. From these it computes **selectivity**, the fraction of rows a predicate keeps. Autovacuum normally re-runs `ANALYZE` after enough rows change (thresholds are configurable), so stats lag after a big load. By default the planner treats predicates on different columns as independent and multiplies their selectivities. **Correlated columns** (city and country) break that, and the estimate lands far too low.
+
+**Access paths** (see [Indexes & B-trees](/cs-fundamentals/indexes-btrees/)):
+
+- **Seq scan:** read every page in order.
+- **Index scan:** walk the index, then visit the heap row by row, a random read each.
+- **Index-only scan:** skip the heap when the visibility map allows.
+- **Bitmap scan:** collect matching heap pages from one or more indexes, then read them in physical order, once each. It sits between the other two.
+
+An index is not always cheaper. Each match costs a random heap read, so once a predicate keeps a large fraction of rows, reading the whole table sequentially wins.
+
+**Join algorithms:**
+
+- **Nested loop:** for each outer row, probe the inner side. It wins when the outer side is small and the inner has an index.
+- **Hash join:** build a hash table on one input, probe it with the other. Equality only, and it wins on large unsorted inputs. If the build side exceeds `work_mem`, it spills to temp files in batches.
+- **Merge join:** walk two inputs sorted on the join key in step. It wins when both arrive sorted (from indexes) or the output must be sorted.
+
+**Prepared statements.** In Postgres, the first few executions get **custom plans** built for the actual parameter values. After that the server may switch to a cached **generic plan** if its estimated cost is not much worse. A generic plan is built without the value, so its estimates are averages across values. The `plan_cache_mode` setting can force either kind.
+
+**Reading `EXPLAIN`.** Plain `EXPLAIN` shows the plan and *estimates*. `EXPLAIN (ANALYZE, BUFFERS)` runs the query and adds *actual* rows, time and pages. Compare estimated and actual rows node by node, multiply per-loop time by `loops`, and look for where time went. [SQL vs NoSQL](/system-design/sql-vs-nosql/) says joins with a good index are fast; the plan decides whether you get that.
+
+## Visual
+
+```text
+SQL text -> parse -> rewrite -> PLAN -> execute -> rows
+                                 |
+              statistics (pg_stats) + cost settings
+                                 |
+        candidate plans for a 1% match, each priced:
+          Seq Scan ........ 122,000   (cheapest wins)
+          Index Scan ...... 400,000   (worst case)
+
+A plan is a tree; rows flow upward:
+ Hash Join
+   |-- Index Scan on orders      (probe side, outer)
+   '-- Hash                      (build side)
+         '-- Seq Scan on customers
+```
+
+## Example
+
+**Part 1: where the index stops winning.** A table has 10,000,000 rows of an illustrative 100 bytes, in 8 KB (8,192-byte) pages. That is 10,000,000 × 100 = 1,000,000,000 bytes, and 1,000,000,000 ÷ 8,192 ≈ 122,000 pages. These are simplified cost units; the planner also adds CPU charges, and caching changes real timings.
+
+- **Seq scan:** 122,000 sequential page reads × 1 = 122,000.
+- **1% match** (100,000 rows, uncorrelated): up to 100,000 random heap reads × 4 = 400,000. The seq scan wins.
+- **0.01% match** (1,000 rows): 1,000 × 4 = 4,000, plus about 4 index pages. The index wins.
+- **Break-even:** 122,000 ÷ 4 = 30,500 rows, about 0.3% of the table. Between the extremes a bitmap scan can undercut both, because it reads each matching page once.
+
+**Part 2: a misestimate.** A query joins `orders` (about 50 million rows) to `customers` (2,000,000 rows) for a promotion, using a made-up `promo` and `channel`:
+
+```sql
+SELECT c.name, o.total
+FROM orders o JOIN customers c ON c.id = o.customer_id
+WHERE o.promo = 'FLASH10' AND o.channel = 'mobile';
+```
+
+Every `FLASH10` order is a mobile order, but the planner multiplies the two selectivities. This is `EXPLAIN (ANALYZE)` output, trimmed:
+
+```text
+Nested Loop  (cost=0.85..440.50 rows=50) (actual time=0.06..5830.2 rows=48000 loops=1)
+  -> Index Scan using orders_promo_channel on orders o
+       (cost=0.43..200.00 rows=50) (actual time=0.03..41.2 rows=48000 loops=1)
+       Index Cond: ((promo = 'FLASH10') AND (channel = 'mobile'))
+  -> Index Scan using customers_pkey on customers c
+       (cost=0.42..4.80 rows=1) (actual time=0.119..0.120 rows=1 loops=48000)
+       Index Cond: (id = o.customer_id)
+Execution Time: 5832 ms
+```
+
+- **The misestimate:** the `orders` node expected 50 rows and returned 48,000.
+- **Why a nested loop:** with 50 outer rows, cost is 200 + 50 × 4.80 + a little CPU ≈ 440. A hash join must first read all 2,000,000 customers, about 44,000 units, so the nested loop looked 100 times cheaper.
+- **Where the time went:** the inner node shows 0.12 ms, but `loops=48000`. That is 0.12 × 48,000 ≈ 5,760 ms of the 5,832.
+
+After `ANALYZE` and extended statistics on the two columns (Postgres `CREATE STATISTICS`), the estimate becomes about 48,000 and the planner picks:
+
+```text
+Hash Join  (cost=44260.43..53960.00 rows=48000) (actual time=381.5..468.9 rows=48000 loops=1)
+  Hash Cond: (o.customer_id = c.id)
+  -> Index Scan using orders_promo_channel on orders o
+       (cost=0.43..9100.00 rows=48000) (actual time=0.03..41.2 rows=48000 loops=1)
+  -> Hash  (cost=44260.00..44260.00 rows=2000000) (actual time=380.0..380.0 rows=2000000 loops=1)
+       -> Seq Scan on customers c
+            (cost=0.00..44260.00 rows=2000000) (actual time=0.01..210.0 rows=2000000 loops=1)
+Execution Time: 470 ms
+```
+
+The **hash build** is the `Hash` node: it reads all customers into a table first, which is why the join starts at 381 ms. For 48,000 outer rows the nested loop would price at about 9,100 + 48,000 × 4.80 ≈ 239,500, over four times the hash join's 53,960.
+
+## Pitfalls
+
+- **Stale statistics after a bulk change.** The planner still believes the old row counts. Fix: run `ANALYZE` after large loads and watch `last_autoanalyze`.
+- **Correlated columns multiplied as independent.** The estimate lands far too low and the planner picks a nested loop. Fix: extended statistics (`CREATE STATISTICS`), or restructure the predicate.
+- **Forcing a plan.** Setting `enable_seqscan = off` to "fix" a slow query hides the real misestimate. Fix: compare estimated and actual rows, then repair the statistics.
+- **Trusting `EXPLAIN` alone.** It shows estimates, not facts. Fix: use `EXPLAIN (ANALYZE, BUFFERS)`. It really executes the statement, so wrap `INSERT`, `UPDATE` or `DELETE` in a transaction and roll it back.
+- **Ignoring `loops`.** A tiny per-loop time hides a huge total. Fix: multiply actual time by `loops`.
+- **A prepared statement's cached plan on skewed data.** Fix: check `plan_cache_mode`, and compare plans for a common and a rare value.
+
+## Tips & tricks
+
+- **Rules of thumb:** debug estimates before costs. The first node where estimated and actual rows differ by 10x or more is the suspect. Consider lowering `random_page_cost` on SSDs, after testing.
+- **Interview phrasing:** "The planner prices candidate plans from statistics. A bad plan usually traces to a bad row estimate, so I compare estimated and actual rows."
+- **What to measure:** `EXPLAIN (ANALYZE, BUFFERS)`; `pg_stats` for frequencies and correlation; `auto_explain` for slow plans in production.

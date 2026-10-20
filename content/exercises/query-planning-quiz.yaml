@@ -1,0 +1,56 @@
+slug: query-planning-quiz
+type: quiz
+title: "Query planning — quiz"
+lessons: [query-planning]
+ladderOrder: 1
+questions:
+  - id: where-the-time-went
+    prompt: "A PostgreSQL query reports `Execution Time: 4700 ms`. Its plan is a Nested Loop over two children. The outer child is `Seq Scan on events (actual time=0.02..1850.0 rows=3000 loops=1)`. The inner child is `Index Scan using devices_pkey on devices (actual time=0.95..0.95 rows=1 loops=3000)`. The plan has no parallel workers. Where did most of the time go?"
+    choices: ["The inner index scan: the figure is per execution and the node ran 3,000 times, so it took about 2,850 ms, more than the outer scan's 1,850 ms", "The outer sequential scan: 1,850 ms is the largest time in the plan, and an inner scan that returns one row in under a millisecond is negligible", "The Nested Loop itself: its 4,700 ms is larger than either child, so the join work, not the scans, makes up most of the time", "Split evenly between the scans: the inner scan's 0.95 ms is averaged over its 3,000 rows, which puts it near the outer scan's 1,850 ms"]
+    answer: 0
+    explanation: "Actual time is per loop, so the inner node's total is 0.95 × 3,000 = 2,850 ms, and 1,850 + 2,850 = 4,700. The other choices read the largest printed figure as the cost, treat a parent's cumulative time as its own work, or average the time over rows instead of loops."
+  - id: ssd-random-cost
+    prompt: "A PostgreSQL table has 32,000,000 rows in 400,000 pages. A teammate lowers `random_page_cost` from 4 to 1.1 for SSDs; `seq_page_cost` stays 1. Price a seq scan as one unit per page and an index scan as one random read per matching row, ignoring CPU and index pages. After the change, up to roughly what share of the table can a predicate match before the planner prefers the seq scan?"
+    choices: ["About 91%: random reads now cost almost the same as sequential ones, so the index keeps winning until it would touch 1 ÷ 1.1 of the table", "About 0.31%: the limit is still 400,000 ÷ 4 = 100,000 rows, because the setting only affects plans that scan sequentially", "About 0.086%: cheaper random reads leave the index less room, so the limit shrinks from 100,000 to 100,000 × 1.1 ÷ 4 = 27,500 rows", "About 1.1%: the limit is 400,000 ÷ 1.1 ≈ 363,600 rows, and that is about 1.1% of the 32,000,000 rows, 3.6 times the old limit"]
+    answer: 3
+    explanation: "The index wins while matches × 1.1 < 400,000, so up to about 363,600 rows, or 1.1%. The other choices compare a fraction of pages with a fraction of rows (each match is a separate read), ignore the setting, or move the limit the wrong way."
+  - id: merge-join-choice
+    prompt: "A PostgreSQL query joins `orders` (10,000,000 rows) to `invoices` (10,000,000 rows) with `ON o.id = i.order_id ... ORDER BY o.id`. Both tables have B-tree indexes on the join column, and no filter removes rows. The plan uses a Merge Join fed by two Index Scans. Why does the planner prefer it over a Hash Join here?"
+    choices: ["It builds a hash table on the smaller table and probes it once per row of the other, which is cheaper than any other algorithm at 10 million rows per side", "Both inputs already arrive in `id` order from their indexes, so there is no sort or hash build, and the output satisfies the ORDER BY, without a final sort", "For each of the 10,000,000 orders it does one index lookup into `invoices`, which with a B-tree on `order_id` is the cheapest way to match two large tables", "It reads each input twice, once to sort it by key and once to match rows, and this sorting is cheaper than a hash table that would spill to disk at this size"]
+    answer: 1
+    explanation: "Index scans deliver both sides sorted on the key, so merging costs one pass over each and the result is already ordered. The other choices describe a hash join, a nested loop (10 million index probes would cost far more), and a merge join that sorts its own inputs, which is not why it wins here."
+  - id: generic-plan-skew
+    prompt: "A PostgreSQL service runs `SELECT * FROM events WHERE tenant_id = $1` as a prepared statement on one long-lived connection, with default settings. Postgres builds custom plans for the first five executions, then may switch to a generic plan if its estimated cost is not much worse than their average. `events` has 8,000,000 rows and 4,000 tenants. One tenant owns 4,800,000 rows; the rest have a few hundred to a few thousand. The first five executions were small tenants. What do you observe afterwards?"
+    choices: ["Every execution slows down: a generic plan is always priced higher than a custom one, so the server keeps replanning each call from scratch", "Small tenants' calls slow down: the generic plan is built with the big tenant in mind, so it scans the whole table even for a tenant with 300 rows", "The big tenant's calls get slow: the generic plan assumes an average tenant, 8,000,000 ÷ 4,000 = 2,000 rows, so it picks an index scan", "Nothing changes: parameter values are always visible to the planner, so each execution is planned afresh and only parsing is saved"]
+    answer: 2
+    explanation: "A generic plan is built without the parameter, so it estimates about 2,000 rows per tenant and picks an index scan; for the big tenant that means millions of random heap reads. The other choices say generic plans are always costlier, build the plan around the large tenant, or claim every execution is replanned, which contradicts the switch described in the question."
+  - id: hash-batches
+    prompt: "PostgreSQL with `work_mem` 4 MB. A Hash Join's build side was estimated at 20,000 rows of about 40 bytes. The actual build side has 3,000,000 rows. `EXPLAIN (ANALYZE)` on the Hash node shows `Batches: 64  Originally 1`. What does this tell you?"
+    choices: ["The planner noticed the error mid-query and re-planned it as a merge join, which processes the 3,000,000 rows in 64 sorted runs", "The table was sized for 20,000 rows, but 3,000,000 exceeded `work_mem`, so the join split into 64 batches and wrote most rows to temp files", "The query used 64 parallel workers, each building a hash table over 1/64 of the rows in its own copy of `work_mem`", "The build side was sorted in 64 passes before hashing, because rows of 40 bytes cannot be hashed unless the input is first ordered by the join key"]
+    answer: 1
+    explanation: "The hash table was sized for the estimate; 3,000,000 × 40 bytes is about 120 MB against a 4 MB limit, so the join splits into batches and spills the rest to disk. The other choices describe mid-query re-planning (which Postgres does not do), parallel workers, and a sort that hash joins do not need."
+flashcards:
+  - id: statement-stages
+    front: "Stages of a SQL statement"
+    back: "Parse, rewrite, plan, execute. The planner picks one plan from many equivalent ones by estimating each plan's cost, then the executor runs it."
+  - id: planner-cost-units
+    front: "Planner cost units"
+    back: "Arbitrary units from estimated pages and rows. Postgres defaults: sequential page 1, random page 4, plus small per-row CPU charges. Not milliseconds."
+  - id: planner-statistics
+    front: "What statistics does the planner use?"
+    back: "Per column: distinct values, most common values with frequencies, and a histogram. They give selectivity. ANALYZE refreshes them; autovacuum usually runs it."
+  - id: seq-scan-wins
+    front: "When does a seq scan beat an index?"
+    back: "When the predicate keeps a large fraction of rows. Each match costs a random heap read; at 4x the sequential cost, reading the whole table once is cheaper."
+  - id: access-paths
+    front: "Four ways to read a table"
+    back: "Seq scan; index scan (heap visit per match); index-only scan (skips the heap if pages are all-visible); bitmap scan (matching pages read once, in physical order)."
+  - id: join-algorithms
+    front: "Nested loop, hash and merge join"
+    back: "Nested loop: small outer, indexed inner. Hash: build a table on one side, probe with the other; equality only. Merge: both inputs sorted on the key."
+  - id: explain-analyze
+    front: "EXPLAIN vs EXPLAIN ANALYZE"
+    back: "EXPLAIN shows the plan and estimates. ANALYZE executes the query and adds actual rows, time and loops. Roll back writes you only want to inspect."
+  - id: generic-vs-custom-plan
+    front: "Custom vs generic plan"
+    back: "A custom plan is built for the actual parameter values. A generic plan is cached and built without them, so its estimates are averages; plan_cache_mode can force either."

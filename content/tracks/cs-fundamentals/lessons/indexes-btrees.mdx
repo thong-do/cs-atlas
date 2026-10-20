@@ -30,7 +30,7 @@ Sorted keys also serve:
 
 **Clustered vs secondary.** InnoDB stores whole rows in the leaves of the primary-key B-tree. Its secondary indexes store the primary key, so a secondary lookup is two descents: the secondary tree, then the primary tree. Postgres keeps rows in an unordered **heap**, and every index points into it.
 
-**Writes pay.** Every insert adds an entry to every index, and updating an indexed column adds a new entry (Postgres adds one to every index unless the update is HOT; old ones linger until vacuum). When a page fills, it **splits**: a new page takes some of the keys and a separator key goes up to the parent, which can cascade. Five indexes mean one table write plus five.
+**Writes pay.** Every insert adds an entry to every index, and updating an indexed column adds a new entry (in Postgres, any update that isn't HOT adds an entry to every index; old ones linger until vacuum). When a page fills, it **splits**: a new page takes some of the keys and a separator key goes up to the parent, which can cascade. Five indexes mean one table write plus five.
 
 **Other structures, briefly.** A **hash index** supports equality only. An **LSM tree** (RocksDB, Cassandra) buffers writes in memory, flushes sorted files and merges them by background compaction. It favours writes; reads may check several files.
 

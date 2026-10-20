@@ -55,7 +55,7 @@ Commit path (WAL)                          Row versions (MVCC) for product 7
   5 data pages written to disk later
                                              A snapshot taken after tx 101 and before
   Crash after 4: replay WAL, change kept     tx 102 commits sees v2. VACUUM can drop
-  Crash before 3: change does not count      v1 once no snapshot needs it.
+  Crash before 4: change does not count      v1 once no snapshot needs it.
 ```
 
 ## Example

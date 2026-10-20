@@ -60,7 +60,7 @@ A plan is a tree; rows flow upward:
 
 - **Seq scan:** 122,000 sequential page reads × 1 = 122,000.
 - **1% match** (100,000 rows, uncorrelated): up to 100,000 random heap reads × 4 = 400,000. The seq scan wins.
-- **0.01% match** (1,000 rows): 1,000 × 4 = 4,000, plus about 4 index pages. The index wins.
+- **0.01% match** (1,000 rows): 1,000 × 4 = 4,000, plus a few index pages (3 levels at fan-out 300). The index wins.
 - **Break-even:** 122,000 ÷ 4 = 30,500 rows, about 0.3% of the table. Between the extremes a bitmap scan can undercut both, because it reads each matching page once.
 
 **Part 2: a misestimate.** A query joins `orders` (50,000,000 rows) to `customers` (2,000,000 rows). Illustratively, `kiosk` orders are 0.1% of `orders` and `FLASH10` orders are 0.1%, almost all placed at kiosks: 48,000 match both.

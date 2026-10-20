@@ -25,7 +25,7 @@ rubric:
   - id: arithmetic
     point: "Works the estimate: about 8 of 20 GB is cached, so 60% of inserts touch an uncached leaf, each costing about 1 random read; 5,000 ÷ 0.6 ≈ 8,300 rows per second, close to the observed 8,000."
   - id: confirm
-    point: "Shows how to confirm it: index cache hit ratio (for example from pg_statio_user_indexes, or pg_stat_io on newer versions), disk read IOPS at the 5,000 ceiling, and the same test on the sequence-keyed table for comparison."
+    point: "Shows how to confirm it: leaf-page cache hit rate (for example from per-index counters in pg_statio_user_indexes, or relation-level I/O in pg_stat_io on newer versions), disk read IOPS at the 5,000 ceiling, and the same test on the sequence-keyed table for comparison."
   - id: fixes
     point: "Gives fixes with trade-offs: time-ordered keys (UUIDv7, ULID or a sequence), loading rows sorted by key, building secondary indexes after the load, or more memory; and notes that random splits leave pages part-full, so the index is larger."
 reference: |
@@ -36,12 +36,12 @@ reference: |
   **Arithmetic.** Each uncached insert costs about 1 read: 0.6 reads per row. At 5,000 reads per second, 5,000 ÷ 0.6 ≈ 8,300 rows per second, close to the observed 8,000. The estimate ignores flushing dirty pages, so it sits a little high.
 
   **Confirm.**
-  - Index cache hit ratio, for example `idx_blks_hit / (idx_blks_hit + idx_blks_read)` in `pg_statio_user_indexes`, or `pg_stat_io` on newer versions. Expect about 40% at 20 GB, against nearly 100% on the sequence table.
-  - Disk read IOPS (for example `iostat`) pinned near 5,000.
+  - Per-index counters in `pg_statio_user_indexes` (`pg_stat_io` on newer versions gives relation-level I/O). The leaf hit rate should be about 40% at 20 GB. The overall ratio reads higher, since upper levels always hit, and counters are cumulative, so sample deltas.
+  - Disk read IOPS (`iostat`) near 5,000.
 
   **Fixes.**
-  - Time-ordered keys (UUIDv7, ULID, a sequence): inserts go to the rightmost leaf. Trade-off: the key reveals creation time, and writers contend for one leaf.
+  - Time-ordered keys (UUIDv7, ULID, a sequence): inserts go to the rightmost leaf. Trade-off: keys reveal creation time; writers contend for one leaf.
   - Load sorted by key: each leaf is visited once. Trade-off: an extra sort step.
   - Build secondary indexes after the load: each is built in one pass. Trade-off: queries lack them meanwhile.
-  - More memory so the index fits: costs money, and only moves the limit.
-  - Random splits tend to leave pages only part-full, so the index is larger than a sorted load would produce (the exact fill varies by engine and version).
+  - More memory so the index fits: costs money, only moves the limit.
+  - Random splits tend to leave pages part-full, so the index is larger than a sorted load's (fill varies by engine and version).

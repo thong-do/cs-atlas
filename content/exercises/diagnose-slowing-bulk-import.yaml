@@ -25,7 +25,7 @@ rubric:
   - id: arithmetic
     point: "Works the estimate: about 8 of 20 GB is cached, so 60% of inserts touch an uncached leaf, each costing about 1 random read; 5,000 ÷ 0.6 ≈ 8,300 rows per second, close to the observed 8,000."
   - id: confirm
-    point: "Shows how to confirm it: leaf-page cache hit rate (for example from per-index counters in pg_statio_user_indexes, or relation-level I/O in pg_stat_io on newer versions), disk read IOPS at the 5,000 ceiling, and the same test on the sequence-keyed table for comparison."
+    point: "Shows how to confirm it: leaf-page cache hit rate (for example from per-index counters in pg_statio_user_indexes, or cluster-wide I/O by backend type and context in pg_stat_io (not per index) on newer versions), disk read IOPS at the 5,000 ceiling, and the same test on the sequence-keyed table for comparison."
   - id: fixes
     point: "Gives fixes with trade-offs: time-ordered keys (UUIDv7, ULID or a sequence), loading rows sorted by key, building secondary indexes after the load, or more memory; and notes that random splits leave pages part-full, so the index is larger."
 reference: |
@@ -36,7 +36,7 @@ reference: |
   **Arithmetic.** Each uncached insert costs about 1 read: 0.6 reads per row. At 5,000 reads per second, 5,000 ÷ 0.6 ≈ 8,300 rows per second, close to the observed 8,000. The estimate ignores flushing dirty pages, so it sits a little high.
 
   **Confirm.**
-  - Per-index counters in `pg_statio_user_indexes` (`pg_stat_io` on newer versions gives relation-level I/O). The leaf hit rate should be about 40% at 20 GB. The overall ratio reads higher, since upper levels always hit, and counters are cumulative, so sample deltas.
+  - Per-index counters in `pg_statio_user_indexes` (`pg_stat_io` on newer versions is cluster-wide, not per index). The leaf hit rate should be about 40% at 20 GB. The overall ratio reads higher, since upper levels always hit, and counters are cumulative, so sample deltas.
   - Disk read IOPS (`iostat`) near 5,000.
 
   **Fixes.**

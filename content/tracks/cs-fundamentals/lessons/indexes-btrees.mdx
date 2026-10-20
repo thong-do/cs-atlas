@@ -45,7 +45,7 @@ Look up key 4,200,000
                                           |
  level 2   internal page  [ ... | 3.9M | 4.2M | 4.6M | ... ]  -> between 4.2M and 4.6M
                                           |
- level 3   leaf page      [ ... 4,199,998  4,200,000  4,200,003 ... ] <-> next leaf
+ level 3   leaf page      [ 4,200,000  4,200,003  4,200,007 ... ] <-> next leaf
                                            |
  table     row pages      row for key 4,200,000 (heap pointer, or the row itself in InnoDB)
 ```

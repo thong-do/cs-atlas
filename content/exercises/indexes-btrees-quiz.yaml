@@ -1,0 +1,56 @@
+slug: indexes-btrees-quiz
+type: quiz
+title: "Indexes & B-trees — quiz"
+lessons: [indexes-btrees]
+ladderOrder: 1
+questions:
+  - id: order-by-other-column
+    prompt: "In PostgreSQL, `orders` has one index, on `(customer_id, created_at)`. Customer 7 has 20,000 orders. You run `SELECT * FROM orders WHERE customer_id = 7 ORDER BY total DESC LIMIT 40`. What is the cheapest way the plan can use the index?"
+    choices: ["Find the 40 newest entries in customer 7's run of the index, sort just those 40 rows by total and return them, which costs about the same as the query ordered by created_at", "Use the index only to find customer 7's first and last entries, then read the table pages between them in order, which needs no sort because the table is stored in index order", "Scan customer 7's run of the index backwards and stop after 40 entries, because the index entries also carry each order's total in sorted position", "Use the index to reach customer 7's 20,000 orders, fetch all of those rows and sort them by total, then keep the top 40, so the work grows with the customer's order count"]
+    answer: 3
+    explanation: "The index narrows the search to customer 7's entries, but they are ordered by created_at, so only a sort over all 20,000 rows can find the top 40 by total. The other choices wrongly take the 40 newest as the top 40, treat the table as stored in index order, or credit the index with a total column it does not hold."
+  - id: heap-fetches-after-vacuum
+    prompt: "PostgreSQL 14: `orders` has an index on `(customer_id) INCLUDE (total)`. Right after a nightly job updated most of the table, `EXPLAIN (ANALYZE)` of `SELECT sum(total) FROM orders WHERE customer_id = 7` shows an Index Only Scan with `Heap Fetches: 9,800` for 10,000 matching rows. After `VACUUM orders` the same plan shows `Heap Fetches: 0`. What changed?"
+    choices: ["VACUUM rebuilt the visibility map from the index entries, so each row's visibility could be read from its own index entry and the scan no longer needed to open the table pages", "VACUUM found pages whose rows had stopped changing and marked them all-visible in the visibility map, so the scan could trust index entries without checking the table", "VACUUM refreshed the planner's column statistics, so the scan knew which entries could be skipped and no longer had to fetch the rows it had estimated wrongly", "VACUUM rewrote the table in index order, so customer 7's 10,000 rows now share a few pages and a single fetch of one of them covers the whole run of rows"]
+    answer: 1
+    explanation: "An index-only scan can skip the table only for pages known to be visible to all transactions, and VACUUM records that. The other choices say the map is built from index entries (it is kept per table page, and Postgres index entries carry no visibility), credit column statistics (gathered by ANALYZE, and used to choose plans, not to run them), or describe a table rewrite that plain VACUUM does not do."
+  - id: secondary-lookup-reads
+    prompt: "In MySQL InnoDB, a `users` table has 200 million rows. Its clustered (primary-key) tree has 4 levels and its secondary index on `email` has 3. A query `SELECT * FROM users WHERE email = 'a@x.org'` matches one row and uses that index. Ignoring any caching, how many page reads does it need at minimum?"
+    choices: ["4: the 3 levels of the email index, plus one read of the row page whose address is stored in the index's leaf entry", "3: the leaf entry of a secondary index holds the whole row, as the leaf of the primary-key tree does", "7: the 3 levels of the email index to find the primary key, then the 4 levels of the clustered tree to reach the row", "8: both descents, and then one more read for the row, which is kept in a separate area apart from the leaf pages of the clustered tree itself"]
+    answer: 2
+    explanation: "A secondary entry holds the primary-key value, not a page address, so the engine walks the email tree (3) and then the clustered tree (4), whose leaf holds the row. The other choices use the heap model of Postgres, copy the row into every secondary index, or count a row read the clustered leaf makes unnecessary."
+  - id: status-due-date-order
+    prompt: "A `tasks` table has 10,000,000 rows. Due dates are spread evenly over 1,000 days, and 2% of tasks are `open`, evenly across those days. A query asks `WHERE status = 'open' AND due_date BETWEEN d AND d + 29` (a 30-day window). A plain B-tree seeks to the start of a range and reads forward. About how many entries must each of the indexes `(status, due_date)` and `(due_date, status)` read?"
+    choices: ["(status, due_date) reads about 6,000 entries, all of them matches; (due_date, status) reads about 300,000 and keeps the 6,000 whose status is open", "Both read about 6,000 entries, since each index holds both columns and the engine tests both conditions while it seeks", "(status, due_date) reads about 300,000 entries; (due_date, status) reads about 6,000, since the date window is the more selective condition and so should lead", "(status, due_date) reads about 6,000 entries; (due_date, status) reads all 10,000,000, since a range on the leading column rules out a seek"]
+    answer: 0
+    explanation: "Window rows: 30 × 10,000 = 300,000; open rows among them: 2% of that is 6,000. With status first, the open entries for the window are adjacent, so 6,000 are read; with the date first, all 300,000 entries in the window are read and filtered. The other choices claim both columns narrow the seek in either order, reverse the orders, or say a leading range gives no seek."
+  - id: lsm-write-throughput
+    prompt: "A metrics service must apply 500,000 updates per second, each changing about 100 bytes of an existing row, with the rows spread across the whole table, and it rarely reads. Its disk sustains about 2,000 random page writes per second or 1 GB/s sequentially, pages are 8 KB, and the LSM store writes each byte about 12 times in all (log, flush and compaction). A B-tree store that updates leaf pages in place cannot keep up, but an LSM store (RocksDB) can. Which explanation fits the numbers?"
+    choices: ["The LSM store groups the changed rows into 8 KB pages before writing, so 50 MB/s becomes about 6,100 page writes/s, which the disk absorbs as random writes", "The LSM store writes the same 50 MB per second of changed bytes, but in 100-byte units, and a disk handles 100-byte random writes much faster than 8 KB ones", "Each LSM file holds one narrow key range, so 500,000 updates per second fall on a few pages and need only the 2,000 random page writes per second the disk allows", "500,000 × 100 bytes is 50 MB/s; written 12 times as sequential files that is 600 MB/s, within 1 GB/s, while in-place updates of 500,000 different rows could need 500,000 random page writes/s"]
+    answer: 3
+    explanation: "50 MB per second of changes, written 12 times as sequential files, is 600 MB per second and fits the disk, while up to 500,000 random page writes per second do not fit 2,000. The others pack the changes into page writes the disk cannot absorb (6,100 a second is still above 2,000), shrink random writes without making them sequential, or give each file one page's worth of range."
+flashcards:
+  - id: full-scan-cost
+    front: "Full table scan cost"
+    back: "O(n) page reads, which for a large table is the dominant cost. An index replaces most of them with a tree descent of a few pages."
+  - id: btree-fanout
+    front: "B-tree fan-out and height"
+    back: "A page holds hundreds of keys, so height is about log base fan-out of n. At an illustrative fan-out of 300, 100 million keys need 4 levels."
+  - id: bplus-leaves
+    front: "B+-tree leaf links"
+    back: "Rows or row pointers sit in the leaves, which are linked in key order. A range scan finds the first match and then reads along the leaves."
+  - id: leftmost-prefix
+    front: "Leftmost-prefix rule"
+    back: "An index on (a, b, c) can seek on a, on a and b, or on all three, but not efficiently on b or c alone, since entries are scattered through the a groups (newer engines may skip-scan)."
+  - id: equality-then-range
+    front: "Composite column order"
+    back: "Equality columns first, then one range column. Columns after the first range column can filter entries but cannot narrow the seek."
+  - id: index-only-scan
+    front: "Covering (index-only) scan"
+    back: "If the index holds every column the query needs, the table is skipped. Postgres still checks its visibility map, so recently changed pages need table visits."
+  - id: clustered-secondary
+    front: "Clustered vs secondary index"
+    back: "InnoDB keeps rows in the primary-key tree, and secondary indexes store the primary key. Postgres keeps rows in a heap, and every index points into it."
+  - id: index-write-cost
+    front: "Write cost of indexes"
+    back: "Each insert adds an entry to every index, and a full page splits. Hash indexes serve equality only; LSM trees favour writes and compact in the background."

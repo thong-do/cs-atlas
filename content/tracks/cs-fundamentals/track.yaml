@@ -14,8 +14,7 @@ modules:
     lessons: [tcp-ip-stack, tcp-vs-udp, tls, http-versions]
   - slug: databases
     title: Databases
-    lessons: []
-    comingSoon: ["Indexes & B-trees", "Transactions & isolation levels", "Query planning"]
+    lessons: [indexes-btrees, transactions-isolation, query-planning]
   - slug: machine-math
     title: Machine & math
     lessons: []

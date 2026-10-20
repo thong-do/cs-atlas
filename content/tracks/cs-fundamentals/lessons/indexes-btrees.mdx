@@ -1,0 +1,122 @@
+---
+slug: indexes-btrees
+title: Indexes & B-trees
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [data-in-memory]
+summary: "See how a B-tree index turns a table scan into a handful of page reads, why column order in a composite index matters, and what every index costs on writes."
+---
+
+## Intuition
+
+Finding one name in an unsorted pile of 50 million cards means flipping through every card. Sort them into labelled drawers, label the cabinet, and any card takes a few looks. A database index is that cabinet.
+
+Without an index, `WHERE customer_id = 7` is a **full scan**: every row page is read and tested. That is O(n) (see [Complexity & Big-O](/cs-fundamentals/complexity/)), paid mostly in page reads.
+
+A **B-tree** keeps keys sorted inside fixed-size **pages** (Postgres defaults to 8 KB, InnoDB to 16 KB). An internal page holds sorted keys with child pointers between them, so one page steers a search into any of hundreds of children. This **high fan-out** keeps the tree shallow, with every leaf at the same depth.
+
+Most engines' "B-tree" is really a **B+-tree**: rows or row pointers live only in leaves, which are linked in key order. Lookups walk down; **range scans** then follow leaf links.
+
+**Height arithmetic.** Suppose a page has about 300 children (illustrative; real fan-out depends on key size and engine). Three levels address 300³ = 27,000,000 entries; four, 300⁴ = 8,100,000,000. Since 27,000,000 < 100,000,000 ≤ 8,100,000,000, 100 million keys need 4 levels. A lookup is about 4 page reads, and the upper levels are usually cached.
+
+Sorted keys also serve:
+
+- **Range scans:** `created_at BETWEEN a AND b` reads adjacent leaf entries.
+- **`ORDER BY`:** if the index order matches, rows arrive sorted with no sort step. Engines can usually scan backwards, so `DESC` works too.
+
+**Composite indexes and the leftmost prefix.** An index on `(a, b)` sorts by `a`, then by `b` within each `a`, like a phone book by surname then first name. It seeks on `a`, or on `a` and `b`, but not efficiently on `b` alone: matches are scattered through every `a` group (newer engines can skip-scan when `a` has few distinct values). Put **equality columns first, then one range column**: after a range, the matching entries are no longer adjacent, so later columns cannot narrow the seek. [SQL vs NoSQL](/system-design/sql-vs-nosql/) shows the index `(customer_id, created_at DESC)`; the Example tests its columns against three queries.
+
+**Covering (index-only) scans.** If the index holds every column a query needs, the engine can skip the table. Postgres can do this (`INCLUDE` adds payload columns), but it consults the **visibility map**, where `VACUUM` marks pages all-visible, so recently changed pages may still need heap visits.
+
+**Clustered vs secondary.** InnoDB stores whole rows in the leaves of the primary-key B-tree. Its secondary indexes store the primary key, so a secondary lookup is two descents: the secondary tree, then the primary tree. Postgres keeps rows in an unordered **heap**, and every index points into it.
+
+**Writes pay.** Every insert adds an entry to every index, and updating an indexed column adds a new entry (in Postgres, any update that isn't HOT adds an entry to every index; old ones linger until vacuum). When a page fills, it **splits**: a new page takes some of the keys and a separator key goes up to the parent, which can cascade. Five indexes mean one table write plus five.
+
+**Other structures, briefly.** A **hash index** supports equality only. An **LSM tree** (RocksDB, Cassandra) buffers writes in memory, flushes sorted files and merges them by background compaction. It favours writes; reads may check several files.
+
+## Visual
+
+A lookup in a 3-level tree: one page read per level.
+
+```text
+Look up key 4,200,000
+
+ level 1   root page      [ ... | 1.2M | 3.0M | 5.1M | ... ]  -> between 3.0M and 5.1M
+                                          |
+ level 2   internal page  [ ... | 3.9M | 4.2M | 4.6M | ... ]  -> between 4.2M and 4.6M
+                                          |
+ level 3   leaf page      [ 4,200,000  4,200,003  4,200,007 ... ] <-> next leaf
+                                           |
+ table     row pages      row for key 4,200,000 (heap pointer, or the row itself in InnoDB)
+```
+
+The stepper inserts 50, 20, 70, 10, 30, 60, 40, 80 into an **order-3** tree (at most 2 keys per node). Real pages hold hundreds of keys, not 2. This simplified tree moves a key up out of a split node; a B+-tree keeps every key in leaves.
+
+1. 50, 20 and 70 make the root `[20, 50, 70]`, which overflows at 70. **Split 1:** 50 moves up into a new root above `[20]` and `[70]`.
+2. 10 joins `[20]`; 30 makes `[10, 20, 30]`. **Split 2:** the leaf becomes `[10]` and `[30]`, and 20 moves up. The root is `[20, 50]`.
+3. 60 joins `[70]` and 40 joins `[30]`; 80 makes `[60, 70, 80]`. **Split 3:** it becomes `[60]` and `[80]`, and 70 moves up. The root is now `[20, 50, 70]` and overflows at the same insert. **Split 4:** 50 moves up, and the height becomes 3.
+
+The final tree:
+
+```text
+                [50]
+         /               \
+      [20]               [70]
+     /    \             /    \
+  [10]  [30, 40]     [60]   [80]
+```
+
+That is 8 keys, 4 splits, and 3 levels.
+
+<Visualizer kind="b-tree-insert" />
+
+## Example
+
+An `orders` table with **50,000,000 rows** of an illustrative 100 bytes, and 8 KB (8,192-byte) pages.
+
+```sql
+CREATE TABLE orders (
+  id          bigint PRIMARY KEY,
+  customer_id bigint NOT NULL,
+  status      text   NOT NULL,
+  created_at  timestamptz NOT NULL,
+  total       numeric(10,2) NOT NULL
+);
+CREATE INDEX orders_customer_created ON orders (customer_id, created_at);
+
+SELECT id, status, total
+FROM orders
+WHERE customer_id = 7
+ORDER BY created_at DESC
+LIMIT 40;
+```
+
+**Without the index**, a full scan reads: 50,000,000 × 100 bytes = 5,000,000,000 bytes, and 5,000,000,000 ÷ 8,192 ≈ 610,000 pages.
+
+**With the index**, the height at fan-out 300 is 4, since 300³ = 27,000,000 < 50,000,000 ≤ 300⁴. Customer 7's 40 newest entries sit side by side at the end of that customer's run, so the engine descends about 4 index pages and reads backwards. The rows cost up to 40 more heap pages. That is about 4 + 40 = 44 page reads against 610,000, roughly 14,000 times fewer (610,000 ÷ 44 ≈ 13,900).
+
+Which queries can use `(customer_id, created_at)`?
+
+| Query | Uses the index? | Why |
+|---|---|---|
+| `WHERE customer_id = 7` | Yes | One adjacent run of entries. |
+| `WHERE created_at > '2026-10-01'` | Not efficiently | Matches are scattered across every customer's run, so the engine reads the whole index or table. |
+| `WHERE customer_id = 7 AND created_at > '2026-10-01'` | Yes | Seek to `(7, 2026-10-01)`, read forward. |
+
+With `(created_at, customer_id)`, the third query would seek on the range alone and filter customers inside it.
+
+The `SELECT` above reads `status` and `total`, so the index does not cover it. `INCLUDE (id, status, total)` could make it index-only in Postgres, at the cost of a larger index.
+
+## Pitfalls
+
+- **Wrong column order in a composite index.** Putting the range column first wastes the other columns. Fix: equality columns first, then the range column, and test each real query.
+- **Indexing every column.** Each costs space and writes. Fix: index for real queries, and drop indexes that `pg_stat_user_indexes` shows are never scanned.
+- **Indexing a column with few distinct values.** `status` with 3 values matches millions of rows, each a separate heap visit, so a scan can be cheaper. Fix: pair it with a selective column, or use a partial index.
+- **Expecting an index to help on big reads.** Hopping through an index to a large share of rows can cost more page reads than scanning. Fix: check the plan with `EXPLAIN (ANALYZE, BUFFERS)`.
+- **A wide primary key in InnoDB.** Secondary indexes carry it, so it inflates all of them. Fix: keep primary keys compact.
+
+## Tips & tricks
+
+- **Rules of thumb:** equality columns, then range. Justify every index with a query.
+- **Interview phrasing:** "A B-tree keeps sorted keys in high-fan-out pages: 100 million keys, about 4 levels. Composite indexes follow the leftmost-prefix rule; every index adds write cost."
+- **What to measure:** `EXPLAIN (ANALYZE, BUFFERS)` for pages touched, and `pg_stat_user_indexes` for scans per index.

@@ -1,0 +1,43 @@
+slug: diagnose-double-booking
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the overlapping room bookings"
+lessons: [transactions-isolation]
+ladderOrder: 2
+prompt: |
+  A meeting-room service runs on **PostgreSQL** at **REPEATABLE READ**. To book a room, a transaction runs
+  `SELECT count(*) FROM bookings WHERE room_id = $1 AND tstzrange(starts_at, ends_at) && $2`. If the count is **0**, it runs
+  `INSERT INTO bookings …` and commits. Each booking transaction takes about **25 ms**.
+
+  Last month, **18 of 60,000** bookings overlapped another booking for the same room. In every case, the two transactions' start
+  times were within **25 ms** of each other. **No errors were logged**, and every other booking was correct.
+
+  Explain how both transactions saw no conflict and both committed. Name the anomaly and say why this isolation level does not
+  stop it. Show the arithmetic for how rare it is, and explain why it is rare. Say how you would confirm your explanation, and give
+  fixes with their trade-offs.
+hint: "Ask what each transaction's snapshot contained when it counted, which rows each one wrote, and whether the database had any reason to see those two writes as a conflict."
+rubric:
+  - id: mechanism
+    point: "Explains that both transactions took their snapshots before either committed, so each counted 0 overlapping bookings, then each inserted its own row and committed."
+  - id: anomaly
+    point: "Names the anomaly: write skew, a check-then-insert race. Snapshot isolation only rejects two writes to the same row, and these inserts are different rows, so the database sees no conflict and logs no error."
+  - id: rarity
+    point: "Explains why it is rare: it needs two requests for the same room and an overlapping time inside the ~25 ms window. 18 ÷ 60,000 = 0.0003 = 0.03%, so about 1 in 3,300 bookings."
+  - id: confirm
+    point: "Shows how to confirm it: reproduce with two psql sessions that both count, then both insert and commit, and correlate the overlapping pairs' start and commit times."
+  - id: fixes
+    point: "Gives fixes with trade-offs: SERIALIZABLE with retry on SQLSTATE 40001, an EXCLUDE USING gist constraint (needs btree_gist), locking the room row with FOR UPDATE (only if the booking transaction runs at READ COMMITTED, since at REPEATABLE READ the snapshot predates the lock wait), or unique constraints on materialised time slots."
+reference: |
+  **How both committed.** At REPEATABLE READ each transaction reads from a snapshot taken at its first statement. Two requests starting within 25 ms of each other both count 0 overlapping bookings, since neither insert is committed yet. Each then inserts and commits.
+
+  **The anomaly.** This is write skew, a check-then-insert race: each read a condition, then wrote a different row. Postgres REPEATABLE READ (snapshot isolation) fails a transaction only when it updates, deletes or locks (`FOR UPDATE`/`SHARE`) a row that a concurrent transaction changed. Two inserts touch different rows, so there is no conflict and no error.
+
+  **Why it is rare.** 18 ÷ 60,000 = 0.0003 = 0.03%, about 1 in 3,300 bookings. A clash needs a second request for the same room and an overlapping time inside the ~25 ms window.
+
+  **Confirm.** In two `psql` sessions at REPEATABLE READ, run the count in both, insert an overlapping row in each, then commit both. Both succeed. In production, find overlapping pairs and compare start and commit times.
+
+  **Fixes.**
+  - SERIALIZABLE with retry on SQLSTATE `40001`: general, but adds aborts and needs an application retry loop.
+  - `EXCLUDE USING gist (room_id WITH =, tstzrange(starts_at, ends_at) WITH &&)`: the database enforces it for every writer, but needs `btree_gist` for the equality part and covers only this rule.
+  - `SELECT … FROM rooms WHERE id = $1 FOR UPDATE` as the first statement, with the booking transaction at READ COMMITTED so the count takes a fresh snapshot after the lock wait: serialises per room, but every code path must follow it. At REPEATABLE READ it fails: the snapshot predates the wait, so the second booker counts 0 (unless the room row is updated too).
+  - Materialised time slots with a unique constraint: simple, but fixes the slot size.

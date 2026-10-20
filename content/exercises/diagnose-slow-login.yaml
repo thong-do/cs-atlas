@@ -18,24 +18,24 @@ rubric:
   - id: cause
     point: "Explains that the index orders the stored email values, so it cannot locate rows by lower(email); the planner has no usable index path and scans the whole table, testing every row."
   - id: per-login
-    point: "Estimates the cost: about 30,000,000 rows ÷ 5,000,000 rows/s per core ≈ 6 s of CPU per login, against about 4 index page reads before (30,000,000 needs 4 levels at fan-out 300)."
+    point: "Estimates the cost: about 30,000,000 rows ÷ 5,000,000 rows/s per core ≈ 6 s of CPU per login, against about 4 index page reads before."
   - id: capacity
     point: "Shows the capacity gap: 50 logins/s × 6 s = 300 core-seconds per second against 32 cores, about 9 times over capacity, so work queues, latency grows and requests hit the 10 s timeout."
   - id: confirm
-    point: "Confirms with EXPLAIN (ANALYZE, BUFFERS) showing a Seq Scan on users with Filter: (lower(email) = ...) instead of an index scan, and pg_stat_statements showing the login query's mean time and total time."
+    point: "Confirms with EXPLAIN (ANALYZE, BUFFERS) showing a Seq Scan on users with Filter: (lower(email) = ...) instead of an index scan, and pg_stat_statements showing the login query's mean and total time."
   - id: fixes
-    point: "Gives fixes with trade-offs: roll back first; an index on lower(email) built with CREATE INDEX CONCURRENTLY (slow on a busy table, can leave an invalid index, UNIQUE only after checking for emails differing by case); citext (type change and extension); or a stored normalised email column (backfill and write-path changes)."
+    point: "Gives fixes with trade-offs: roll back first; an index on lower(email) via CREATE INDEX CONCURRENTLY (slow, outside a transaction block, can leave an invalid index, UNIQUE only after checking for emails differing by case); citext (table rewrite and lock, same duplicate check); or a stored normalised column (backfill, write-path changes)."
 reference: |
-  **Cause.** The B-tree is sorted by the stored `email` values. A condition on `lower(email)` asks about different values, so the index cannot narrow the search. The planner has no usable index path and does a sequential scan, evaluating the condition on every row.
+  **Cause.** The B-tree is sorted by the stored `email` values. A condition on `lower(email)` asks about different values, so the index cannot narrow the search. The planner has no usable index path, so it scans the table and tests every row.
 
-  **Per login.** The old lookup needed about 4 index page reads (300^3 = 27,000,000 < 30,000,000, so 4 levels) plus one heap page. The scan reads 30,000,000 rows; at an illustrative 5,000,000 rows/s per core, 30,000,000 ÷ 5,000,000 = 6 s of CPU. That matches the 6 s p50.
+  **Per login.** The old lookup needed about 4 index page reads (30 M keys need about 4 levels at an illustrative fan-out of 300). The scan reads 30,000,000 rows; at an illustrative 5,000,000 rows/s per core, 30,000,000 ÷ 5,000,000 = 6 s of CPU. That is service time before queueing; p50 rises as the queue grows (parallel workers may change it).
 
-  **Capacity.** 50 logins/s × 6 s = 300 core-seconds of work arriving each second. 32 cores supply 32. 300 ÷ 32 is about 9.4 times over capacity, so the queue grows until requests hit the 10 s timeout.
+  **Capacity.** 50 logins/s × 6 s = 300 core-seconds of work per second. 32 cores supply 32. 300 ÷ 32 is about 9.4 times over capacity, so requests queue until they hit the 10 s timeout.
 
-  **Confirm.** `EXPLAIN (ANALYZE, BUFFERS)` on the new query shows a Seq Scan on `users` with `Filter: (lower(email) = lower(...))` and a huge buffer count. `pg_stat_statements` shows the query's mean time jump from about 2 ms to about 6,000 ms after the deploy.
+  **Confirm.** `EXPLAIN (ANALYZE, BUFFERS)` shows a Seq Scan on `users` with `Filter: (lower(email) = lower(...))`. `pg_stat_statements` shows the query's mean time jump from about 2 ms to seconds after the deploy.
 
   **Fixes.**
-  - **Roll back first.** It restores 2 ms at once but loses case-insensitive login.
-  - **Index on `lower(email)`:** `CREATE INDEX CONCURRENTLY ... ON users (lower(email))`. It does not block writes, but it needs a full table read, runs slowly while the CPUs are saturated, and a failed build leaves an invalid index to drop. Make it UNIQUE only after checking that no two existing emails differ only by case; otherwise the build fails.
-  - **`citext` column:** case-insensitive comparisons use the ordinary index. Cost: an extension, a column type change that rewrites the table, and semantics to review.
-  - **Normalised email column:** store the lower-cased value, index it and query it. Cost: a backfill and every write path must maintain it.
+  - **Roll back first.** It restores 2 ms but loses case-insensitive login.
+  - **Index on `lower(email)`:** `CREATE INDEX CONCURRENTLY`. It does not block writes but cannot run in a transaction block (many migration tools use one), is slow while CPUs are saturated, and a failure leaves an invalid index to drop. Make it UNIQUE only after checking that no two emails differ only by case, or the build fails.
+  - **`citext` column:** the query returns to `email = $1`. Cost: an extension, and `ALTER ... TYPE` rewrites the table under an exclusive lock and rebuilds the unique index, failing on the same case duplicates.
+  - **Normalised email column:** store the lower-cased value, index and query it. Cost: a backfill, and every write path must maintain it.

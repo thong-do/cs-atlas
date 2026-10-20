@@ -36,11 +36,11 @@ The standard says nothing about lost updates, and engines differ from this table
 
 SERIALIZABLE means the outcome equals some one-at-a-time order of the transactions. It prevents every anomaly of concurrent execution, at the cost of aborts and retries. It is not linearizability: see [Consistency models](/system-design/consistency-models/). Spanning several databases is a different problem: [Distributed transactions](/system-design/distributed-transactions/).
 
-**MVCC: how readers avoid blocking writers.** Postgres and InnoDB use **multi-version concurrency control**. An update does not overwrite a row; it creates a new **version**, and each transaction reads through a **snapshot** that decides which versions are visible to it. A reader sees the version its snapshot allows while a writer builds the next, so plain reads take no row locks and writers do not wait for readers. Writers still wait for other writers on the same row. Postgres takes a new snapshot per statement under READ COMMITTED and one per transaction under REPEATABLE READ.
+**MVCC: how readers avoid blocking writers.** Postgres and InnoDB use **multi-version concurrency control**. An update does not overwrite a row; it creates a new **version**, and each transaction reads through a **snapshot** that decides which versions are visible to it. A reader sees the version its snapshot allows while a writer builds the next, so in Postgres plain reads take no row locks and writers do not wait for readers. Writers still wait for other writers on the same row. Postgres takes a new snapshot per statement under READ COMMITTED and one per transaction under REPEATABLE READ.
 
 Old versions pile up, so they need cleanup. Postgres uses `VACUUM` (autovacuum runs it), which removes versions no snapshot can still see and marks pages all-visible, as in [Indexes & B-trees](/cs-fundamentals/indexes-btrees/). InnoDB keeps old versions in an undo log and purges them. A transaction left open holds its snapshot, so cleanup behind it stalls.
 
-**Locks.** A writer takes a **row lock** that lasts until the transaction ends. `SELECT … FOR UPDATE` takes the same lock on the rows it reads, so you can read, decide and write one row with no one slipping in. Two transactions waiting on each other's locks form a **deadlock**; the engine detects it after a timeout (Postgres defaults to 1 s) and aborts one. See [Concurrency primitives](/cs-fundamentals/concurrency-primitives/).
+**Locks.** A writer takes a **row lock** that lasts until the transaction ends. `SELECT … FOR UPDATE` takes a lock on the rows it reads that blocks other writers of them, so you can read, decide and write one row with no one slipping in. Two transactions waiting on each other's locks form a **deadlock**; the engine aborts one (Postgres checks after `deadlock_timeout`, 1 s by default). See [Concurrency primitives](/cs-fundamentals/concurrency-primitives/).
 
 ## Visual
 
@@ -68,10 +68,11 @@ t1    BEGIN;                             BEGIN;
 t2    SELECT stock FROM products
       WHERE id = 7;           -> 5       SELECT stock ... WHERE id = 7;  -> 5
 t3    UPDATE products SET stock = 4
-      WHERE id = 7; COMMIT;
+      WHERE id = 7;
 t4                                       UPDATE products SET stock = 4
-                                         WHERE id = 7; COMMIT;
-                                         -- B waited for A's lock, then wrote 4
+                                         WHERE id = 7;  -- waits for A
+t5    COMMIT;                            -- B's UPDATE now runs, writes 4
+t6                                       COMMIT;
 final stock = 4   (two sales, one decrement: a lost update)
 ```
 
@@ -83,11 +84,12 @@ Three fixes, all for one row:
 UPDATE products SET stock = stock - 1 WHERE id = 7 AND stock > 0;
 ```
 
-B waits for A's lock, then re-checks `WHERE` against the new row version (stock 4), and writes 3. If it reports 0 rows updated, the item is sold out.
+If A holds the row lock, B waits; it then re-checks `WHERE` against the new row version (stock 4) and writes 3. If it reports 0 rows updated, the item is sold out.
 
 2. **`SELECT … FOR UPDATE`.**
 
 ```sql
+-- session B
 BEGIN;
 SELECT stock FROM products WHERE id = 7 FOR UPDATE;
 UPDATE products SET stock = 3 WHERE id = 7;  -- the application computed 4 - 1

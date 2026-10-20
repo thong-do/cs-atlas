@@ -26,18 +26,18 @@ rubric:
   - id: confirm
     point: "Shows how to confirm it: reproduce with two psql sessions that both count, then both insert and commit, and correlate the overlapping pairs' start and commit times."
   - id: fixes
-    point: "Gives fixes with trade-offs: SERIALIZABLE with retry on SQLSTATE 40001, an EXCLUDE USING gist constraint (needs btree_gist), locking the room row with FOR UPDATE, or unique constraints on materialised time slots."
+    point: "Gives fixes with trade-offs: SERIALIZABLE with retry on SQLSTATE 40001, an EXCLUDE USING gist constraint (needs btree_gist), locking the room row with FOR UPDATE (only if the booking transaction runs at READ COMMITTED, since at REPEATABLE READ the snapshot predates the lock wait), or unique constraints on materialised time slots."
 reference: |
-  **How both committed.** At REPEATABLE READ each transaction reads from a snapshot taken at its first statement. Two requests that start within 25 ms of each other both count 0 overlapping bookings, since neither insert is committed yet. Each then inserts its own row and commits.
+  **How both committed.** At REPEATABLE READ each transaction reads from a snapshot taken at its first statement. Two requests starting within 25 ms of each other both count 0 overlapping bookings, since neither insert is committed yet. Each then inserts and commits.
 
-  **The anomaly.** This is write skew, a check-then-insert race: each transaction read a condition and then wrote a different row. Postgres REPEATABLE READ (snapshot isolation) only fails a transaction when it updates a row that a concurrent transaction already changed. Two inserts touch different rows, so there is no conflict, no error and nothing in the log.
+  **The anomaly.** This is write skew, a check-then-insert race: each read a condition, then wrote a different row. Postgres REPEATABLE READ (snapshot isolation) fails a transaction only when it updates, deletes or locks (`FOR UPDATE`/`SHARE`) a row that a concurrent transaction changed. Two inserts touch different rows, so there is no conflict and no error.
 
-  **Why it is rare.** 18 ÷ 60,000 = 0.0003 = 0.03%, about 1 in 3,300 bookings. A clash needs a second request for the same room and an overlapping time to start inside the ~25 ms window of the first. Most bookings have no such neighbour.
+  **Why it is rare.** 18 ÷ 60,000 = 0.0003 = 0.03%, about 1 in 3,300 bookings. A clash needs a second request for the same room and an overlapping time inside the ~25 ms window.
 
-  **Confirm.** Open two `psql` sessions at REPEATABLE READ, run the count in both, insert an overlapping row in each, then commit both. Both succeed. In production, query for overlapping pairs and compare their start and commit timestamps, which should lie within about 25 ms.
+  **Confirm.** In two `psql` sessions at REPEATABLE READ, run the count in both, insert an overlapping row in each, then commit both. Both succeed. In production, find overlapping pairs and compare start and commit times.
 
   **Fixes.**
-  - SERIALIZABLE with retry on SQLSTATE `40001`: general, but adds aborts and needs a retry loop in the application.
-  - `EXCLUDE USING gist (room_id WITH =, tstzrange(starts_at, ends_at) WITH &&)`: the database enforces the rule for every writer, but it needs the `btree_gist` extension for the equality part and covers only this rule.
-  - `SELECT … FROM rooms WHERE id = $1 FOR UPDATE` before counting: serialises bookings per room, but every code path must follow it.
-  - Materialised time slots with a unique constraint: simple, but it fixes the slot size.
+  - SERIALIZABLE with retry on SQLSTATE `40001`: general, but adds aborts and needs an application retry loop.
+  - `EXCLUDE USING gist (room_id WITH =, tstzrange(starts_at, ends_at) WITH &&)`: the database enforces it for every writer, but needs `btree_gist` for the equality part and covers only this rule.
+  - `SELECT … FROM rooms WHERE id = $1 FOR UPDATE` as the first statement, with the booking transaction at READ COMMITTED so the count takes a fresh snapshot after the lock wait: serialises per room, but every code path must follow it. At REPEATABLE READ it fails: the snapshot predates the wait, so the second booker counts 0 (unless the room row is updated too).
+  - Materialised time slots with a unique constraint: simple, but fixes the slot size.

@@ -1,0 +1,47 @@
+slug: diagnose-slowing-bulk-import
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the import that slows as it goes"
+lessons: [indexes-btrees]
+ladderOrder: 2
+prompt: |
+  A team bulk-loads **300 million events** into a **PostgreSQL** table whose primary key is a **random UUID (version 4)**. The database
+  has **8 GB** of memory available for caching pages.
+
+  At first the import runs at about **40,000 rows per second** with CPU near **90%**. It then slows steadily, once the primary-key
+  index outgrows the 8 GB. When the index reaches about **20 GB**, the import runs at about **8,000 rows per second**. The disk is
+  pinned near its limit of **5,000 random reads per second**, and CPU sits at **20%**.
+
+  A second test table, with a **bigint sequence** as its key, loads the same data at a steady **40,000 rows per second**.
+
+  Explain why the import slows and why the second table does not. Estimate the slow rate from the numbers above, and show the
+  arithmetic. Say how you would confirm your explanation, and give fixes with their trade-offs.
+hint: "Ask where in the primary-key index each new row's entry must go, and how much of the index is in memory when it gets there."
+rubric:
+  - id: placement
+    point: "Explains that random keys land in random leaf pages across the whole index, while sequence keys always land in the rightmost leaf, so the second table touches a few hot pages that stay in memory."
+  - id: cache
+    point: "Explains that once the index (20 GB) exceeds the 8 GB of cache, most inserts hit a leaf page that is not in memory and must read it from disk first, so the import becomes limited by disk reads, not CPU."
+  - id: arithmetic
+    point: "Works the estimate: about 8 of 20 GB is cached, so 60% of inserts touch an uncached leaf, each costing about 1 random read; 5,000 ÷ 0.6 ≈ 8,300 rows per second, close to the observed 8,000."
+  - id: confirm
+    point: "Shows how to confirm it: index cache hit ratio (for example from pg_statio_user_indexes, or pg_stat_io on newer versions), disk read IOPS at the 5,000 ceiling, and the same test on the sequence-keyed table for comparison."
+  - id: fixes
+    point: "Gives fixes with trade-offs: time-ordered keys (UUIDv7, ULID or a sequence), loading rows sorted by key, building secondary indexes after the load, or more memory; and notes that random splits leave pages part-full, so the index is larger."
+reference: |
+  **Why it slows.** A random UUID can belong anywhere in the key order, so each insert goes to a random leaf of the primary-key index. A sequence key always sorts last, so every insert goes to the rightmost leaf, which stays in memory with the pages above it.
+
+  **Why the cache matters.** Up to 8 GB the whole index is cached, so inserts are CPU-bound: 40,000 rows per second at 90% CPU. At 20 GB the cache holds about 8 / 20 = 40%, so about 60% of inserts find their leaf on disk and wait for a random read. The disk is the limit, and CPU idles at 20%.
+
+  **Arithmetic.** Each uncached insert costs about 1 read: 0.6 reads per row. At 5,000 reads per second, 5,000 ÷ 0.6 ≈ 8,300 rows per second, close to the observed 8,000. The estimate ignores flushing dirty pages, so it sits a little high.
+
+  **Confirm.**
+  - Index cache hit ratio, for example `idx_blks_hit / (idx_blks_hit + idx_blks_read)` in `pg_statio_user_indexes`, or `pg_stat_io` on newer versions. Expect about 40% at 20 GB, against nearly 100% on the sequence table.
+  - Disk read IOPS (for example `iostat`) pinned near 5,000.
+
+  **Fixes.**
+  - Time-ordered keys (UUIDv7, ULID, a sequence): inserts go to the rightmost leaf. Trade-off: the key reveals creation time, and writers contend for one leaf.
+  - Load sorted by key: each leaf is visited once. Trade-off: an extra sort step.
+  - Build secondary indexes after the load: each is built in one pass. Trade-off: queries lack them meanwhile.
+  - More memory so the index fits: costs money, and only moves the limit.
+  - Random splits tend to leave pages only part-full, so the index is larger than a sorted load would produce (the exact fill varies by engine and version).

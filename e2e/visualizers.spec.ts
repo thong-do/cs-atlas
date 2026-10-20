@@ -16,6 +16,7 @@ const PAGES = [
   { path: '/cs-fundamentals/virtual-memory/', final: 'Done: 1 TLB hit, 2 misses and 1 page fault — the fault needed a disk read, far slower than any memory access' },
   { path: '/cs-fundamentals/concurrency-primitives/', final: 'Done: without a lock one of two updates was lost; with the mutex counter = 2, at the cost of T2 waiting' },
   { path: '/cs-fundamentals/tcp-vs-udp/', final: 'Done: 200 bytes arrived; 12 segments were sent and the 1 lost one was resent after a timeout' },
+  { path: '/cs-fundamentals/indexes-btrees/', final: 'Done: 8 keys and 4 splits; the tree grew taller only when the root split' },
 ]
 const VIEWPORTS = [
   { width: 375, height: 812 },

@@ -1,0 +1,56 @@
+slug: indexes-btrees-quiz
+type: quiz
+title: "Indexes & B-trees — quiz"
+lessons: [indexes-btrees]
+ladderOrder: 1
+questions:
+  - id: order-by-other-column
+    prompt: "In PostgreSQL, `orders` has one index, on `(customer_id, created_at)`. Customer 7 has 20,000 orders. You run `SELECT * FROM orders WHERE customer_id = 7 ORDER BY total DESC LIMIT 40`. What does the plan have to do?"
+    choices: ["Find the 40 newest entries in customer 7's run of the index, sort just those 40 rows by total and return them, which costs about the same as the query ordered by created_at", "Ignore the index and scan the whole table, because the ORDER BY column is not the second column of the index and so none of its columns can be used", "Scan customer 7's run of the index backwards and stop after 40 entries, because the index entries also carry each order's total in sorted position", "Use the index to reach customer 7's 20,000 orders, fetch all of those rows and sort them by total, then keep the top 40, so the work grows with the customer's order count"]
+    answer: 3
+    explanation: "The index narrows the search to customer 7's entries, but they are ordered by created_at, so only a sort over all 20,000 rows can find the top 40 by total. The other choices wrongly take the 40 newest as the top 40, discard the usable equality seek, or credit the index with a total column it does not hold."
+  - id: heap-fetches-after-vacuum
+    prompt: "PostgreSQL 14: `orders` has an index on `(customer_id) INCLUDE (total)`. Right after a nightly job updated most of the table, `EXPLAIN (ANALYZE)` of `SELECT sum(total) FROM orders WHERE customer_id = 7` shows an Index Only Scan with `Heap Fetches: 9,800` for 10,000 matching rows. After `VACUUM orders` the same plan shows `Heap Fetches: 0`. What changed?"
+    choices: ["VACUUM rebuilt the index so that its leaf entries now hold the total column, where before the INCLUDE column was held only by the table and every query had to go there to read it", "VACUUM marked the table's pages as all-visible, so the scan could trust the index entries without opening the table page to check that each row is visible", "VACUUM refreshed the planner's statistics, so the scan knew which entries could be skipped and no longer had to fetch the rows it had estimated wrongly", "VACUUM rewrote the table in index order, so customer 7's 10,000 rows now share a few pages and a single fetch of one of them covers the whole run of rows"]
+    answer: 1
+    explanation: "An index-only scan can skip the table only for pages known to be visible to all transactions, and VACUUM records that. The other choices put the INCLUDE column only in the table, credit statistics (which ANALYZE gathers, and which affect plan choice, not execution), or describe a rewrite that VACUUM does not do."
+  - id: secondary-lookup-reads
+    prompt: "In MySQL InnoDB, a `users` table has 200 million rows. Its clustered (primary-key) tree has 4 levels and its secondary index on `email` has 3. A query `SELECT * FROM users WHERE email = 'a@x.org'` matches one row and uses that index. Ignoring any caching, how many page reads does it need at minimum?"
+    choices: ["4: the 3 levels of the email index, plus one read of the row page whose address is stored in the index's leaf entry", "3: the leaf entry of a secondary index holds the whole row, as the leaf of the primary-key tree does", "7: the 3 levels of the email index to find the primary key, then the 4 levels of the clustered tree to reach the row", "8: both descents, and then one more read for the row, which is kept in a separate area apart from the leaf pages of the clustered tree itself"]
+    answer: 2
+    explanation: "A secondary entry holds the primary-key value, not a page address, so the engine walks the email tree (3) and then the clustered tree (4), whose leaf holds the row. The other choices use the heap model of Postgres, copy the row into every secondary index, or count a row read the clustered leaf makes unnecessary."
+  - id: status-due-date-order
+    prompt: "A `tasks` table has 10,000,000 rows. Due dates are spread evenly over 1,000 days, and 2% of tasks are `open`, evenly across those days. A query asks `WHERE status = 'open' AND due_date BETWEEN d AND d + 29` (a 30-day window). A plain B-tree seeks to the start of a range and reads forward. About how many entries must each of the indexes `(status, due_date)` and `(due_date, status)` read?"
+    choices: ["(status, due_date) reads about 6,000 entries, all of them matches; (due_date, status) reads about 300,000 and keeps the 6,000 whose status is open", "Both read about 6,000 entries, since each index holds both columns and the engine tests both conditions while it seeks", "(status, due_date) reads about 300,000 entries; (due_date, status) reads about 6,000, since the date window is the more selective condition and so should lead", "(status, due_date) reads about 6,000 entries; (due_date, status) reads all 10,000,000, since a range on the leading column rules out a seek"]
+    answer: 0
+    explanation: "Window rows: 30 × 10,000 = 300,000; open rows among them: 2% of that is 6,000. With status first, the open entries for the window are adjacent, so 6,000 are read; with the date first, all 300,000 entries in the window are read and filtered. The other choices claim both columns narrow the seek in either order, reverse the orders, or say a leading range gives no seek."
+  - id: lsm-write-throughput
+    prompt: "A metrics service takes 500,000 small writes per second, reads by key rarely, and is moved from a B-tree-based store to an LSM-tree store (RocksDB). Write throughput improves a lot. Which mechanism explains the gain?"
+    choices: ["The LSM store keeps no sorted structure on disk, so a write is a plain append to a log, and the cost shifts to reads, which must scan the whole log, newest entries first, to find the latest value of a key", "The LSM store swaps the B-tree for a hash index, so locating a write's bucket is cheaper than descending a tree of 4 levels", "The LSM store keeps only the newest value of each key in a fixed-size table in memory, so older values are dropped before they reach disk", "The LSM store buffers writes in memory and flushes them as whole sorted files, so no write has to update a page in place, and background compaction pays the merging cost later"]
+    answer: 3
+    explanation: "Batching sorted runs replaces many in-place page updates with sequential file writes, and compaction defers the merge work. The other choices wrongly claim unsorted data on disk, a hash index, or dropping older values (the data must still be durable, and reads still see older versions until compaction)."
+flashcards:
+  - id: full-scan-cost
+    front: "Full table scan cost"
+    back: "O(n) page reads, which for a large table is the dominant cost. An index replaces most of them with a tree descent of a few pages."
+  - id: btree-fanout
+    front: "B-tree fan-out and height"
+    back: "A page holds hundreds of keys, so height is about log base fan-out of n. At an illustrative fan-out of 300, 100 million keys need 4 levels."
+  - id: bplus-leaves
+    front: "B+-tree leaf links"
+    back: "Rows or row pointers sit in the leaves, which are linked in key order. A range scan finds the first match and then reads along the leaves."
+  - id: leftmost-prefix
+    front: "Leftmost-prefix rule"
+    back: "An index on (a, b, c) can seek on a, on a and b, or on all three, but not on b or c alone, because their entries are scattered through the a groups."
+  - id: equality-then-range
+    front: "Composite column order"
+    back: "Equality columns first, then one range column. Columns after the first range column can filter entries but cannot narrow the seek."
+  - id: index-only-scan
+    front: "Covering (index-only) scan"
+    back: "If the index holds every column the query needs, the table is skipped. Postgres still checks its visibility map, so recently changed pages need table visits."
+  - id: clustered-secondary
+    front: "Clustered vs secondary index"
+    back: "InnoDB keeps rows in the primary-key tree, and secondary indexes store the primary key. Postgres keeps rows in a heap, and every index points into it."
+  - id: index-write-cost
+    front: "Write cost of indexes"
+    back: "Each insert adds an entry to every index, and a full page splits. Hash indexes serve equality only; LSM trees favour writes and compact in the background."

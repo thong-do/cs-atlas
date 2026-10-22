@@ -15,14 +15,14 @@ prompt: |
 
   Explain the skew. Show the arithmetic, including whether it matches the counts. Say how much it matters for the security of a
   10-character code, and how you would confirm the cause. Give fixes with their trade-offs.
-hint: "Which of the 256 possible byte values land on each of the 62 positions? Are those counts equal?"
+hint: "Which of the 256 possible byte values land on each of the 62 positions?"
 rubric:
   - id: cause
     point: "Explains that a byte has 256 values and 256 is not a multiple of 62, so mapping bytes to positions leaves a remainder: the first 8 positions receive one extra byte value each, while the random source itself is fine."
   - id: arithmetic
     point: "Shows 256 = 4 × 62 + 8: values 0–247 map evenly, 4 per position, and 248–255 add a fifth to positions 0–7. So P = 5/256 ≈ 1.95% against 4/256 ≈ 1.56% (ratio 1.25), and 10,000,000 × 5/256 ≈ 195,313 and × 4/256 = 156,250 match the counts; check 8 × 5 + 54 × 4 = 256."
   - id: impact
-    point: "Quantifies the loss with H = −Σ p log2 p: about 5.9497 bits per character against log2 62 ≈ 5.9542, roughly 0.005 bits less, about 0.05 bits per 10-character code. So the loss is small, but the bias is real and lets a guesser try the likelier characters first (hedged, approximate)."
+    point: "Quantifies the loss with H = −Σ p log2 p: about 5.9497 bits per character against log2 62 ≈ 5.9542, about 0.0045 bits less, roughly 0.045 bits per 10-character code. So the loss is small, but the bias is real and lets a guesser try the likelier characters first (hedged, approximate)."
   - id: confirm
     point: "Confirms with a frequency count of characters, a chi-square test against equal expected counts, or by reproducing the arithmetic over the 256 byte values."
   - id: fixes
@@ -32,7 +32,7 @@ reference: |
 
   **Arithmetic.** 256 = 4 × 62 + 8. Values 0–247 give each position 4 bytes, and 248–255 add a fifth to positions 0–7. Check: 8 × 5 + 54 × 4 = 40 + 216 = 256. So P = 5/256 ≈ 1.95% for `A`–`H` and 4/256 ≈ 1.56% for the rest, a ratio of 1.25. Over 10,000,000 characters, 10,000,000 × 5/256 ≈ 195,313 and 10,000,000 × 4/256 = 156,250, matching the counts. The expected 161,290 holds only for equal probabilities.
 
-  **Impact.** With H = −Σ p log2 p, this distribution gives about 5.9497 bits per character against log2 62 ≈ 5.9542, a loss near 0.0045 bits, about 0.045 bits per 10-character code. That is small, but the bias is real and a guesser can try likelier characters first. Treat the figures as approximate.
+  **Impact.** With H = −Σ p log2 p, H = −[8 × (5/256) × log2(5/256) + 54 × (4/256) × log2(4/256)] ≈ 5.9497 bits per character, against log2 62 ≈ 5.9542, a loss near 0.0045 bits, about 0.045 bits per 10-character code. That is small, but the bias is real and a guesser can try likelier characters first. Treat the figures as approximate.
 
   **Confirm.** Count character frequencies, run a chi-square test against equal expected counts, or reproduce the arithmetic over the 256 byte values.
 

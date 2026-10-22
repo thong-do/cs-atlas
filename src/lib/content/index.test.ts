@@ -148,6 +148,7 @@ describe('content inventory', () => {
       'transactions-isolation': { prerequisites: ['indexes-btrees'], exercises: ['transactions-isolation-quiz', 'diagnose-double-booking'] },
       'query-planning': { prerequisites: ['indexes-btrees'], exercises: ['query-planning-quiz', 'diagnose-slow-login'] },
       'memory-hierarchy': { prerequisites: ['data-in-memory'], exercises: ['memory-hierarchy-quiz', 'diagnose-counters-dont-scale'] },
+      'number-representation': { prerequisites: [], exercises: ['number-representation-quiz', 'diagnose-broken-order-links'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
     expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)

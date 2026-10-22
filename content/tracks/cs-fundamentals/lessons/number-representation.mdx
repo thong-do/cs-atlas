@@ -1,0 +1,177 @@
+---
+slug: number-representation
+title: Number representation
+level: beginner
+authors: [cs-atlas]
+prerequisites: []
+summary: "See how integers and floating-point numbers are stored in a fixed number of bits, why integers wrap and 0.1 + 0.2 is not 0.3, and how to handle money safely."
+---
+
+## Intuition
+
+A car odometer has five wheels. At 99,999 km one more kilometre rolls every wheel to 00000: the display has a fixed width, so arithmetic past it wraps. A CPU register is an odometer made of bits, and most numeric surprises come from that fixed width.
+
+**Positional notation.** Each digit's weight is a power of the base: 2 for binary, 16 for hex, where one digit is exactly 4 bits.
+
+- `0b1011` = 8 + 0 + 2 + 1 = 11.
+- `0xFF` = 15 × 16 + 15 = 255, which is `0b11111111`.
+
+**Unsigned integers.** With n bits there are 2^n patterns, so an unsigned integer holds 0 … 2^n − 1: 0 … 255 for 8 bits, 0 … 4,294,967,295 for 32.
+
+**Two's complement** stores signed integers by giving the top bit a negative weight, −2^(n−1). To negate x, invert every bit and add 1. For 8-bit −5:
+
+```text
++5          = 00000101
+invert      = 11111010
+add 1       = 11111011     check: -128 + 64 + 32 + 16 + 8 + 2 + 1 = -5
+```
+
+Why use it:
+
+- **One zero.** Negating 0 inverts to 11111111, and adding 1 carries out of the top, leaving 00000000. Sign-and-magnitude schemes have +0 and −0.
+- **Same adder.** Addition works identically on signed and unsigned patterns.
+- **An asymmetric range:** −2^(n−1) … 2^(n−1) − 1. For int32 that is −2,147,483,648 … 2,147,483,647: 2^31 negatives but only 2^31 − 1 positives, because zero takes a slot.
+
+**Overflow depends on the language, not just the hardware.** Hardware wraps modulo 2^n; languages choose what to promise. Check your version and flags.
+
+| Language | Result past the range |
+|---|---|
+| C | Signed overflow is undefined behaviour; unsigned arithmetic wraps mod 2^n |
+| Java | `int` and `long` wrap silently |
+| Python | `int` is unbounded; nothing overflows |
+| Rust | Panics in debug builds, wraps in release builds by default (configurable) |
+
+Masks and shifts: [Bit manipulation](/algorithms/bit-manipulation/). Byte order: [Data in memory](/cs-fundamentals/data-in-memory/).
+
+**IEEE 754 double.** Most languages' `double` (Python's `float`) uses IEEE 754 binary64: 1 sign bit, 11 exponent bits and 52 fraction bits. A normal value is
+
+(−1)^sign × 1.fraction × 2^(exponent − 1023)
+
+The leading 1 is implicit and not stored, so a double carries 53 significant bits, about 15–17 significant decimal digits. **Machine epsilon** is the gap between 1.0 and the next double: 2^−52 ≈ 2.22 × 10^−16.
+
+**Why 0.1 is inexact.** A fraction has a finite binary expansion only if its denominator (in lowest terms) is a power of 2. 1/10 = 1/(2 × 5), and the factor 5 makes it repeat, as 1/3 does in decimal. The stored 0.1 is the nearest double, slightly off, so in IEEE 754 double 0.1 + 0.2 is 0.30000000000000004 (Python prints it).
+
+**Special values:**
+
+- **±0:** `0.0 == -0.0` is true, though the sign bits differ.
+- **±infinity:** from overflow, and in many languages from dividing by zero (Python raises instead).
+- **NaN:** "not a number", from invalid operations. NaN compares unequal to everything, itself included.
+
+**float32** (single) has 1 + 8 + 23 bits: 24 significant bits, about 7 decimal digits. It halves memory, at a steep cost in precision.
+
+**Money.** Binary floats cannot hold most decimal cents. Use **integer minor units** (cents) or a decimal type (`decimal.Decimal` in Python, `BigDecimal` in Java), and round only at defined points.
+
+**Choosing a width.** Estimate the maximum, then pick the type. A counter bumped 1,000 times a second overflows a signed int32 after 2,147,483,647 ÷ 1,000 ≈ 2.1 million seconds, about 24.9 days. Near the limit, use 64 bits.
+
+## Visual
+
+```text
+8-bit two's complement (top bit weight -128)
+ 00000000 = 0    01111111 = 127   10000000 = -128   11111111 = -1
+ 127 + 1 wraps to -128; -1 + 1 carries out of the top and leaves 0
+
+double (64 bits)
+ [ s | eeeeeeeeeee | 52 fraction bits ]   (-1)^s x 1.f x 2^(e-1023)
+```
+
+## Example
+
+Python 3.12: two's complement by hand, a 32-bit wrap simulated with masking (Python's `int` never overflows itself), and the float traps.
+
+```python
+x = 5
+neg = (~x + 1) & 0xFF
+print(format(x, "08b"), format(~x & 0xFF, "08b"), format(neg, "08b"), neg)
+print((-5) & 0xFF == 251, int("0xFF", 16), 0b1011)
+
+def wrap32(x):
+    return ((x + 2**31) % 2**32) - 2**31
+
+print(wrap32(2147483647 + 1), wrap32(-2147483648 - 1))
+```
+
+Output:
+
+```text
+00000101 11111010 11111011 251
+True 255 11
+-2147483648 2147483647
+```
+
+`~x & 0xFF` inverts within 8 bits; adding 1 gives 251 = 256 − 5, which is 11111011 read as unsigned. The wrap formula shifts the range up by 2^31, reduces mod 2^32, then shifts back.
+
+```python
+import math, struct, sys
+from decimal import Decimal
+
+print(0.1 + 0.2, 0.1 + 0.2 == 0.3)
+total = 0.0
+for _ in range(10):   # a loop: sum() in Python 3.12+ compensates and gives 1.0
+    total += 0.1
+print(total, total == 1.0)
+print(Decimal(0.1))
+print(float.hex(0.1), sys.float_info.epsilon == 2.0**-52)
+print(math.isclose(0.1 + 0.2, 0.3), 1e308 * 10, float("nan") == float("nan"))
+print(0.0 == -0.0, struct.unpack("f", struct.pack("f", 0.1))[0])
+```
+
+Output:
+
+```text
+0.30000000000000004 False
+0.9999999999999999 False
+0.1000000000000000055511151231257827021181583404541015625
+0x1.999999999999ap-4 True
+True inf False
+True 0.10000000149011612
+```
+
+`Decimal(0.1)` shows the exact stored value, a little above 0.1. `float.hex` shows the implicit 1 (`0x1.…`) and a repeating `9` rounded up to `a` at the end. The float32 line is the same 0.1 in 24 bits, off from the 9th significant digit.
+
+Now an invoice with 7.5% tax, rounded half up to the cent. Lines are $9.99, $6.01 and 2 × $3.50: subtotal $23.00, exact tax $1.725.
+
+```python
+from decimal import Decimal, ROUND_HALF_UP
+
+lines = [(999, 1), (601, 1), (350, 2)]            # (unit price in cents, quantity)
+
+sub = 0.0
+for cents, qty in lines:
+    sub += cents / 100 * qty
+tax = round(sub * 0.075, 2)
+print("float  ", sub, sub * 0.075, tax, round(sub + tax, 2))
+
+sub_c = sum(c * q for c, q in lines)
+tax_c = (sub_c * 75 + 500) // 1000                # 7.5% = 75/1000, half up
+print("cents  ", sub_c, tax_c, sub_c + tax_c)
+
+sub_d = sum(Decimal(c) / 100 * q for c, q in lines)
+tax_d = (sub_d * Decimal("0.075")).quantize(Decimal("0.01"), ROUND_HALF_UP)
+print("decimal", sub_d, tax_d, sub_d + tax_d)
+```
+
+Output:
+
+```text
+float   23.0 1.7249999999999999 1.72 24.72
+cents   2300 173 2473
+decimal 23.00 1.73 24.73
+```
+
+The float tax is 1.7249999999999999, just under the half-cent, so it rounds down to 1.72. Integer cents and `Decimal` apply the stated rule and get 1.73; a cent per invoice breaks reconciliation.
+
+## Pitfalls
+
+- **Comparing floats with `==`.** Fix: use a tolerance, such as `math.isclose` (relative by default), with `abs_tol` when a value can be near zero.
+- **Storing money in floats.** Fix: integer cents or `Decimal`/`BigDecimal`, with one written rounding rule applied at defined points.
+- **Assuming overflow is the same everywhere.** C signed overflow is undefined, so the compiler may assume it never happens. Fix: know the language rule, and use wider types or checked arithmetic (`Math.addExact` in Java).
+- **Forgetting the range is asymmetric.** int32 has no +2,147,483,648 to negate −2,147,483,648 into. Fix: widen first.
+- **Treating NaN as a normal value.** `nan == nan` is false, so equality checks miss it. Fix: test with `math.isnan`, and stop NaN where it first appears.
+- **Using float32 carelessly.** About 7 digits runs out quickly in sums. Fix: accumulate in double.
+- **Picking a width without an estimate.** Fix: compute rate × lifetime, compare with the type's maximum, go up a size.
+
+## Tips & tricks
+
+- **Rules of thumb:** n bits give 2^n patterns. A double has about 15–17 digits, float32 about 7. Money is integers or decimals, never binary floats.
+- **Interview phrasing:** "Two's complement: invert and add one; one zero, an asymmetric range." And: "0.1 has no finite binary expansion, so I use a tolerance, or integer cents for money."
+- **What to measure:** print `Decimal(x)` or `float.hex(x)` to see what is really stored. Test overflow at the boundary values (max, max + 1, min, min − 1) in your actual language.

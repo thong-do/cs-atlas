@@ -1,0 +1,137 @@
+---
+slug: discrete-math-essentials
+title: Discrete math essentials
+level: beginner
+authors: [cs-atlas]
+prerequisites: []
+summary: "Use logic, counting, the pigeonhole principle, modular arithmetic and basic probability to estimate search spaces, hash collisions and bucket moves before you write the code."
+---
+
+## Intuition
+
+A lock with four dials of 0–9 has 10 × 10 × 10 × 10 = 10,000 settings, and you knew that without trying any. Discrete math is that skill for software: count the possibilities and reason, don't test.
+
+**Logic.** De Morgan's laws push a `not` inside a condition: not (A and B) = (not A) or (not B), and not (A or B) = (not A) and (not B). Flip every comparison too:
+
+- `not (x > 0 and y > 0)` is `x <= 0 or y <= 0`.
+
+An implication "if P then Q" is false only when P is true and Q is false. It equals its **contrapositive**, "if not Q then not P", but not its converse "if Q then P". "If the cache is warm, the request is fast" doesn't mean a fast request had a warm cache.
+
+**Sets.** Union, intersection and difference are `a | b`, `a & b` and `a - b` in Python, and `UNION`, `INTERSECT` and `EXCEPT` in SQL (Oracle calls the last `MINUS`).
+
+**Counting.**
+
+- **Product rule:** independent choices multiply: 36³ = 46,656 three-character codes over 36 symbols.
+- **Permutations** count ordered picks of k from n: n!/(n−k)!. Choosing a gold, silver and bronze from 10 runners gives 10 × 9 × 8 = 720.
+- **Combinations** ignore order: C(n, k) = n!/(k!(n−k)!). Each group of 3 appears 3! = 6 times among the 720 orderings: 720 ÷ 6 = 120.
+- **Subsets:** each of n items is in or out, so there are 2^n subsets. A subset fits in an n-bit mask (see [Bit manipulation](/algorithms/bit-manipulation/)), and n ≤ 20 is enumerable (2^20 ≈ 10^6).
+- **Search spaces:** an 8-character password has 26^8 ≈ 2.1 × 10^11 values over lowercase letters and 62^8 ≈ 2.2 × 10^14 over letters and digits, about 1,000 times more.
+
+**Pigeonhole.** Put more than k items into k boxes and some box holds two. Any hash into 2^32 buckets must collide among 2^32 + 1 keys. Lossless compression can't shrink every file either: of 2^n files of n bits, only 2^n − 1 strings are shorter (the empty one included), so some file can't shrink.
+
+**Logs and powers of two.** The bits needed to name one of N things is log₂ N, rounded up. Since 2^10 ≈ 10^3, 2^30 ≈ 10^9. Log bases and growth tables: [Complexity & Big-O](/cs-fundamentals/complexity/).
+
+**Modular arithmetic.** a ≡ b (mod n) means n divides a − b: on a 24-hour clock, 22 + 5 = 27 ≡ 3. Languages disagree about `%` with a negative operand. Python's result takes the sign of the divisor, so `-7 % 3` is 2. C and Java take the sign of the dividend, so `-7 % 3` is −1. A bucket index `h % n` can go negative in those languages when `h` can; Java offers `Math.floorMod`.
+
+Hashing into buckets uses `h % n`. When `n` changes, most keys change bucket, since `h % n` and `h % n'` agree on few residues. [Replication & sharding](/system-design/replication-sharding/) covers the remedy, consistent hashing.
+
+**Probability.**
+
+- **Uniform:** each of N outcomes has probability 1/N.
+- **Independence:** P(A and B) = P(A) × P(B).
+- **Complement:** P(at least one) = 1 − P(none). Count the easy case.
+- **Expectation is linear:** E[X + Y] = E[X] + E[Y], even when X and Y are dependent. An event with probability p per try takes 1/p tries on average (p = 0.2: 5).
+- **Birthday estimate.** n random values from N possibilities contain C(n, 2) ≈ n²/2 pairs. Each pair matches with probability 1/N, so by linearity the expected number of colliding pairs is about n²/2N. [URL shortener](/system-design/url-shortener/) uses that count. For the chance of at least one collision, treat the pairs as independent (a good approximation while n²/2N is not huge): P(none) ≈ (1 − 1/N)^(n²/2) ≈ e^(−n²/2N), so P(any) ≈ 1 − e^(−n²/2N).
+
+**Invariants and induction.** Induction proves a claim for all n: show it for a base case, then show that if it holds for n it holds for n + 1. A **loop invariant** applies this to a loop: it holds before the first iteration, each iteration preserves it, and at exit it implies the result. In a running-maximum loop, "`best` is the maximum of the items seen so far" does all three.
+
+## Visual
+
+```text
+6 symbols from 32            N = 32^6 = 2^30 ≈ 1.07 x 10^9 codes
+issue n = 50,000 codes:
+  one new code hits an old one   n / N             ≈ 4.7 x 10^-5
+  expected colliding pairs       n^2 / 2N          ≈ 1.16
+  P(at least one collision)      1 - e^(-n^2/2N)   ≈ 0.69
+```
+
+## Example
+
+How safe are random 6-character coupon codes from a 32-symbol alphabet? Each symbol carries log₂ 32 = 5 bits, so six symbols name one of N = 32^6 = 2^30 codes. First the logic, sets, counting and `%` checks (Python 3.12).
+
+```python
+import math
+from itertools import product
+from math import comb, perm
+
+print(all((not (a and b)) == (not a or not b) and (not (a or b)) == (not a and not b)
+          for a, b in product([False, True], repeat=2)))
+a, b = {1, 2, 3, 4}, {3, 4, 5}
+print(a | b, a & b, a - b)
+print(perm(10, 3), comb(10, 3), comb(52, 5), 2**20)
+print(26**8, 62**8, round(62**8 / 26**8))
+print(-7 % 3, math.fmod(-7, 3), (22 + 5) % 24)
+print(sum(1 for h in range(40_000) if h % 8 == h % 10) / 40_000)
+```
+
+Output:
+
+```text
+True
+{1, 2, 3, 4, 5} {3, 4} {1, 2}
+720 120 2598960 1048576
+208827064576 218340105584896 1046
+2 -1.0 3
+0.2
+```
+
+`math.fmod` follows C's sign rule. Growing from 8 to 10 buckets leaves a key in place only 1 time in 5.
+
+Now issue n = 50,000 codes. One new code collides with probability n/N, the expected colliding pairs are n²/2N, and the complement trick gives the chance of at least one. A simulation checks the model.
+
+```python
+import random
+from math import exp
+
+N, n = 32**6, 50_000
+print(N == 2**30, N)
+print(n / N, n * n / (2 * N), 1 - exp(-n * n / (2 * N)))
+
+rng = random.Random(7)
+trials, hit = 500, 0
+for _ in range(trials):
+    seen = set()
+    for _ in range(n):
+        code = rng.getrandbits(30)          # six 5-bit symbols
+        if code in seen:
+            hit += 1
+            break
+        seen.add(code)
+print(hit / trials)
+```
+
+Output:
+
+```text
+True 1073741824
+4.6566128730773926e-05 1.1641532182693481 0.6878130956937922
+0.71
+```
+
+One new code is safe (about 1 in 21,000 collides), yet across all 50,000 a collision is more likely than not. The simulation agrees within noise (about ±0.02 at 500 trials). With a uniqueness check and retry, the expected tries per code are 1/(1 − n/N) ≈ 1.00005.
+
+## Pitfalls
+
+- **Negating a condition by hand.** Forgetting to flip `and`/`or` or a comparison. Fix: apply De Morgan and test boundaries.
+- **Mixing up permutations and combinations.** Fix: ask whether order matters; if not, divide by k!.
+- **A negative `%` result as an index.** Fix: use floor-mod (`Math.floorMod` in Java) or check the language's rule.
+- **Trusting per-item odds.** One new code collides with probability 4.7 × 10^−5, yet the whole set likely does. Fix: use n²/2N.
+- **Blaming a "bad" hash for every collision.** Pigeonhole forces some. Fix: plan for collisions.
+- **Treating the exponential as exact.** It assumes independent pairs. Fix: use it for estimates; simulate to confirm.
+- **An invariant the loop breaks, or one that doesn't give the goal.** Fix: check initialization, maintenance and exit separately.
+
+## Tips & tricks
+
+- **Rules of thumb:** 2^10 ≈ 10^3. Collisions turn likely once n²/2N nears 1, around n ≈ √N. 2^n and n! are both huge by n ≈ 20.
+- **Interview phrasing:** "There are 62^8 ≈ 2 × 10^14 passwords; at an illustrative 10^9 guesses per second that's about 2.5 days." And: "Pigeonhole: a hash into N buckets collides by N + 1 keys."
+- **What to measure:** simulate small cases against your formula, and test `%` with negative inputs in your language.

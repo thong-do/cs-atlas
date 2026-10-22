@@ -1,0 +1,56 @@
+slug: discrete-math-essentials-quiz
+type: quiz
+title: "Discrete math essentials — quiz"
+lessons: [discrete-math-essentials]
+ladderOrder: 1
+questions:
+  - id: half-chance-tags
+    prompt: "A dedup service stamps each upload with a random 32-bit tag (N = 2^32 ≈ 4.3 × 10^9 values) and treats equal tags as the same file. Use P(at least one collision) ≈ 1 − e^(−n²/2N). Roughly how many files n make a collision more likely than not?"
+    choices: ["About 65,000: the exponent n²/2N must reach 1/2 for an even chance, and n²/2N = 1/2 gives n = √N = 2^16", "About 77,000: an even chance means 1 − e^(−x) = 1/2, so x = n²/2N = ln 2 ≈ 0.69 and n = √(2N ln 2)", "About 46,000: treat n²/N as the chance of a collision, and set it to 1/2, so n = √(N/2)", "About 2.1 billion: a collision becomes as likely as not once half the 2^32 tags are taken"]
+    answer: 1
+    explanation: "Setting 1 − e^(−x) = 1/2 gives x = ln 2 ≈ 0.69, and n²/2N = 0.69 gives n ≈ 77,000. The other choices use x = 1/2 (which is only a 39% chance), read n²/N as the probability itself, or wait for half the tags to fill, which is the point where a single new tag is 50% likely to hit."
+  - id: secret-santa
+    prompt: "A secret-santa draw randomly shuffles 20 names so each person receives exactly one name (a random permutation). X is the number of people who receive their own name. Each person gets their own name with probability 1/20, but the draws are dependent, because a name taken by one person is unavailable to the rest. What is E[X]?"
+    choices: ["1: E[X] adds the 20 individual probabilities, 20 × 1/20, and that sum is valid even when the draws depend on each other", "About 0.64: treat the draws as independent, so the chance of at least one match is 1 − (19/20)^20, which is the expected count", "19/20: once one person matches, the others can no longer match, so subtract one person's chance from the sum of 20 × 1/20", "It cannot be found without listing all 20! shuffles, because dependence breaks the rule for adding expectations"]
+    answer: 0
+    explanation: "Each person is a match with probability 1/20 whatever the others do, so the 20 expectations add to exactly 1. The other choices confuse the probability of at least one match with the expected count, subtract a correction that does not exist, or claim dependence blocks the sum."
+  - id: cache-fleet-growth
+    prompt: "A cache routes integer key k to server `k % n`, and the keys are spread evenly over all residues. The fleet grows from n = 4 to n = 6 servers. What fraction of keys now map to a different server, and why?"
+    choices: ["About 1 in 3: the 2 new servers should hold 2/6 of the keys, and only those keys have to move", "About 11 in 12: a key keeps its server only when k is a multiple of 12, the least common multiple of 4 and 6", "About 2 in 3: a key stays only when k % 4 equals k % 6, which holds for 4 of every 12 residues (0–3)", "About 1 in 2: k % 4 and k % 6 always have the same parity, so even residues stay and odd residues move"]
+    answer: 2
+    explanation: "Over one cycle of 12 residues, k % 4 equals k % 6 only for 0, 1, 2 and 3, so 8 of 12 keys move. The other choices assume an ideal rebalancer that moves only the new servers' share, require k to be a multiple of 12, or treat equal parity as equal server numbers."
+  - id: negative-remainder
+    prompt: "In Java, `int` division truncates toward zero, and `a == (a / b) * b + a % b` always holds. What does `-17 % 5` evaluate to?"
+    choices: ["3: the remainder is the distance above the next lower multiple of 5, since −20 + 3 = −17, as on a clock", "2: the operator works on magnitudes, so it computes 17 % 5 and drops the sign", "-2: −17 / 5 truncates to −3, so the remainder is −17 − (−3 × 5) = −17 + 15 = −2", "-3: the distance from −17 down to −20 is 3, and the result keeps the dividend's sign"]
+    answer: 2
+    explanation: "With a quotient of −3, the identity leaves −17 − (−15) = −2. The other choices apply a clock wrap (3), discard the sign (2), or measure the gap to the lower multiple but keep the sign (−3)."
+  - id: at-least-one-digit
+    prompt: "A password policy needs 8 characters from the 62 symbols A–Z, a–z and 0–9, with at least one digit. How many strings satisfy it, and how is it counted?"
+    choices: ["10 × 62^7 ≈ 3.5 × 10^13: one position must hold a digit (10 choices) and the other seven positions are free", "8 × 10 × 62^7 ≈ 2.8 × 10^14: pick the digit's position (8), its value (10), and fill the other seven freely", "62^8 − 10^8 ≈ 2.2 × 10^14: remove the strings that are made up of digits only", "62^8 − 52^8 ≈ 1.6 × 10^14: remove the strings with no digit at all, which have 52 choices per position"]
+    answer: 3
+    explanation: "Strings with no digit number 52^8, and subtracting them from 62^8 counts each valid string once. The other choices fix one digit position (undercount), count strings with several digits more than once (the total is more than 62^8), or subtract only all-digit strings, which is the wrong complement."
+flashcards:
+  - id: de-morgan
+    front: "De Morgan's laws for an if condition"
+    back: "not (A and B) = (not A) or (not B); not (A or B) = (not A) and (not B). Flip each comparison too: not (x > 0 and y > 0) is x <= 0 or y <= 0."
+  - id: contrapositive
+    front: "Contrapositive vs converse of 'if P then Q'"
+    back: "The contrapositive 'if not Q then not P' is equivalent to the original. The converse 'if Q then P' is not."
+  - id: perm-vs-comb
+    front: "Permutations vs combinations of k from n"
+    back: "Ordered: n!/(n-k)!. Unordered: C(n, k) = n!/(k!(n-k)!). Each unordered group appears k! times among the ordered picks."
+  - id: subset-count
+    front: "How many subsets does an n-element set have?"
+    back: "2^n, since each item is in or out. A subset fits in an n-bit mask. 2^20 is about a million."
+  - id: pigeonhole
+    front: "State the pigeonhole principle and two uses"
+    back: "More than k items in k boxes puts two in one box. Any hash into 2^32 buckets collides by 2^32 + 1 keys; no lossless compressor shrinks every file."
+  - id: birthday-estimate
+    front: "Birthday estimate for n values from N possibilities"
+    back: "Expected colliding pairs about n^2 / 2N. P(at least one) is about 1 - e^(-n^2/2N), treating pairs as independent. It is an estimate, not exact."
+  - id: percent-negative
+    front: "How does % behave with a negative operand?"
+    back: "Python: the result takes the divisor's sign, so -7 % 3 is 2. C and Java: the dividend's sign, so -7 % 3 is -1. Java has Math.floorMod for the non-negative result."
+  - id: loop-invariant
+    front: "What must you show for a loop invariant?"
+    back: "It holds before the first iteration, each iteration keeps it true, and at exit it implies the result you want."

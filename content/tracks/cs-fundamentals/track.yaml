@@ -17,5 +17,4 @@ modules:
     lessons: [indexes-btrees, transactions-isolation, query-planning]
   - slug: machine-math
     title: Machine & math
-    lessons: [memory-hierarchy, number-representation]
-    comingSoon: ["Discrete math essentials"]
+    lessons: [memory-hierarchy, number-representation, discrete-math-essentials]

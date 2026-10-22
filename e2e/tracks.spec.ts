@@ -36,15 +36,16 @@ test('the palette groups lessons by track', async ({ page }) => {
   await expect(page).toHaveURL(/\/system-design\/caching\/$/)
 })
 
-test('the CS Fundamentals home shows modules and coming-soon titles, and Continue opens the first lesson', async ({ page }) => {
+test('the CS Fundamentals home shows all five modules with every lesson linked, and Continue opens the first lesson', async ({ page }) => {
   await page.goto('/cs-fundamentals/')
   await expect(page.getByRole('heading', { level: 1, name: 'CS Fundamentals' })).toBeVisible()
   for (const name of ['Foundations', 'Operating systems', 'Networking', 'Databases', 'Machine & math']) {
     await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
   }
-  await expect(page.getByText('Coming soon').first()).toBeVisible()
-  await expect(page.getByText('Discrete math essentials')).toBeVisible()
+  await expect(page.getByText('Coming soon')).toHaveCount(0)
   await expect(page.getByRole('link', { name: /The memory hierarchy/ })).toHaveAttribute('href', '/cs-fundamentals/memory-hierarchy/')
+  await expect(page.getByRole('link', { name: /Number representation/ })).toHaveAttribute('href', '/cs-fundamentals/number-representation/')
+  await expect(page.getByRole('link', { name: /Discrete math essentials/ })).toHaveAttribute('href', '/cs-fundamentals/discrete-math-essentials/')
   await expect(page.getByRole('link', { name: /Indexes & B-trees/ })).toHaveAttribute('href', '/cs-fundamentals/indexes-btrees/')
   await expect(page.getByRole('link', { name: /Query planning/ })).toHaveAttribute('href', '/cs-fundamentals/query-planning/')
   await expect(page.getByRole('link', { name: /HTTP\/1\.1, HTTP\/2 and HTTP\/3/ })).toHaveAttribute('href', '/cs-fundamentals/http-versions/')

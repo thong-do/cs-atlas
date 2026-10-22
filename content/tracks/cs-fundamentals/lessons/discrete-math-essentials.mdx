@@ -50,7 +50,7 @@ Hashing into buckets uses `h % n`. When `n` changes, most keys change bucket, si
 ```text
 6 symbols from 32            N = 32^6 = 2^30 ≈ 1.07 x 10^9 IDs
 issue n = 50,000 IDs:
-  one new ID hits an old one   n / N             ≈ 4.7 x 10^-5
+  one new ID hits an old one     n / N             ≈ 4.7 x 10^-5
   expected colliding pairs       n^2 / 2N          ≈ 1.16
   P(at least one collision)      1 - e^(-n^2/2N)   ≈ 0.69
 ```
@@ -118,7 +118,7 @@ True 1073741824
 0.718
 ```
 
-One new ID is safe (about 1 in 21,000 collides), yet across all 50,000 a collision is more likely than not. The simulation agrees within noise (about ±0.02 at 500 trials). With a uniqueness check and retry, the expected tries per ID are 1/(1 − n/N) ≈ 1.00005.
+One new ID rarely collides (about 1 in 21,000), yet across all 50,000 a collision is more likely than not. The simulation agrees within noise (one standard error is about 0.02 at 500 trials; the gap of 0.03 is 1.5 of them). With a uniqueness check and retry, the expected tries per ID are 1/(1 − n/N) ≈ 1.00005.
 
 ## Pitfalls
 
@@ -132,6 +132,6 @@ One new ID is safe (about 1 in 21,000 collides), yet across all 50,000 a collisi
 
 ## Tips & tricks
 
-- **Rules of thumb:** 2^10 ≈ 10^3. Even odds of a collision when n²/2N ≈ 0.69, at n ≈ 1.18√N. At n = 20, n! ≈ 2.4 × 10^18 but 2^n ≈ 10^6.
+- **Rules of thumb:** 2^10 ≈ 10^3. Even odds of a collision when n²/2N ≈ 0.69. At n = 20, n! ≈ 2.4 × 10^18 but 2^n ≈ 10^6.
 - **Interview phrasing:** "There are 62^8 ≈ 2 × 10^14 passwords; at an illustrative 10^9 guesses per second that's about 2.5 days." And: "Pigeonhole: a hash into N buckets collides by N + 1 keys."
 - **What to measure:** simulate small cases against your formula, and test `%` with negative inputs in your language.

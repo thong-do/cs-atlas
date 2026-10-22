@@ -22,17 +22,17 @@ rubric:
   - id: arithmetic
     point: "Shows 256 = 4 × 62 + 8: values 0–247 map evenly, 4 per position, and 248–255 add a fifth to positions 0–7. So P = 5/256 ≈ 1.95% against 4/256 ≈ 1.56% (ratio 1.25), and 10,000,000 × 5/256 ≈ 195,313 and × 4/256 = 156,250 match the counts; check 8 × 5 + 54 × 4 = 256."
   - id: impact
-    point: "Quantifies the loss with H = −Σ p log2 p: about 5.9497 bits per character against log2 62 ≈ 5.9542, about 0.0045 bits less, roughly 0.045 bits per 10-character code. So the loss is small, but the bias is real and lets a guesser try the likelier characters first (hedged, approximate)."
+    point: "Quantifies the loss with H = −Σ p log2 p: about 5.9497 bits per character against log2 62 ≈ 5.9542, about 0.0045 bits less, roughly 0.045 bits per 10-character code. So the loss is small, but the bias is real and lets a guesser try the likelier characters first: by min-entropy, −log2(5/256) ≈ 5.678 against 5.954 bits per character, about 2.8 bits per 10-character code, and the likeliest single code is about (310/256)^10 ≈ 6.8 times likelier than under uniform (hedged, approximate)."
   - id: confirm
     point: "Confirms with a frequency count of characters, a chi-square test against equal expected counts, or by reproducing the arithmetic over the 256 byte values."
   - id: fixes
     point: "Gives fixes with trade-offs: rejection sampling (discard bytes ≥ 248), which needs about 256/248 ≈ 1.03 bytes per character; `secrets.choice(ALPHABET)`, which is simple and safe; a 64-character alphabet, since 256 is divisible by 64, which changes the code format; or drawing a large random integer and converting its base, where the remaining bias is tiny but not zero unless the integer is uniform over 62^10."
 reference: |
-  **Cause.** A byte has 256 values, and 256 is not a multiple of 62. Mapping each byte to a position by remainder leaves 8 values over, which land on positions 0–7 (`A`–`H`). The random source is fine; the mapping is not even.
+  **Cause.** A byte has 256 values, and 256 is not a multiple of 62. Mapping each byte to a position by remainder leaves 8 values over, which land on positions 0–7 (`A`–`H`). The source is fine; the mapping is not even.
 
-  **Arithmetic.** 256 = 4 × 62 + 8. Values 0–247 give each position 4 bytes, and 248–255 add a fifth to positions 0–7. Check: 8 × 5 + 54 × 4 = 40 + 216 = 256. So P = 5/256 ≈ 1.95% for `A`–`H` and 4/256 ≈ 1.56% for the rest, a ratio of 1.25. Over 10,000,000 characters, 10,000,000 × 5/256 ≈ 195,313 and 10,000,000 × 4/256 = 156,250, matching the counts. The expected 161,290 holds only for equal probabilities.
+  **Arithmetic.** 256 = 4 × 62 + 8. Values 0–247 give each position 4 bytes, and 248–255 add a fifth to positions 0–7. Check: 8 × 5 + 54 × 4 = 256. So P = 5/256 ≈ 1.95% for `A`–`H` and 4/256 ≈ 1.56% for the rest, a ratio of 1.25. Over 10,000,000 characters, 10,000,000 × 5/256 ≈ 195,313 and 10,000,000 × 4/256 = 156,250, matching the counts.
 
-  **Impact.** With H = −Σ p log2 p, H = −[8 × (5/256) × log2(5/256) + 54 × (4/256) × log2(4/256)] ≈ 5.9497 bits per character, against log2 62 ≈ 5.9542, a loss near 0.0045 bits, about 0.045 bits per 10-character code. That is small, but the bias is real and a guesser can try likelier characters first. Treat the figures as approximate.
+  **Impact.** With H = −Σ p log2 p, H = −[8 × (5/256) × log2(5/256) + 54 × (4/256) × log2(4/256)] ≈ 5.9497 bits per character, against log2 62 ≈ 5.9542, a loss near 0.0045 bits, about 0.045 bits per 10-character code. That is small, but the bias is real and a guesser can try likelier characters first. For that guesser, min-entropy applies: −log2(5/256) ≈ 5.678 against 5.954 bits per character, about 2.8 bits per 10-character code. The likeliest code (all `A`–`H`) is (310/256)^10 ≈ 6.8 times likelier than under uniform. Treat the figures as approximate.
 
   **Confirm.** Count character frequencies, run a chi-square test against equal expected counts, or reproduce the arithmetic over the 256 byte values.
 

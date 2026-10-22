@@ -40,7 +40,7 @@ Python's `len` counts Unicode code points, not bytes and not what a reader sees 
 
 **Managed-language overhead.** In Python, an int is a full object with a header. On CPython 3.12 on a 64-bit machine, `sys.getsizeof(5)` returned 28 and `sys.getsizeof([])` returned 56. Treat those as one data point: exact sizes vary by version, platform and build, and a list of ints also stores 8 bytes per element for the references. So a small Python int is far larger than 4 bytes.
 
-**Locality teaser.** Walking neighbouring addresses is much friendlier to CPU caches than hopping between scattered ones; The memory hierarchy, on this track's outline, explains why.
+**Locality teaser.** Walking neighbouring addresses is much friendlier to CPU caches than hopping between scattered ones; [The memory hierarchy](/cs-fundamentals/memory-hierarchy/) explains why.
 
 ## Visual
 

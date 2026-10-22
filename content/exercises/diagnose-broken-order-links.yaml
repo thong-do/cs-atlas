@@ -17,7 +17,7 @@ rubric:
   - id: arithmetic
     point: "Shows that doubles hold integers exactly only up to 2^53 = 9,007,199,254,740,992, and that the ID (about 1.18 × 10^18) lies between 2^60 and 2^61, where adjacent doubles are 2^(60−52) = 256 apart, so IDs round to the nearest multiple of 256."
   - id: example
-    point: "Checks the example: 1180591620717411303 is 231 above a multiple of 256, so the nearest double is 1180591620717411328 (25 above), which JavaScript prints in shortest round-trip form as 1180591620717411300; and explains why nearly all fail: only multiples of 256 survive, about 1 in 256 (≈0.4%), matching 996 of 1,000."
+    point: "Checks the example: 1180591620717411303 is 231 above a multiple of 256, so the nearest double is 1180591620717411328 (25 above), which JavaScript prints in shortest round-trip form as 1180591620717411300; and explains why nearly all fail: each double prints as one decimal string and only the ID equal to that string survives, about one per 256 IDs (≈0.4%), matching 996 of 1,000. Even an exactly representable multiple of 256 such as 1180591620717411328 prints as 1180591620717411300."
   - id: confirm
     point: "Confirms with Number.isSafeInteger(id) being false, comparing the raw response text with the parsed value (or String(JSON.parse(text).id)), and a unit test that parses this ID and expects it back unchanged."
   - id: fixes
@@ -25,7 +25,7 @@ rubric:
 reference: |
   **Cause.** JavaScript numbers are IEEE 754 doubles, with 53 significant bits. `JSON.parse` turns the ID into the nearest double, and the changed value goes into the URL, where no order exists (404). Kotlin's `Long` is an exact 64-bit integer, so Android works. Small IDs sit below 2^53 = 9,007,199,254,740,992 and are exact.
 
-  **Arithmetic.** The ID is about 1.18 × 10^18, between 2^60 ≈ 1.15 × 10^18 and 2^61. With 52 fraction bits, adjacent doubles there are 2^(60−52) = 256 apart, so IDs round to a multiple of 256. For the example, 1180591620717411303 = 231 above a multiple of 256; the next multiple is 25 above, 1180591620717411328, the nearest double. JavaScript prints it in shortest round-trip form, `1180591620717411300`, matching the address bar. Only multiples of 256 survive: about 1 in 256 (≈0.4%), so about 255 in 256 break. 1,000 × 255/256 ≈ 996, matching the sample, if low bits are roughly uniform.
+  **Arithmetic.** The ID is about 1.18 × 10^18, between 2^60 ≈ 1.15 × 10^18 and 2^61. With 52 fraction bits, adjacent doubles there are 2^(60−52) = 256 apart, so IDs round to a multiple of 256. For the example, 1180591620717411303 = 231 above a multiple of 256; the next multiple is 25 above, 1180591620717411328, the nearest double. JavaScript prints it in shortest round-trip form, `1180591620717411300`, matching the address bar. Each double prints as one decimal string, and only the ID equal to that string survives: about one per 256 IDs (≈0.4%), so about 255 in 256 break. Even an exactly representable multiple of 256 like 1180591620717411328 prints as 1180591620717411300. 1,000 × 255/256 ≈ 996, matching the sample, if low bits are roughly uniform.
 
   **Confirm.** `Number.isSafeInteger(id)` is false. Compare the raw response text with the parsed value. Add a unit test that parses this ID and expects it back.
 

@@ -45,7 +45,7 @@ Scaling 1 ns to 1 s, 100 ns becomes 100 s, and 100 ÷ 60 ≈ 1.7 minutes: a DRAM
 
 **Same Big-O, different speed.** [Complexity & Big-O](/cs-fundamentals/complexity/) drops constants; the hierarchy is where they live.
 
-- **Array vs linked list.** Summing 1,000,000 4-byte ints in an array reads 4,000,000 B ÷ 64 B = 62,500 lines, in order. A linked list of 1,000,000 nodes has the same O(n) loop, but its nodes may be scattered and each address comes from the previous node, so loads cannot overlap. At an illustrative DRAM trip of ~100 ns each, that is 1,000,000 × 100 ns = 100 ms, far more than the array's streaming read.
+- **Array vs linked list.** Summing 1,000,000 4-byte ints in an array reads 4,000,000 B ÷ 64 B = 62,500 lines, in order. A linked list of 1,000,000 nodes has the same O(n) loop, but its nodes may be scattered and each address comes from the previous node, so loads cannot overlap. At an illustrative ~100 ns per DRAM trip, if each node misses to DRAM, that is 1,000,000 × 100 ns = 100 ms, far more than the array's streaming read.
 - **Binary search vs hash table on small n.** A sorted array of 1,000 ints is 4,000 B and fits in L1, so its ~10 probes hit cache. A hash lookup is O(1) but may chase a pointer. At small n constants decide, so measure.
 
 **Data layout.** An **array of structs (AoS)** stores each record's fields together. A **struct of arrays (SoA)** stores each field in its own array. Summing one field of 1,000,000 32-byte records, AoS reads 1,000,000 × 32 B ÷ 64 B = 500,000 lines, using 4 of every 32 bytes. SoA reads 4,000,000 B ÷ 64 B = 62,500, which is 8× fewer. If you use all fields together, AoS is fine (see [Data in memory](/cs-fundamentals/data-in-memory/) for struct layout).
@@ -113,7 +113,7 @@ run 1: row-major 1.0 ms, column-major 59.0 ms, ratio 58.2x
 run 2: row-major 1.2 ms, column-major 58.5 ms, ratio 48.2x
 ```
 
-The first run (warm-up) is 10× slower (12.1 ÷ 1.2). The ratio of about 50× exceeds even 32× partly because the compiler can vectorise the row loop (with `-fno-vectorize -fno-unroll-loops` it was about 11×). The line count predicts the direction, not the figure. Prefetchers soften strided access but often stop at page boundaries, and a 16 KiB step crosses a page every time.
+The first run (warm-up) is 10× slower (12.1 ÷ 1.2). The ratio of about 50× exceeds even 32× partly because the compiler can vectorise the row loop (with clang's `-fno-vectorize -fno-unroll-loops`, or gcc's `-fno-tree-vectorize`, it was about 11×). The line count predicts the direction, not the figure. Prefetchers soften strided access but often stop at page boundaries, and a 16 KiB step crosses a page every time.
 
 ## Pitfalls
 

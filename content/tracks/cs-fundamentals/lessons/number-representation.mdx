@@ -32,7 +32,7 @@ Why use it:
 - **Same adder.** Addition works identically on signed and unsigned patterns.
 - **An asymmetric range:** −2^(n−1) … 2^(n−1) − 1. For int32 that is −2,147,483,648 … 2,147,483,647: 2^31 negatives but only 2^31 − 1 positives, because zero takes a slot.
 
-**Overflow depends on the language, not just the hardware.** Hardware wraps modulo 2^n; languages choose what to promise. Check your version and flags.
+**Overflow depends on the language, not just the hardware.** Mainstream CPU adds wrap modulo 2^n; languages choose what to promise. Check version and flags.
 
 | Language | Result past the range |
 |---|---|
@@ -158,7 +158,7 @@ cents   2300 173 2473
 decimal 23.00 1.73 24.73
 ```
 
-The float tax is 1.7249999999999999, just under the half-cent, so it rounds down to 1.72. Integer cents and `Decimal` apply the stated rule and get 1.73; a cent per invoice breaks reconciliation.
+The float tax is 1.7249999999999999, just under the half-cent, so Python's `round` sends it to 1.72. Integer cents and `Decimal` apply the stated rule and get 1.73; a cent per invoice breaks reconciliation.
 
 ## Pitfalls
 

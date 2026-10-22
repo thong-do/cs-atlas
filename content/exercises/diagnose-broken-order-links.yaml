@@ -10,7 +10,7 @@ prompt: |
   Since the switch, nearly all "View order" links in the web app, a **browser JavaScript single-page app** that calls `JSON.parse` on the response and builds `/orders/${order.id}`, return **404**. In a sample of **1,000 new orders**, **996** links fail. For the example above, the browser's address bar shows `/orders/1180591620717411300`. The **Android app** (Kotlin, which parses IDs as `Long`) works for every order. Old orders with small IDs work everywhere, and the server's order lookup is correct when called with the right ID.
 
   Explain the 404s. Show the arithmetic. Say how you would confirm the cause, and give fixes with their trade-offs.
-hint: "The Go server and the Android app agree on every ID, and the two apps differ in how they hold the number after parsing. Ask what number format the browser uses and how many distinct values it has near 10^18."
+hint: "The Go server and the Android app agree on every ID. What type does the browser hold the parsed number in?"
 rubric:
   - id: cause
     point: "Explains that JavaScript numbers are IEEE 754 doubles, so JSON.parse turns the ID into the nearest double; the ID is too large to be held exactly, the changed value goes into the URL, and the server finds no such order (404). Kotlin Long is a 64-bit integer, so Android is exact."
@@ -21,7 +21,7 @@ rubric:
   - id: confirm
     point: "Confirms with Number.isSafeInteger(id) being false, comparing the raw response text with the parsed value (or String(JSON.parse(text).id)), and a unit test that parses this ID and expects it back unchanged."
   - id: fixes
-    point: "Gives fixes with trade-offs: send IDs as JSON strings (Go's `json:\",string\"` tag), a contract change for every client; parse with BigInt via a reviver or a JSON library that keeps large integers, which needs a custom parser; or keep IDs under 2^53 by using fewer time or sequence bits, which limits ID throughput. Notes that rounding on the client cannot be undone, since many IDs map to one double."
+    point: "Gives fixes with trade-offs: send IDs as JSON strings (Go's `json:\",string\"` tag), a contract change for every client; parse with BigInt using a reviver that reads the raw source text (`context.source`, newer engines only, since a plain reviver already sees the rounded number) or a JSON library that keeps large integers, which needs custom parsing; or keep IDs under 2^53 by using fewer time or sequence bits, which limits ID throughput. Notes that rounding on the client cannot be undone, since many IDs map to one double."
 reference: |
   **Cause.** JavaScript numbers are IEEE 754 doubles, with 53 significant bits. `JSON.parse` turns the ID into the nearest double, and the changed value goes into the URL, where no order exists (404). Kotlin's `Long` is an exact 64-bit integer, so Android works. Small IDs sit below 2^53 = 9,007,199,254,740,992 and are exact.
 
@@ -31,7 +31,7 @@ reference: |
 
   **Fixes.**
   - **Send IDs as strings** (Go's `json:",string"`). Simple and safe; every client must change.
-  - **Parse with BigInt** via a reviver or a JSON library keeping large integers. The API stays; the client needs a custom parser.
+  - **Parse with BigInt** using a reviver that reads the raw source text (`context.source`, newer engines only; a plain reviver already sees the rounded number), or a JSON library keeping large integers. The API stays; the client needs custom parsing.
   - **Keep IDs below 2^53.** Fewer time or sequence bits, so less throughput per ID space.
 
   Rounding on the client cannot be undone: about 256 neighbouring IDs share one double, so the original is lost.

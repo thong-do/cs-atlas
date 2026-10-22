@@ -1,0 +1,129 @@
+---
+slug: memory-hierarchy
+title: The memory hierarchy
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [data-in-memory]
+summary: "See why a CPU waits on memory far more than it computes, how cache lines and locality decide speed, and why two loops with the same Big-O can differ by 10x or more."
+---
+
+## Intuition
+
+You are cooking. Salt is in your hand, spices on the counter, the pantry down the hall, the supermarket across town. You fetch a whole bag per trip and keep what you will reuse close. A CPU does the same: it computes in about a nanosecond, main memory answers in about a hundred, so hardware keeps small, fast **caches** between them.
+
+**The latency ladder.** These figures are illustrative and order-of-magnitude only; they vary by CPU, device and load.
+
+| Level | Typical latency | If L1 = 1 second |
+|---|---|---|
+| Registers | under 1 ns | (instant) |
+| L1 cache | ~1 ns | 1 s |
+| L2 cache | a few ns (say 4) | 4 s |
+| L3 cache | ~10-40 ns (say 20) | 20 s |
+| DRAM | ~100 ns | 100 s, about 1.7 minutes |
+| NVMe SSD | ~10-100 µs (say 50) | 50,000 s, about 14 hours |
+| Same-datacentre round trip | ~0.5 ms | 500,000 s, about 5.8 days |
+| Spinning disk | ~10 ms | 10,000,000 s, about 116 days |
+
+The scaling is 1 ns ↔ 1 s, so 100 ns becomes 100 s, and 100 ÷ 60 ≈ 1.7 minutes. On the CPU's clock, a DRAM access is a minutes-long wait.
+
+**Cache lines.** A cache moves data in **lines**, typically 64 bytes on x86-64 and many ARM cores (check your CPU). Touching one byte fetches all 64. Each core has its own L1 and L2, and hardware keeps them consistent with each other.
+
+**Locality** is what makes caches work:
+
+- **Spatial:** after touching an address, you soon touch its neighbours; a line brings them free.
+- **Temporal:** you soon touch it again, so it stays cached.
+
+**Prefetching.** Hardware watches the access pattern and loads lines early. It rewards **sequential** and **strided** patterns, but cannot guess where a pointer leads.
+
+**Why a miss happens.** Three kinds, one sentence each:
+
+- **Compulsory:** the first touch of a line, so it cannot be cached yet.
+- **Capacity:** the working set exceeds the cache, so lines are evicted before reuse.
+- **Conflict:** several lines map to the same few cache slots (more common with large power-of-two strides) and evict each other though the cache is not full.
+
+**Writes.** Most CPU caches are **write-back**: a store marks the cached line dirty, and it goes to the next level only on eviction. A store to an uncached line usually loads it first.
+
+**Same Big-O, different speed.** [Complexity & Big-O](/cs-fundamentals/complexity/) drops constants; the hierarchy is where they live.
+
+- **Array vs linked list.** Summing 1,000,000 4-byte ints in an array reads 4,000,000 B ÷ 64 B = 62,500 lines, in order. A linked list of 1,000,000 nodes has the same O(n) loop, but its nodes may be scattered and each address comes from the previous node, so loads cannot overlap. At an illustrative DRAM trip of ~100 ns each, that is 1,000,000 × 100 ns = 100 ms, far more than the array's streaming read.
+- **Binary search vs hash table on small n.** A sorted array of 1,000 ints is 4,000 B and fits in L1, so its ~10 probes hit cache. A hash lookup is O(1) but may chase a pointer. At small n constants decide, so measure.
+
+**Data layout.** An **array of structs (AoS)** stores each record's fields together. A **struct of arrays (SoA)** stores each field in its own array. Summing one field of 1,000,000 32-byte records, AoS reads 1,000,000 × 32 B ÷ 64 B = 500,000 lines, using 4 of every 32 bytes. SoA reads 4,000,000 B ÷ 64 B = 62,500, which is 8× fewer. If you use all fields together, AoS is fine (see [Data in memory](/cs-fundamentals/data-in-memory/) for struct layout).
+
+**Where the TLB and faults fit.** Each access also needs address translation. A **TLB** miss costs a page-table walk; a **page fault** costs far more (minor needs no disk, major reads storage). See [Virtual memory](/cs-fundamentals/virtual-memory/). Jumping across many pages hurts on both counts.
+
+## Visual
+
+Illustrative latencies, then one 64-byte line serving 16 ints:
+
+```text
+ L1 ~1 ns | L2 ~4 ns | L3 ~20 ns | DRAM ~100 ns (100x L1) | NVMe ~50,000 ns (50,000x L1)
+
+ one 64-byte cache line = 16 ints
+ a[0] a[1] a[2] a[3] ... a[15]   <- one fetch
+
+ row by row      : a[0][0] a[0][1] a[0][2] ...         16 elements per fetch
+ column by column: a[0][0]  jump 16 KiB  a[1][0] ...   1 element per fetch
+```
+
+## Example
+
+Sum a 4,096 × 4,096 matrix of 4-byte ints (16,777,216 ints × 4 B = 64 MiB) row by row, then column by column. C stores each row contiguously.
+
+```c
+// compile: cc -O2 -o sum sum.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#define N 4096
+
+static double now(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec * 1e-9;
+}
+
+int main(void) {
+    int *a = malloc((size_t)N * N * sizeof *a);
+    for (size_t i = 0; i < (size_t)N * N; i++) a[i] = (int)(i & 7);
+    for (int run = 0; run < 3; run++) {          // run 0 is warm-up
+        long long rows = 0, cols = 0;
+        double t0 = now();
+        for (int i = 0; i < N; i++)
+            for (int j = 0; j < N; j++) rows += a[(size_t)i * N + j];
+        double t1 = now();
+        for (int j = 0; j < N; j++)
+            for (int i = 0; i < N; i++) cols += a[(size_t)i * N + j];
+        double t2 = now();
+        printf("run %d: row-major %.1f ms, column-major %.1f ms, ratio %.1fx\n",
+               run, (t1 - t0) * 1e3, (t2 - t1) * 1e3, (t2 - t1) / (t1 - t0));
+    }
+    return 0;
+}
+```
+
+**Counting lines.** Row-major uses one line per 16 ints (64 ÷ 4), so 16,777,216 ÷ 16 = 1,048,576 fetches, about 1.05 million. Column-major steps 4,096 × 4 B = 16 KiB, so column neighbours sit in different lines. It touches 4,096 lines between reuses (4,096 × 64 B = 256 KiB), and a power-of-two stride makes many share cache slots. If they do not survive, each element costs a line: up to 16,777,216 fetches, 16× more.
+
+**One machine's result** (Apple M2, Apple clang, `cc -O2`; yours will differ):
+
+```text
+run 0: row-major 8.7 ms, column-major 74.9 ms, ratio 8.6x
+run 1: row-major 1.2 ms, column-major 58.5 ms, ratio 48.7x
+run 2: row-major 1.2 ms, column-major 58.7 ms, ratio 50.8x
+```
+
+Run 0 is cold: its row pass is 7× slower than later ones (8.7 ÷ 1.2). The ratio of about 50× exceeds 16× partly because the compiler can vectorise the row loop (with `-fno-vectorize` on this machine it was about 11×). The line count predicts the direction, not the figure. Prefetchers soften strided access but often stop at page boundaries, which 16 KiB steps cross every step on 4 KiB pages.
+
+## Pitfalls
+
+- **Reading Big-O as wall-clock time.** Two O(n) loops can differ 10× or more. Fix: benchmark with real data sizes.
+- **Pointer-chasing structures in hot loops.** Linked lists fetch a line per step with no overlap. Fix: prefer contiguous arrays for scans.
+- **Walking against the layout.** C and NumPy default to row-major; Fortran and MATLAB are column-major. Fix: run the innermost loop along the contiguous index.
+- **Cold or one-shot benchmarks.** Run 0 above was 7× off. Fix: warm up, repeat, report a median.
+- **Fetching a whole record for one field.** Fix: if scans of one field dominate, store it contiguously (SoA).
+
+## Tips & tricks
+
+- **Rules of thumb:** sequential beats strided beats random; keep the hot set small.
+- **Interview phrasing:** "Both are O(n), but the array streams cache lines; the list does dependent loads, roughly one DRAM trip each. Big-O hides the cache."
+- **What to measure:** on Linux, `perf stat -e cache-references,cache-misses` (event names vary by CPU and `perf` version), and a benchmark harness with warm-up. Compare two layouts.

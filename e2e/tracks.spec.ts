@@ -43,7 +43,8 @@ test('the CS Fundamentals home shows modules and coming-soon titles, and Continu
     await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
   }
   await expect(page.getByText('Coming soon').first()).toBeVisible()
-  await expect(page.getByText('The memory hierarchy')).toBeVisible()
+  await expect(page.getByText('Discrete math essentials')).toBeVisible()
+  await expect(page.getByRole('link', { name: /The memory hierarchy/ })).toHaveAttribute('href', '/cs-fundamentals/memory-hierarchy/')
   await expect(page.getByRole('link', { name: /Indexes & B-trees/ })).toHaveAttribute('href', '/cs-fundamentals/indexes-btrees/')
   await expect(page.getByRole('link', { name: /Query planning/ })).toHaveAttribute('href', '/cs-fundamentals/query-planning/')
   await expect(page.getByRole('link', { name: /HTTP\/1\.1, HTTP\/2 and HTTP\/3/ })).toHaveAttribute('href', '/cs-fundamentals/http-versions/')

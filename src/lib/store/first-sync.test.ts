@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { FakeRemoteApi } from '@/lib/supabase/fake-remote-api'
+import { DEFAULT_SETTINGS } from '@/lib/types'
 import { LeetHubDB } from './db'
 import { DexieStore } from './dexie-store'
 import { ACCOUNT_UNREACHABLE_MESSAGE, MOVE_FAILED_MESSAGE, moveGuestData } from './first-sync'
@@ -68,6 +69,16 @@ describe('moveGuestData', () => {
     await local.saveSettings({ desiredRetention: 0.9, theme: 'light' })
     const res = await moveGuestData(local, new FakeRemoteApi('u1'))
     expect(res.data.meta.settings.theme).toBe('light')
+  })
+
+  it('moves a guest whose only data is placements', async () => {
+    const local = fresh()
+    const placements = { t: { passedModules: ['m1'], takenAt: day(3).toISOString() } }
+    await local.saveSettings({ ...DEFAULT_SETTINGS, placements })
+    const remote = new FakeRemoteApi('u1')
+    const res = await moveGuestData(local, remote)
+    expect(res.data.meta.settings.placements).toEqual(placements)
+    expect(remote.data.meta.settings.placements).toEqual(placements)
   })
 
   it('upload failure rejects and keeps local data', async () => {

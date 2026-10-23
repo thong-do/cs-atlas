@@ -6,9 +6,9 @@ export const ACCOUNT_UNREACHABLE_MESSAGE = "Couldn't reach your account — chan
 export const MOVE_FAILED_MESSAGE = "Couldn't move this device's progress — it's still saved here. Try signing in again."
 
 const isEmpty = (d: UserData) =>
-  d.progress.length + d.notes.length + d.cards.length + d.reviewLogs.length + d.trainAttempts.length + d.activity.length === 0
+  d.progress.length + d.notes.length + d.cards.length + d.reviewLogs.length + d.trainAttempts.length + d.activity.length === 0 && !d.meta.settings.placements
 const isDefault = (s: UserData['meta']['settings']) =>
-  s.desiredRetention === DEFAULT_SETTINGS.desiredRetention && s.theme === DEFAULT_SETTINGS.theme
+  s.desiredRetention === DEFAULT_SETTINGS.desiredRetention && s.theme === DEFAULT_SETTINGS.theme && !s.placements
 
 /** Moves guest progress on this device into the signed-in account. Local data is cleared only after the upload succeeds. */
 export async function moveGuestData(

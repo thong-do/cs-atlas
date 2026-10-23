@@ -5,10 +5,11 @@ import { DEFAULT_SETTINGS, type UserData } from '@/lib/types'
 export const ACCOUNT_UNREACHABLE_MESSAGE = "Couldn't reach your account — changes are saved on this device for now."
 export const MOVE_FAILED_MESSAGE = "Couldn't move this device's progress — it's still saved here. Try signing in again."
 
+const hasPlacements = (s: UserData['meta']['settings']) => Object.keys(s.placements ?? {}).length > 0
 const isEmpty = (d: UserData) =>
-  d.progress.length + d.notes.length + d.cards.length + d.reviewLogs.length + d.trainAttempts.length + d.activity.length === 0 && !d.meta.settings.placements
+  d.progress.length + d.notes.length + d.cards.length + d.reviewLogs.length + d.trainAttempts.length + d.activity.length === 0 && !hasPlacements(d.meta.settings)
 const isDefault = (s: UserData['meta']['settings']) =>
-  s.desiredRetention === DEFAULT_SETTINGS.desiredRetention && s.theme === DEFAULT_SETTINGS.theme && !s.placements
+  s.desiredRetention === DEFAULT_SETTINGS.desiredRetention && s.theme === DEFAULT_SETTINGS.theme
 
 /** Moves guest progress on this device into the signed-in account. Local data is cleared only after the upload succeeds. */
 export async function moveGuestData(
@@ -31,9 +32,11 @@ export async function moveGuestData(
   try {
     const account = await remote.loadAll()
     const merged = mergeUserData(account, guest)
+    const { desiredRetention, theme } = isDefault(account.meta.settings) ? guest.meta.settings : account.meta.settings
+    const { placements } = merged.meta.settings
     merged.meta = {
       ...merged.meta,
-      settings: isDefault(account.meta.settings) ? guest.meta.settings : account.meta.settings,
+      settings: { desiredRetention, theme, ...(placements ? { placements } : {}) },
     }
     await remote.replaceAll(merged)
     await local.clearAll()

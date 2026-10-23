@@ -81,6 +81,28 @@ describe('moveGuestData', () => {
     expect(remote.data.meta.settings.placements).toEqual(placements)
   })
 
+  it('keeps guest placements when the account has non-default preferences', async () => {
+    const local = fresh()
+    const placements = { t: { passedModules: ['m1'], takenAt: day(3).toISOString() } }
+    await local.saveSettings({ ...DEFAULT_SETTINGS, placements })
+    const remote = await remoteWith((s) => s.saveSettings({ desiredRetention: 0.9, theme: 'dark' }))
+    const res = await moveGuestData(local, remote)
+    expect(res.data.meta.settings.theme).toBe('dark')
+    expect(res.data.meta.settings.placements).toEqual(placements)
+    expect(remote.data.meta.settings.placements).toEqual(placements)
+  })
+
+  it('combines account and guest placements for different tracks', async () => {
+    const local = fresh()
+    const y = { passedModules: ['m1'], takenAt: day(3).toISOString() }
+    const x = { passedModules: ['m2'], takenAt: day(4).toISOString() }
+    await local.saveSettings({ ...DEFAULT_SETTINGS, placements: { y } })
+    const remote = await remoteWith((s) => s.saveSettings({ ...DEFAULT_SETTINGS, placements: { x } }))
+    const res = await moveGuestData(local, remote)
+    expect(res.data.meta.settings.placements).toEqual({ x, y })
+    expect(remote.data.meta.settings.placements).toEqual({ x, y })
+  })
+
   it('upload failure rejects and keeps local data', async () => {
     const local = fresh()
     await local.markSolved('a', 'alone', 'ia', day(3))

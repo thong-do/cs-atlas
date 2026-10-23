@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { DesignDoc, DesignExercise, QuizDoc, QuizExercise } from '@/lib/types'
 import { isProblem } from '@/lib/types'
-import { getCatalog, getExercise, getExerciseDoc, getLessonDoc } from './index'
+import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, placementTracks } from './index'
 
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
 const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
@@ -230,4 +230,20 @@ it('ships contributor templates with the required sections and fields', () => {
   }
   expect(entries('templates/quiz.yaml', 'questions')).toBeGreaterThanOrEqual(3)
   expect(entries('templates/design-prompt.yaml', 'rubric')).toBeGreaterThanOrEqual(3)
+})
+
+describe('placement quizzes', () => {
+  it('ships CS Fundamentals with 2–3 questions per module', () => {
+    expect(placementTracks()).toEqual(['cs-fundamentals'])
+    const doc = getPlacement('cs-fundamentals')!
+    const counts: Record<string, number> = {}
+    for (const q of doc.questions) counts[q.module] = (counts[q.module] ?? 0) + 1
+    expect(counts).toEqual({ foundations: 2, 'operating-systems': 2, networking: 2, databases: 3, 'machine-math': 3 })
+    expect(getPlacement('algorithms')).toBeUndefined()
+  })
+  it('varies answer positions with no run of three', () => {
+    const keys = getPlacement('cs-fundamentals')!.questions.map((q) => q.answer)
+    for (const k of [0, 1, 2, 3]) expect(keys.filter((x) => x === k).length).toBeGreaterThanOrEqual(2)
+    for (let i = 2; i < keys.length; i++) expect(keys[i] === keys[i - 1] && keys[i] === keys[i - 2]).toBe(false)
+  })
 })

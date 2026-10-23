@@ -35,7 +35,7 @@ questions:
       - "Have both threads take the two locks in one agreed order, for example `audit` before `metrics`"
       - "Add a short sleep between the first and second lock, so the other thread has time to finish"
     answer: 2
-    explanation: "Deadlock needs mutual exclusion, hold and wait, no preemption and a circular wait; a single global lock order means no thread can hold the later lock while waiting for the earlier one, so no cycle can form. Priorities and sleeps only change timing, and reentrancy matters only when one thread re-locks a mutex it already holds."
+    explanation: "The hang is a cycle: each thread holds one lock while waiting for the lock the other holds. If every thread takes `audit` before `metrics`, no thread can hold `metrics` while waiting for `audit`, so the cycle cannot form; priorities and sleeps only shift timing, and reentrancy matters only when one thread re-locks a mutex it already holds."
   - module: networking
     prompt: "An application needs every byte it writes to arrive exactly once and in the order written, without building its own retransmission logic. Which transport provides this, and what does the application give up for it?"
     choices:
@@ -48,12 +48,12 @@ questions:
   - module: networking
     prompt: "A browser opens an HTTPS connection to `pay.example.org`. The TLS handshake completes and the server's certificate passes every check. Leaving encryption aside, what has this established?"
     choices:
-      - "The server holds the private key for a certificate that a CA the browser trusts issued for that name"
+      - "The server holds the private key of a certificate for that name that chains to a CA the browser trusts"
       - "The session uses the strongest cipher both sides support, so the traffic cannot be broken"
       - "The site's operator is honest and the payment page is safe, since every CA vets each site's whole business"
       - "No proxy or other middlebox sits anywhere on the network path between the browser and the server"
     answer: 0
-    explanation: "The certificate binds a public key to the name and is signed by an authority the browser trusts, and the server proves it holds the matching private key during the handshake. That is identity of the name's key holder only; it says nothing about cipher strength, the operator's honesty or the routers in between."
+    explanation: "Validation shows that an authority the browser trusts vouched for this public key belonging to `pay.example.org`, and completing the handshake shows the server has the matching private key. That proves who holds the name's key, not cipher strength, the operator's honesty or which routers carry the traffic."
   - module: databases
     prompt: "In PostgreSQL, a `stores` table has a single B-tree index on `(country, city)` and no other index. Which filter can that index serve by seeking to one contiguous run of index entries?"
     choices:
@@ -80,16 +80,16 @@ questions:
       - "PostgreSQL indexes on text columns serve only prefix searches, so the planner cannot use this one for equality"
       - "A sequential scan is cheaper than any index once a table outgrows shared memory, whatever the filter"
     answer: 0
-    explanation: "An index scan pays a random page read for nearly every matching row, and at 92% of the table that adds up to more than reading each page once in physical order. The index wins when a filter keeps a small fraction of rows, not most of them."
+    explanation: "With 92% of rows matching, an index scan would hop around the table fetching nearly every page out of order, some of them more than once. One pass in physical order reads each page exactly once with cheap sequential I/O, so its estimated cost is lower."
   - module: machine-math
-    prompt: "In C, a `float m[3000][3000]` is summed twice on a typical desktop CPU: version R loops over `j` innermost reading `m[i][j]`, and version C loops over `i` innermost reading `m[i][j]`. R runs several times faster. Why?"
+    prompt: "In C, a `float m[3000][3000]` is summed twice on a typical desktop CPU. The row loop has `j` innermost, reading `m[i][j]`; the column loop has `i` innermost, reading the same `m[i][j]`. The row loop runs several times faster. Why?"
     choices:
-      - "Version C must multiply to compute each address, while version R can reach the next element by adding"
-      - "C stores arrays row by row, so R uses every float in each cache line it loads, while C uses one per line"
-      - "Version C reads each element twice, because the row index changes faster than the column index"
-      - "Version R lets the compiler remove the bounds check that C inserts on each index of a two-dimensional array"
+      - "The column loop must multiply to compute each address, while the row loop reaches the next element by adding"
+      - "C stores arrays row by row, so the row loop uses every float of each cache line it loads in consecutive reads"
+      - "The column loop reads each element twice, because the row index changes faster than the column index"
+      - "The row loop lets the compiler remove the bounds check that C inserts on each index of a two-dimensional array"
     answer: 1
-    explanation: "C is row-major, so `m[i][j]` and `m[i][j+1]` are 4 bytes apart and one 64-byte line serves 16 floats in a row. Stepping down a column jumps 3,000 × 4 = 12,000 bytes per access, so each fetched line yields one float before the loop moves on."
+    explanation: "C is row-major, so `m[i][j]` and `m[i][j+1]` are 4 bytes apart and the row loop consumes all 16 floats of a 64-byte line in consecutive reads. The column loop jumps 3,000 × 4 = 12,000 bytes per read and uses one float of a line before moving on; its roughly 3,000 lines (3,000 × 64 B ≈ 192 KB) may stay in L2, but each read typically misses L1 and the loop cannot be vectorised, so it runs several times slower."
   - module: machine-math
     prompt: "In IEEE 754 double precision (a Python float or a JavaScript number), `0.1 + 0.2 == 0.3` is false. What is the root cause?"
     choices:
@@ -98,7 +98,7 @@ questions:
       - "A double holds only about 7 significant decimal digits, too few to tell the sum apart from 0.3"
       - "None of 0.1, 0.2 and 0.3 is exact in binary, so each is rounded and the sum lands on another double than 0.3"
     answer: 3
-    explanation: "1/10 has a factor of 5 in its denominator, so its binary expansion repeats forever (0.000110011…₂) and is stored slightly off, as are 0.2 and 0.3. The computed sum rounds to 0.30000000000000004, the double just above the one nearest 0.3 (0.29999999999999998…)."
+    explanation: "0.1 = 1/10, and 10 is not a power of two, so 0.1 has no finite binary expansion (0.000110011…₂ repeats forever) and is stored slightly off, as are 0.2 and 0.3. The computed sum rounds to 0.30000000000000004, the double just above the one nearest 0.3 (0.29999999999999998…)."
   - module: machine-math
     prompt: "A field is stored as a 16-bit integer. How many distinct bit patterns can it hold, and what range does it cover when read as signed two's complement?"
     choices:

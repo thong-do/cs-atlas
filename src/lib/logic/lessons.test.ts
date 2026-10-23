@@ -48,3 +48,22 @@ describe('track helpers', () => {
     expect([...startedTracks(exercises, new Set(['lru']), trackOf)].sort()).toEqual(['algorithms', 'system-design'])
   })
 })
+
+describe('continueLesson with placed-out lessons', () => {
+  const t: TrackMeta = {
+    slug: 't', title: 'T', summary: 's', order: 1,
+    modules: [
+      { slug: 'm1', title: 'M1', lessons: ['a', 'b'], comingSoon: [] },
+      { slug: 'm2', title: 'M2', lessons: ['c'], comingSoon: [] },
+    ],
+  }
+  it('skips placed-out lessons', () => {
+    expect(continueLesson(t, new Map(), new Set(['a', 'b']))).toBe('c')
+  })
+  it('falls back to the first unmastered lesson when everything left is skipped', () => {
+    expect(continueLesson(t, new Map([['c', 90]]), new Set(['a', 'b']))).toBe('a')
+  })
+  it('behaves as before without a skipped set', () => {
+    expect(continueLesson(t, new Map([['a', 90]]))).toBe('b')
+  })
+})

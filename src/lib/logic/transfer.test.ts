@@ -29,6 +29,13 @@ describe('parseExport', () => {
     expect(file.data.meta.lastBackupAt).toBe(t(2))
   })
 
+  it('round-trips placements through export and import', () => {
+    const data = sample()
+    data.meta.settings = { ...data.meta.settings, placements: { t: { passedModules: ['m1', 'm2'], takenAt: t(2) } } }
+    const parsed = parseExport(JSON.stringify(buildExport(data, new Date(t(3)))))
+    expect(parsed.ok && parsed.file.data.meta.settings.placements).toEqual(data.meta.settings.placements)
+  })
+
   it('rejects invalid JSON', () => {
     expect(parseExport('{nope')).toEqual({ ok: false, error: 'This file is not valid JSON.' })
   })
@@ -140,6 +147,27 @@ describe('mergeUserData', () => {
     const merged = mergeUserData(local, incoming)
     expect(merged.meta.settings).toEqual({ desiredRetention: 0.85, theme: 'dark' })
     expect(merged.meta.lastBackupAt).toBe(t(1))
+  })
+
+  it('merges placements per track, newest takenAt wins, keeping tracks only one side has', () => {
+    const local = sample()
+    local.meta.settings = { ...local.meta.settings, placements: {
+      a: { passedModules: ['old'], takenAt: t(1) }, b: { passedModules: ['b1'], takenAt: t(1) },
+    } }
+    const incoming = sample()
+    incoming.meta.settings = { ...incoming.meta.settings, placements: {
+      a: { passedModules: ['new'], takenAt: t(5) }, c: { passedModules: ['c1'], takenAt: t(2) },
+    } }
+    expect(mergeUserData(local, incoming).meta.settings.placements).toEqual({
+      a: { passedModules: ['new'], takenAt: t(5) },
+      b: { passedModules: ['b1'], takenAt: t(1) },
+      c: { passedModules: ['c1'], takenAt: t(2) },
+    })
+  })
+
+  it('adds no placements key when neither side has placements', () => {
+    const merged = mergeUserData(sample(), sample())
+    expect('placements' in merged.meta.settings).toBe(false)
   })
 
   it('is idempotent: merging the same backup twice changes nothing', () => {

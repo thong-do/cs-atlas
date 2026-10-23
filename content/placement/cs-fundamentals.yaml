@@ -1,0 +1,110 @@
+track: cs-fundamentals
+questions:
+  - module: foundations
+    prompt: "A function loops over n incoming timestamps and, for each one, runs a binary search over a sorted array of n bucket boundaries. Nothing else in the loop depends on n. How does its running time grow?"
+    choices:
+      - "O(n): a binary search is so cheap that it counts as constant work for each timestamp"
+      - "O(n log n): n iterations, each doing about log₂ n halving steps over the sorted array"
+      - "O(n²): a search over n boundaries is nested inside a loop over n timestamps"
+      - "O(log n): each search halves the array, and that halving dominates the whole loop's cost"
+    answer: 1
+    explanation: "The outer loop runs n times and each binary search takes about log₂ n steps, so the total is O(n log n). At n = 65,536 that is 65,536 × 16 ≈ 1.05 × 10⁶ steps, against 65,536² ≈ 4.3 × 10⁹ for a nested linear search."
+  - module: foundations
+    prompt: "Reading element i takes constant time in an array but time proportional to i in a singly linked list holding the same values. What causes the difference?"
+    choices:
+      - "An array keeps a hidden lookup table of element positions beside its data, and a linked list has no such table at all"
+      - "Linked-list nodes are larger, since each carries a pointer, so fewer of them arrive with each memory read"
+      - "Array elements sit on the stack and list nodes on the heap, and every heap access is slower"
+      - "Array elements are contiguous and equal-sized, so element i's address is computed; node i takes i pointer hops"
+    answer: 3
+    explanation: "With elements packed back to back, the address of element i is the start address plus i times the element size, one calculation whatever i is. A singly linked list stores only each node's successor, so reaching node i means following i pointers, O(i)."
+  - module: operating-systems
+    prompt: "One program runs as two threads in a single process; another runs as two separate processes. What do the two threads share that the two processes do not share by default?"
+    choices:
+      - "The address space: heap objects and globals written by one thread are visible to the other thread"
+      - "The call stack: every function call made by either thread is pushed onto one stack they share"
+      - "The register set: the CPU keeps one program counter per process, and its threads take turns with it"
+      - "Nothing extra: threads also get private memory and must pass data to each other through pipes"
+    answer: 0
+    explanation: "Threads of one process run in the same address space, so they see the same heap and global variables, while each keeps its own stack and registers. Separate processes get separate address spaces and must use pipes, sockets or explicitly shared memory to exchange data."
+  - module: operating-systems
+    prompt: "Thread 1 locks mutex `audit` and then mutex `metrics`; thread 2 locks `metrics` and then `audit`. Each holds its first lock while it waits for the second, and once in a while both threads stop for good. Which change makes this deadlock impossible?"
+    choices:
+      - "Give thread 1 a higher scheduling priority, so it finishes with both locks before thread 2 starts"
+      - "Make both mutexes reentrant, so a thread may lock one again even while it already holds it"
+      - "Have both threads take the two locks in one agreed order, for example `audit` before `metrics`"
+      - "Add a short sleep between the first and second lock, so the other thread has time to finish"
+    answer: 2
+    explanation: "The hang is a cycle: each thread holds one lock while waiting for the lock the other holds. If every thread takes `audit` before `metrics`, no thread can hold `metrics` while waiting for `audit`, so the cycle cannot form; priorities and sleeps only shift timing, and reentrancy matters only when one thread re-locks a mutex it already holds."
+  - module: networking
+    prompt: "An application needs every byte it writes to arrive exactly once and in the order written, without building its own retransmission logic. Which transport provides this, and what does the application give up for it?"
+    choices:
+      - "UDP; each datagram's checksum lets the receiving kernel ask for a missing one again"
+      - "TCP; after a lost segment, later bytes that already arrived wait until the resend fills the gap"
+      - "TCP, at no run-time cost, because each segment is handed to the application the moment it arrives"
+      - "UDP, at the cost of a handshake before the first datagram, which TCP avoids by sending at once"
+    answer: 1
+    explanation: "TCP numbers every byte, acknowledges and retransmits, and hands data to the application only in order, so a single loss stalls everything behind it until the resend arrives. UDP sends each datagram once, with no ordering, no retransmission and no handshake."
+  - module: networking
+    prompt: "A browser opens an HTTPS connection to `pay.example.org`. The TLS handshake completes and the server's certificate passes every check. Leaving encryption aside, what has this established?"
+    choices:
+      - "The server holds the private key of a certificate for that name that chains to a CA the browser trusts"
+      - "The session uses the strongest cipher both sides support, so the traffic cannot be broken"
+      - "The site's operator is honest and the payment page is safe, since every CA vets each site's whole business"
+      - "No proxy or other middlebox sits anywhere on the network path between the browser and the server"
+    answer: 0
+    explanation: "Validation shows that an authority the browser trusts vouched for this public key belonging to `pay.example.org`, and completing the handshake shows the server has the matching private key. That proves who holds the name's key, not cipher strength, the operator's honesty or which routers carry the traffic."
+  - module: databases
+    prompt: "In PostgreSQL, a `stores` table has a single B-tree index on `(country, city)` and no other index. Which filter can that index serve by seeking to one contiguous run of index entries?"
+    choices:
+      - "`WHERE city = 'Lyon'`, since every index entry holds the city and the tree can match on any column it stores"
+      - "`WHERE country = 'FR' OR city = 'Lyon'`, since both columns in the condition are covered by the index"
+      - "`WHERE country = 'FR'`, since entries are sorted by country first, so every French store sits together"
+      - "Neither single-column filter; a composite index is used only when the query fixes both of its columns"
+    answer: 2
+    explanation: "Entries are ordered by country, then by city within each country, so one country's entries are adjacent and a seek finds them. Stores in Lyon are scattered across the city runs of every country, so a filter on city alone cannot be answered by one seek."
+  - module: databases
+    prompt: "In PostgreSQL, one explicit transaction (BEGIN … COMMIT) inserts an `invoices` row and then its four `invoice_lines` rows. The server crashes after the second line is inserted, before COMMIT is sent. After restart and recovery, which of those rows are visible?"
+    choices:
+      - "The invoice and its first two lines, since each completed INSERT statement is saved on its own"
+      - "The invoice row only, because a parent row is kept while its unfinished child rows are discarded"
+      - "It depends on the isolation level: none under SERIALIZABLE, and the finished rows under READ COMMITTED"
+      - "None of them: the transaction never committed, so recovery treats all its changes as rolled back"
+    answer: 3
+    explanation: "Atomicity means a transaction takes effect completely or not at all; with no commit record, recovery counts none of its changes. Isolation levels govern what concurrent transactions see of each other, not whether a crashed transaction survives."
+  - module: databases
+    prompt: "In PostgreSQL with up-to-date statistics, `log_entries` has a B-tree index on `level`, and 92% of rows have `level = 'info'`. For `SELECT * FROM log_entries WHERE level = 'info'` the planner picks a sequential scan instead of the index. Why is that a sound choice?"
+    choices:
+      - "Reaching most rows via the index costs a random table read each; one in-order pass over all pages is cheaper"
+      - "B-tree indexes serve only range conditions such as < or BETWEEN, so an equality test on `level` cannot use one"
+      - "PostgreSQL indexes on text columns serve only prefix searches, so the planner cannot use this one for equality"
+      - "A sequential scan is cheaper than any index once a table outgrows shared memory, whatever the filter"
+    answer: 0
+    explanation: "With 92% of rows matching, an index scan would hop around the table fetching nearly every page out of order, some of them more than once. One pass in physical order reads each page exactly once with cheap sequential I/O, so its estimated cost is lower."
+  - module: machine-math
+    prompt: "In C, a `float m[3000][3000]` is summed twice on a typical desktop CPU. The row loop has `j` innermost, reading `m[i][j]`; the column loop has `i` innermost, reading the same `m[i][j]`. The row loop runs several times faster. Why?"
+    choices:
+      - "The column loop must multiply to compute each address, while the row loop reaches the next element by adding"
+      - "C stores arrays row by row, so the row loop uses every float of each cache line it loads in consecutive reads"
+      - "The column loop reads each element twice, because the row index changes faster than the column index"
+      - "The row loop lets the compiler remove the bounds check that C inserts on each index of a two-dimensional array"
+    answer: 1
+    explanation: "C is row-major, so `m[i][j]` and `m[i][j+1]` are 4 bytes apart and the row loop consumes all 16 floats of a 64-byte line in consecutive reads. The column loop jumps 3,000 × 4 = 12,000 bytes per read and uses one float of a line before moving on; its roughly 3,000 lines (3,000 × 64 B ≈ 192 KB) may stay in L2, but each read typically misses L1, so it runs several times slower."
+  - module: machine-math
+    prompt: "In IEEE 754 double precision (a Python float or a JavaScript number), `0.1 + 0.2 == 0.3` is false. What is the root cause?"
+    choices:
+      - "Floating-point addition is not commutative, so 0.1 + 0.2 and 0.2 + 0.1 produce different sums"
+      - "Comparing doubles with `==` applies a built-in tolerance, and that tolerance is tighter than the error in the sum"
+      - "A double holds only about 7 significant decimal digits, too few to tell the sum apart from 0.3"
+      - "None of 0.1, 0.2 and 0.3 is exact in binary, so each is rounded and the sum lands on another double than 0.3"
+    answer: 3
+    explanation: "0.1 = 1/10, and 10 is not a power of two, so 0.1 has no finite binary expansion (0.000110011…₂ repeats forever) and is stored slightly off, as are 0.2 and 0.3. The computed sum rounds to 0.30000000000000004, the double just above the one nearest 0.3 (0.29999999999999998…)."
+  - module: machine-math
+    prompt: "A field is stored as a 16-bit integer. How many distinct bit patterns can it hold, and what range does it cover when read as signed two's complement?"
+    choices:
+      - "65,535 patterns; signed range −32,767 to 32,767, with one pattern kept for negative zero"
+      - "65,536 patterns; signed range −32,767 to 32,768, since the extra pattern goes to the positives"
+      - "65,536 patterns; signed range −32,768 to 32,767, one more negative value than positive ones"
+      - "32,768 patterns; signed range −16,384 to 16,383, since one of the 16 bits is spent on the sign"
+    answer: 2
+    explanation: "16 bits give 2¹⁶ = 65,536 patterns. Two's complement gives the top bit weight −2¹⁵ = −32,768, so the range is −32,768 to 2¹⁵ − 1 = 32,767: 32,768 negatives + zero + 32,767 positives = 65,536."

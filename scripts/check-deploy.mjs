@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Usage: node scripts/check-deploy.mjs https://cs-atlas-hub.vercel.app
 // Checks the v1 redirects (308 → new URL → 200) and that every lesson, track and exercise page returns 200.
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
 const base = (process.argv[2] ?? '').replace(/\/+$/, '')
@@ -15,8 +15,12 @@ const tracks = readdirSync(join(root, 'tracks'))
 const lessonPaths = tracks.flatMap((t) =>
   readdirSync(join(root, 'tracks', t, 'lessons')).filter((f) => f.endsWith('.mdx')).map((f) => `/${t}/${basename(f, '.mdx')}/`),
 )
+const placementDir = join(root, 'placement')
+const placementPaths = existsSync(placementDir)
+  ? readdirSync(placementDir).filter((f) => f.endsWith('.yaml')).map((f) => `/${basename(f, '.yaml')}/placement/`)
+  : []
 const exercisePaths = readdirSync(join(root, 'exercises')).filter((f) => f.endsWith('.yaml')).map((f) => `/exercises/${basename(f, '.yaml')}/`)
-const pages = ['/', '/tracks/', '/roadmap/', '/exercises/', '/train/', '/stats/', '/settings/', ...tracks.map((t) => `/${t}/`), ...lessonPaths, ...exercisePaths]
+const pages = ['/', '/tracks/', '/roadmap/', '/exercises/', '/train/', '/stats/', '/settings/', ...tracks.map((t) => `/${t}/`), ...lessonPaths, ...placementPaths, ...exercisePaths]
 
 const REDIRECTS = [
   ['/patterns/two-pointers', '/algorithms/two-pointers/'],

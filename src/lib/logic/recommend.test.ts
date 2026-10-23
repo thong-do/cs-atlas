@@ -30,4 +30,12 @@ describe('recommendedLesson', () => {
     const ls = [p('b', ['a']), p('a', [], 'system-design')]
     expect(recommendedLesson(ls, new Map(), new Set(['algorithms']))).toBe('b')
   })
+  it('skips placed-out lessons and treats their prerequisites as satisfied', () => {
+    // a is placed out, so b (needs a) is ready even though a has 0 mastery.
+    expect(recommendedLesson(lessons, new Map(), algo, new Set(['a']))).toBe('b')
+  })
+  it('falls back to skipped lessons once everything else is mastered', () => {
+    const m = new Map(lessons.filter((l) => l.slug !== 'a').map((l) => [l.slug, 90]))
+    expect(recommendedLesson(lessons, m, algo, new Set(['a']))).toBe('a')
+  })
 })

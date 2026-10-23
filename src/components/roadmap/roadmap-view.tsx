@@ -5,8 +5,10 @@ import { useMemo } from 'react'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { lessonHref } from '@/lib/content/hrefs'
 import { useMasteries } from '@/lib/hooks/use-masteries'
+import { usePlacements } from '@/lib/hooks/use-placements'
 import { MASTERED } from '@/lib/logic/mastery'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
+import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { layoutBands } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
@@ -22,6 +24,7 @@ export function RoadmapView() {
   const router = useRouter()
   const { tracks, lessons, exercises, lessonBySlug } = useCatalog()
   const masteries = useMasteries()
+  const placements = usePlacements()
   const progress = useLive((s) => s.listProgress())
   const { bands, crossEdges, maxRow } = useMemo(
     () => layoutBands([...tracks].sort((a, b) => a.order - b.order), lessons),
@@ -31,7 +34,9 @@ export function RoadmapView() {
   const m = masteries ?? new Map<string, number>()
   const solved = new Set((progress ?? []).filter((p) => p.status === 'solved').map((p) => p.slug))
   const trackOf = trackLookup(lessons)
-  const recommended = masteries ? recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf)) : null
+  // A placement counts as starting a track, so the roadmap recommends from it before any exercise is solved.
+  const started = new Set([...startedTracks(exercises, solved, trackOf), ...placedTracks(tracks, placements)])
+  const recommended = masteries ? recommendedLesson(lessons, masteries, started, allSkippedLessons(tracks, placements)) : null
   const count = (slug: string) => {
     const ladder = lessonExercises(lessonBySlug.get(slug)!, exercises, trackOf)
     return `${ladder.filter((p) => solved.has(p.slug)).length}/${ladder.length}`

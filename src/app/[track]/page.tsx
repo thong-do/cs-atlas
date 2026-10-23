@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { TrackHome } from '@/components/tracks/track-home'
-import { getCatalog } from '@/lib/content'
+import { getCatalog, placementTracks } from '@/lib/content'
 
 export const dynamicParams = false
 
@@ -19,5 +19,5 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function TrackPage({ params }: { params: Params }) {
   const { track } = await params
   if (!getCatalog().tracks.some((t) => t.slug === track)) notFound()
-  return <TrackHome slug={track} />
+  return <TrackHome slug={track} hasPlacement={placementTracks().includes(track)} />
 }

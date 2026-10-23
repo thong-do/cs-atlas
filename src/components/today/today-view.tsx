@@ -10,8 +10,10 @@ import { useCatalog } from '@/lib/content/catalog-context'
 import { exerciseHref, lessonHref } from '@/lib/content/hrefs'
 import { useNow } from '@/lib/hooks/use-now'
 import { useMasteries } from '@/lib/hooks/use-masteries'
+import { usePlacements } from '@/lib/hooks/use-placements'
 import { currentStreak } from '@/lib/logic/dates'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
+import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
 import { resolveDue } from '@/lib/logic/review-queue'
@@ -32,9 +34,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function TodayView() {
   const store = useStore()
-  const { lessons, exercises, lessonBySlug, exerciseBySlug, flashcards } = useCatalog()
+  const { tracks, lessons, exercises, lessonBySlug, exerciseBySlug, flashcards } = useCatalog()
   const masteries = useMasteries()
   const now = useNow()
+  const placements = usePlacements()
   const data = useLive(async (s) => {
     const due = await s.dueCards(now)
     const items = resolveDue(due.map((c) => c.slug), exerciseBySlug, flashcards)
@@ -52,7 +55,9 @@ export function TodayView() {
   const solved = new Set(data.progress.filter((p) => p.status === 'solved').map((p) => p.slug))
   const reviews = data.due
   const trackOf = trackLookup(lessons)
-  const recommended = recommendedLesson(lessons, masteries, startedTracks(exercises, solved, trackOf))
+  // A placement counts as starting a track, so Today recommends from it before any exercise is solved.
+  const started = new Set([...startedTracks(exercises, solved, trackOf), ...placedTracks(tracks, placements)])
+  const recommended = recommendedLesson(lessons, masteries, started, allSkippedLessons(tracks, placements))
   const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
   const recLadder = recLesson ? lessonExercises(recLesson, exercises, trackOf) : []
   const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : exercises

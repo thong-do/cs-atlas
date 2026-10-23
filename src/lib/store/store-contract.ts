@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { localDate } from '@/lib/logic/dates'
 import { parseExport } from '@/lib/logic/transfer'
-import type { UserData } from '@/lib/types'
+import { DEFAULT_SETTINGS, type UserData } from '@/lib/types'
 import type { Store } from './types'
 
 const day = (d: number, h = 9) => new Date(2026, 9, d, h)
@@ -193,6 +193,15 @@ export function runStoreContract(name: string, makeStore: () => Promise<Store>):
     it('completeDesign rejects a multi-line insight without writing', async () => {
       await expect(store.completeDesign('d', { design: 'x', insight: 'a\nb', covered: 1, total: 3 }, day(3))).rejects.toThrow('single line')
       expect(await store.getProgress('d')).toBeUndefined()
+    })
+
+    it('saves and reads back settings with placements', async () => {
+      const settings = {
+        ...DEFAULT_SETTINGS, theme: 'dark' as const,
+        placements: { 'cs-fundamentals': { passedModules: ['foundations'], takenAt: day(3).toISOString() } },
+      }
+      await store.saveSettings(settings)
+      expect((await store.getMeta()).settings).toEqual(settings)
     })
   })
 }

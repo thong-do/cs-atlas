@@ -1,5 +1,5 @@
-import { exercises, lessons, tracks } from '#site/content'
-import type { Catalog, DesignDoc, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, QuizDoc, TrackMeta } from '@/lib/types'
+import { exercises, lessons, placements, tracks } from '#site/content'
+import type { Catalog, DesignDoc, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, PlacementDoc, QuizDoc, TrackMeta } from '@/lib/types'
 import { flashcardKey } from './review-keys'
 
 export interface TocEntry {
@@ -102,4 +102,18 @@ export function getExerciseDoc(slug: string): ExerciseDoc | undefined {
       return d
     }
   }
+}
+
+/** A track's placement quiz, answers included. Server only, like getExerciseDoc. */
+export function getPlacement(track: string): PlacementDoc | undefined {
+  const p = placements.find((x) => x.track === track)
+  return p && {
+    track: p.track,
+    questions: p.questions.map(({ module, prompt, choices, answer, explanation }) => ({ module, prompt, choices, answer, explanation })),
+  }
+}
+
+/** Slugs of tracks that have a placement quiz. */
+export function placementTracks(): string[] {
+  return placements.map((p) => p.track)
 }

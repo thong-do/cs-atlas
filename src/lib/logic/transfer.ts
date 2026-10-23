@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SCHEMA_VERSION, type Activity, type UserData } from '@/lib/types'
+import { SCHEMA_VERSION, type Activity, type Placement, type Settings, type UserData } from '@/lib/types'
 
 export interface ExportFile {
   app: 'leethub'
@@ -59,6 +59,7 @@ const exportFileSchema = z.object({
       settings: z.object({
         desiredRetention: z.number().min(0.7).max(0.97),
         theme: z.enum(['system', 'light', 'dark']),
+        placements: z.record(z.string(), z.object({ passedModules: z.array(z.string()), takenAt: iso })).optional(),
       }),
     }),
   }),
@@ -117,6 +118,17 @@ function mergeActivity(local: Activity[], incoming: Activity[]): Activity[] {
   return [...map.values()]
 }
 
+/** Per track, the placement with the later takenAt wins. */
+function mergeSettings(local: Settings, incoming: Settings): Settings {
+  const placements: Record<string, Placement> = { ...local.placements }
+  for (const [track, p] of Object.entries(incoming.placements ?? {})) {
+    if (!placements[track] || p.takenAt > placements[track].takenAt) placements[track] = p
+  }
+  const { placements: _drop, ...rest } = local
+  void _drop
+  return Object.keys(placements).length > 0 ? { ...rest, placements } : rest
+}
+
 export function mergeUserData(local: UserData, incoming: UserData): UserData {
   return {
     progress: newest(local.progress, incoming.progress, (x) => x.slug, (x) => x.updatedAt),
@@ -127,7 +139,7 @@ export function mergeUserData(local: UserData, incoming: UserData): UserData {
     activity: mergeActivity(local.activity, incoming.activity),
     meta: {
       schemaVersion: SCHEMA_VERSION,
-      settings: local.meta.settings,
+      settings: mergeSettings(local.meta.settings, incoming.meta.settings),
       // The merged result has not been backed up, so keep the local backup time.
       ...(local.meta.lastBackupAt ? { lastBackupAt: local.meta.lastBackupAt } : {}),
     },

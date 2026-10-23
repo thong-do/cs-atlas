@@ -2,6 +2,7 @@ import { defineCollection, defineConfig, s } from 'velite'
 import rehypeShiki from '@shikijs/rehype'
 import rehypeSlug from 'rehype-slug'
 import { validateContent } from './src/lib/content/validate'
+import { validatePlacements } from './src/lib/content/validate-placement'
 
 const tracks = defineCollection({
   name: 'Track',
@@ -100,6 +101,22 @@ const exercises = defineCollection({
   ]), // unknown fields (e.g. a pasted solution) fail the build
 })
 
+const placements = defineCollection({
+  name: 'Placement',
+  pattern: 'placement/*.yaml',
+  schema: s.object({
+    track: s.string(),
+    questions: s.array(s.object({
+      module: s.string(),
+      prompt: s.string().min(1),
+      choices: s.array(s.string().min(1)),
+      answer: s.number().int(),
+      explanation: s.string().min(1),
+    }).strict()).min(1),
+    path: s.path(),
+  }),
+})
+
 export default defineConfig({
   root: 'content',
   strict: true, // schema violations (missing/unknown fields) fail the build
@@ -110,7 +127,7 @@ export default defineConfig({
     name: '[name]-[hash:6].[ext]',
     clean: true,
   },
-  collections: { tracks, lessons, exercises },
+  collections: { tracks, lessons, exercises, placements },
   mdx: {
     rehypePlugins: [
       rehypeSlug,
@@ -118,12 +135,13 @@ export default defineConfig({
       [rehypeShiki as any, { themes: { light: 'github-light', dark: 'github-dark' } }],
     ],
   },
-  prepare: ({ tracks, lessons, exercises }) => {
-    const errors = validateContent({
+  prepare: ({ tracks, lessons, exercises, placements }) => {
+    const content = {
       tracks: tracks.map((t) => ({ slug: t.slug, folder: t.folder, order: t.order, modules: t.modules })),
       lessons: lessons.map((l) => ({ ...l, headings: l.toc.map((h) => h.title) })),
       exercises,
-    })
+    }
+    const errors = [...validateContent(content), ...validatePlacements(placements, content)]
     if (errors.length > 0) {
       throw new Error(`Content validation failed:\n- ${errors.join('\n- ')}`)
     }
@@ -133,5 +151,6 @@ export default defineConfig({
       delete (l as { path?: string }).path
     }
     for (const e of exercises) delete (e as { path?: string }).path
+    for (const p of placements) delete (p as { path?: string }).path
   },
 })

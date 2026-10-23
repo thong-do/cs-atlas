@@ -26,6 +26,10 @@ export interface QuizQuestion { id: string; prompt: string; choices: string[]; a
 export interface Flashcard { id: string; front: string; back: string }
 export interface RubricPoint { id: string; point: string }
 export interface QuizDoc extends QuizExercise { questions: QuizQuestion[]; flashcards: Flashcard[] }
+export interface PlacementQuestion { module: string; prompt: string; choices: string[]; answer: number; explanation: string }
+export interface PlacementDoc { track: string; questions: PlacementQuestion[] }
+/** A saved placement result for one track. Only the start point moves; mastery is untouched. */
+export interface Placement { passedModules: string[]; takenAt: string }
 export interface DesignDoc extends Omit<DesignExercise, 'rubric'> { prompt: string; rubricPoints: RubricPoint[]; rubric: string[]; reference: string; hint?: string }
 export type ExerciseDoc = ProblemExercise | QuizDoc | DesignDoc
 export interface FlashcardEntry { front: string; back: string; quiz: string; lesson: string }
@@ -92,6 +96,8 @@ export interface Activity {
 export interface Settings {
   desiredRetention: number
   theme: 'system' | 'light' | 'dark'
+  /** Placement results keyed by track slug. Absent until the learner takes one. */
+  placements?: Record<string, Placement>
 }
 
 export interface Meta {

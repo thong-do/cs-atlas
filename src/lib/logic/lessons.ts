@@ -39,9 +39,11 @@ export function trackMastery(track: TrackMeta, masteries: Map<string, number>): 
   return Math.round(slugs.reduce((sum, s) => sum + (masteries.get(s) ?? 0), 0) / slugs.length)
 }
 
-export function continueLesson(track: TrackMeta, masteries: Map<string, number>): string | null {
+/** First lesson that is neither mastered nor placed out; then the first unmastered one; then the first lesson. */
+export function continueLesson(track: TrackMeta, masteries: Map<string, number>, skipped: Set<string> = new Set()): string | null {
   const slugs = trackLessons(track)
-  return slugs.find((s) => (masteries.get(s) ?? 0) < MASTERED) ?? slugs[0] ?? null
+  const open = (s: string) => (masteries.get(s) ?? 0) < MASTERED
+  return slugs.find((s) => open(s) && !skipped.has(s)) ?? slugs.find(open) ?? slugs[0] ?? null
 }
 
 export function startedTracks(

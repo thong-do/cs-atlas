@@ -147,9 +147,13 @@ describe('content inventory', () => {
       'indexes-btrees': { prerequisites: ['data-in-memory'], exercises: ['indexes-btrees-quiz', 'diagnose-slowing-bulk-import'] },
       'transactions-isolation': { prerequisites: ['indexes-btrees'], exercises: ['transactions-isolation-quiz', 'diagnose-double-booking'] },
       'query-planning': { prerequisites: ['indexes-btrees'], exercises: ['query-planning-quiz', 'diagnose-slow-login'] },
+      'memory-hierarchy': { prerequisites: ['data-in-memory'], exercises: ['memory-hierarchy-quiz', 'diagnose-counters-dont-scale'] },
+      'number-representation': { prerequisites: [], exercises: ['number-representation-quiz', 'diagnose-broken-order-links'] },
+      'discrete-math-essentials': { prerequisites: [], exercises: ['discrete-math-essentials-quiz', 'diagnose-skewed-coupon-codes'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
-    expect(csf.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
+    expect(csf.modules.flatMap((m) => m.comingSoon)).toEqual([])
+    expect(Object.keys(CSF)).toHaveLength(16)
     expect(lessons.find((l) => l.slug === 'tcp-ip-stack')!.prerequisites).toEqual([])
     for (const [slug, want] of Object.entries(CSF)) {
       expect(lessons.find((l) => l.slug === slug), slug).toMatchObject({ track: 'cs-fundamentals', prerequisites: want.prerequisites })

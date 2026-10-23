@@ -1,0 +1,37 @@
+slug: diagnose-counters-dont-scale
+type: design-prompt
+kind: diagnose
+title: "Diagnose: eight threads slower than one"
+lessons: [memory-hierarchy]
+ladderOrder: 2
+prompt: |
+  A **C** request-counting microbenchmark (pthreads, **x86-64 Linux**, 64-bit `long`) keeps its counters in a global `volatile long counts[8]`, a contiguous array of **8 × 8 = 64 bytes** that starts on a 64-byte boundary. Each of **8 worker threads**
+  increments only `counts[threadId]` in a tight loop (each increment is a load and a store), with no locks and no atomics, because "each thread owns its slot". The machine has **16 cores** and is otherwise idle.
+
+  With **1 thread** the benchmark does about **500 million increments per second**. With **8 threads** the combined total is about **120 million per second**,
+  lower than one thread alone. CPU usage shows **800%**, and `perf` shows no lock contention and no system calls.
+
+  Explain why adding threads made it slower. Show the arithmetic. Say how you would confirm the cause, and give fixes with their trade-offs.
+hint: "No two threads ever write the same variable. Ask what unit of memory a core actually owns and works on, and how many of these counters fit in one such unit."
+rubric:
+  - id: cause
+    point: "Explains that the eight counters share one cache line, and although each thread writes only its own slot, the line is what a core must own to write, so the line bounces between cores (false sharing); every increment waits for the line to move."
+  - id: arithmetic
+    point: "Shows the layout arithmetic: 8 counters × 8 bytes = 64 bytes = one cache line on typical x86-64 (other CPUs may differ), so all 8 slots sit in one line."
+  - id: symptoms
+    point: "Matches the numbers: 120 M/s ÷ 8 = 15 M/s per thread against 500 M/s alone (about 33 times slower per thread); 800% CPU is cores stalled waiting for the line, not useful work, and perf sees no locks or syscalls because there are none."
+  - id: confirm
+    point: "Confirms with perf c2c on Linux showing HITM loads concentrated on one cache line (or hardware counters on cache-line transfers), and with the experiment of spacing each counter onto its own line, which should restore scaling."
+  - id: fixes
+    point: "Gives fixes with trade-offs: pad or align each counter to its own 64-byte line (128 on some CPUs): 8 × 64 = 512 bytes, or 1,024 at 128, instead of 64; per-thread local counters summed at the end (no sharing, but reads are only eventually accurate); LongAdder in Java, or in C per-thread structs or `_Thread_local` counters summed at the end (more memory, a slower exact read)."
+reference: |
+  **Cause.** Cores do not own single variables; a core must hold a whole **cache line** to write any byte in it. `counts` is 8 × 8 = 64 bytes, which, starting on a boundary, is one line on typical x86-64 (64-byte lines; other CPUs may differ). The threads write different slots but the same line. Hardware keeps cores' caches consistent, so each write must first take the line from the core that wrote last, and it ping-pongs between 8 cores. This is false sharing.
+
+  **Arithmetic.** One thread: 500 M/s is 2 ns per increment, with the line staying in its core's L1. Eight threads: 120 M/s ÷ 8 = 15 M/s per thread, about 67 ns per increment, 500 ÷ 15 ≈ 33 times slower per thread. Tens of ns per core-to-core transfer is the same order (illustrative). The 800% CPU is cores stalled waiting for the line, which counts as busy; there are no locks or syscalls to see.
+
+  **Confirm.** On Linux, `perf c2c` reports HITM (a load that hit a line modified in another core's cache) concentrated on one line. Then test: give each counter its own line and re-run; throughput should rise toward 8 × 500 M/s if this is the cause.
+
+  **Fixes.**
+  - **Pad or align to 64 bytes**; use 128 where lines are 128 bytes (Apple M-series) or adjacent lines are fetched as a pair. It costs 8 × 64 = 512 bytes (8 × 128 = 1,024) instead of 64: fine for 8 counters, costly for millions.
+  - **Per-thread local counters, summed at the end.** No sharing; a mid-run total is approximate.
+  - **Thread-local storage: `LongAdder` in Java; in C, per-thread structs or `_Thread_local` counters summed at the end.** Simple API, low contention; more memory, and the sum is not an atomic snapshot.

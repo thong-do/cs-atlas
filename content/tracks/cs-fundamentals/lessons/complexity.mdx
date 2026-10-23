@@ -77,7 +77,7 @@ Count the work: log₂ 200,000 ≈ 17.6 (2^17 = 131,072 and 2^18 = 262,144 brack
 
 - **Treating Big-O as a stopwatch.** Two O(n) loops can differ a lot in real time. Fix: use Big-O to rule designs in or out, then measure the survivors.
 - **Ignoring constants at small n.** A "better" class with a large constant can lose at your real n. Fix: compare the actual formulas at your real n.
-- **Assuming all operations cost the same.** Walking a contiguous array is usually much faster than following the same number of pointers across scattered memory, because of CPU caches. Fix: remember Big-O hides this; The memory hierarchy is on this track's outline.
+- **Assuming all operations cost the same.** Walking a contiguous array is usually much faster than following the same number of pointers across scattered memory, because of CPU caches. Fix: remember Big-O hides this, so read [The memory hierarchy](/cs-fundamentals/memory-hierarchy/).
 - **Confusing worst case with amortized.** "Append is O(1) amortized" does not mean every append is fast; one append copies the whole array. Fix: where a single slow call would break a latency budget, plan for the worst call.
 - **Forgetting hidden loops.** A slice, a string concatenation or a library call may itself cost O(n) inside your O(n) loop. Fix: read the documented cost of each call you make.
 

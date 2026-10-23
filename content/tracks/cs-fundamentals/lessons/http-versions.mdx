@@ -27,7 +27,7 @@ HTTP/2 removes the HTTP-level blocking, but it is still one TCP connection. TCP 
 
 **HTTP/3: HTTP over QUIC.** **QUIC** runs over UDP but supplies its own reliability, streams and congestion control, and it has TLS 1.3 built in.
 
-- **One combined handshake.** The transport and crypto handshake together take 1 RTT for a new connection, and a resumed connection can send **0-RTT** early data (with the replay caveat from the TLS lesson).
+- **One combined handshake.** The transport and crypto handshake together take 1 RTT for a new connection, and a resumed connection can send **0-RTT** early data (with the replay caveat from the [TLS lesson](/cs-fundamentals/tls/)).
 - **Loss recovery is per stream.** A lost packet delays only the streams whose data it carried. Congestion control is still shared by the whole connection.
 - **Connection IDs.** A QUIC connection is identified by an ID, not by addresses and ports, so it can **migrate** when the client moves from wifi to cellular, instead of being torn down.
 - **QPACK** is HPACK redesigned so header compression does not depend on in-order delivery across streams.
@@ -85,7 +85,7 @@ curl -sI -o /dev/null -w '%{http_version}\n' --http3   https://example.com   # 3
 - **Assuming HTTP/3 is always faster.** On a clean network, a single large download gains almost nothing, and QUIC often costs more CPU, since it usually runs in user space rather than the kernel. Fix: measure real traffic, not one benchmark.
 - **Enabling HTTP/3 without a fallback path.** Some firewalls drop UDP, and a server that is only reachable over QUIC strands those clients. Fix: keep HTTP/2 over TCP enabled, and open UDP port 443 on your edge.
 - **Relying on server push.** Browsers have removed it, so it does nothing there. Fix: use `Link: rel=preload` or 103 Early Hints.
-- **Treating 0-RTT as free.** Early data can be replayed. Fix: only for idempotent requests, as in the TLS lesson.
+- **Treating 0-RTT as free.** Early data can be replayed. Fix: only for idempotent requests, as in the [TLS lesson](/cs-fundamentals/tls/).
 
 ## Tips & tricks
 

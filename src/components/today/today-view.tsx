@@ -13,7 +13,7 @@ import { useMasteries } from '@/lib/hooks/use-masteries'
 import { usePlacements } from '@/lib/hooks/use-placements'
 import { currentStreak } from '@/lib/logic/dates'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
-import { allSkippedLessons } from '@/lib/logic/placement'
+import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
 import { resolveDue } from '@/lib/logic/review-queue'
@@ -56,7 +56,7 @@ export function TodayView() {
   const reviews = data.due
   const trackOf = trackLookup(lessons)
   // A placement counts as starting a track, so Today recommends from it before any exercise is solved.
-  const started = new Set([...startedTracks(exercises, solved, trackOf), ...Object.keys(placements ?? {})])
+  const started = new Set([...startedTracks(exercises, solved, trackOf), ...placedTracks(tracks, placements)])
   const recommended = recommendedLesson(lessons, masteries, started, allSkippedLessons(tracks, placements))
   const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
   const recLadder = recLesson ? lessonExercises(recLesson, exercises, trackOf) : []

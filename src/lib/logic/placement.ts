@@ -30,6 +30,11 @@ export function allSkippedLessons(tracks: TrackMeta[], placements: Record<string
   return new Set(tracks.flatMap((t) => [...skippedLessons(t, placements?.[t.slug])]))
 }
 
+/** Slugs of catalog tracks that have a placement, in the given track order. Stale keys (removed tracks) are ignored. */
+export function placedTracks(tracks: TrackMeta[], placements: Record<string, Placement> | undefined): string[] {
+  return tracks.filter((t) => placements?.[t.slug] !== undefined).map((t) => t.slug)
+}
+
 /** New settings with one track's placement set (or cleared with null); every other field is kept. */
 export function withPlacement(settings: Settings, track: string, placement: Placement | null): Settings {
   const { placements, ...rest } = settings

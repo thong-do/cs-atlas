@@ -8,7 +8,7 @@ import { useMasteries } from '@/lib/hooks/use-masteries'
 import { usePlacements } from '@/lib/hooks/use-placements'
 import { MASTERED } from '@/lib/logic/mastery'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
-import { allSkippedLessons } from '@/lib/logic/placement'
+import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { layoutBands } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
@@ -35,7 +35,7 @@ export function RoadmapView() {
   const solved = new Set((progress ?? []).filter((p) => p.status === 'solved').map((p) => p.slug))
   const trackOf = trackLookup(lessons)
   // A placement counts as starting a track, so the roadmap recommends from it before any exercise is solved.
-  const started = new Set([...startedTracks(exercises, solved, trackOf), ...Object.keys(placements ?? {})])
+  const started = new Set([...startedTracks(exercises, solved, trackOf), ...placedTracks(tracks, placements)])
   const recommended = masteries ? recommendedLesson(lessons, masteries, started, allSkippedLessons(tracks, placements)) : null
   const count = (slug: string) => {
     const ladder = lessonExercises(lessonBySlug.get(slug)!, exercises, trackOf)

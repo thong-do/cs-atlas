@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS, type PlacementQuestion, type TrackMeta } from '@/lib/types'
-import { allSkippedLessons, scorePlacement, skippedLessons, withPlacement } from './placement'
+import { allSkippedLessons, placedTracks, scorePlacement, skippedLessons, withPlacement } from './placement'
 
 const track: TrackMeta = {
   slug: 't', title: 'T', summary: 's', order: 1,
@@ -53,5 +53,16 @@ describe('withPlacement', () => {
     const one = withPlacement(DEFAULT_SETTINGS, 't', p)
     expect(withPlacement(one, 't', null)).toEqual(DEFAULT_SETTINGS)
     expect('placements' in withPlacement(one, 't', null)).toBe(false)
+  })
+})
+
+describe('placedTracks', () => {
+  const p = { passedModules: [], takenAt: '2026-01-01T00:00:00.000Z' }
+  it('ignores keys that are not catalog tracks, in track order', () => {
+    const other: TrackMeta = { ...track, slug: 'o', order: 2 }
+    expect(placedTracks([track, other], { gone: p, o: p, t: p })).toEqual(['t', 'o'])
+  })
+  it('returns [] when there are no placements', () => {
+    expect(placedTracks([track], undefined)).toEqual([])
   })
 })

@@ -89,7 +89,7 @@ questions:
       - "The column loop reads each element twice, because the row index changes faster than the column index"
       - "The row loop lets the compiler remove the bounds check that C inserts on each index of a two-dimensional array"
     answer: 1
-    explanation: "C is row-major, so `m[i][j]` and `m[i][j+1]` are 4 bytes apart and the row loop consumes all 16 floats of a 64-byte line in consecutive reads. The column loop jumps 3,000 × 4 = 12,000 bytes per read and uses one float of a line before moving on; its roughly 3,000 lines (3,000 × 64 B ≈ 192 KB) may stay in L2, but each read typically misses L1 and the loop cannot be vectorised, so it runs several times slower."
+    explanation: "C is row-major, so `m[i][j]` and `m[i][j+1]` are 4 bytes apart and the row loop consumes all 16 floats of a 64-byte line in consecutive reads. The column loop jumps 3,000 × 4 = 12,000 bytes per read and uses one float of a line before moving on; its roughly 3,000 lines (3,000 × 64 B ≈ 192 KB) may stay in L2, but each read typically misses L1, so it runs several times slower."
   - module: machine-math
     prompt: "In IEEE 754 double precision (a Python float or a JavaScript number), `0.1 + 0.2 == 0.3` is false. What is the root cause?"
     choices:

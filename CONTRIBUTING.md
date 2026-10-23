@@ -108,6 +108,13 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V11 | LeetCode exercises: unique slugs, LeetCode ids and leetcode.com URLs (every exercise's file name equals its slug) |
 | V12 | Quiz: unique question and flashcard ids; each answer is one of its choices |
 | V13 | Design prompt: unique rubric ids |
+| V14 | Placement files: the track exists and the file name equals it; each module has 2–3 questions (none for `comingSoon`-only or exempt modules); 4 distinct choices and an `answer` that is one of them; no repeat of a lesson-quiz prompt or of an earlier placement prompt; no lesson takes the reserved slug `placement` |
+
+## Placement quizzes
+
+- One file per track at `content/placement/<track>.yaml`, shown at `/<track>/placement/`.
+- 2–3 questions per module. System Design's `case-studies` module is exempt.
+- Ask prior-knowledge questions only, and never pre-solve a diagnose prompt.
 
 ## Writing style
 

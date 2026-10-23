@@ -36,6 +36,7 @@ export function validatePlacements(placements: PlacementInput[], { tracks, lesso
     seen.add(p.track)
 
     const counts = new Map<string, number>()
+    const firstSeen = new Map<string, number>()
     p.questions.forEach((q, i) => {
       const n = i + 1
       if (!track.modules.some((m) => m.slug === q.module)) err(file, `question ${n} names unknown module "${q.module}"`)
@@ -43,6 +44,9 @@ export function validatePlacements(placements: PlacementInput[], { tracks, lesso
       if (q.choices.length !== 4) err(file, `question ${n} needs exactly 4 choices, has ${q.choices.length}`)
       if (new Set(q.choices.map(norm)).size !== q.choices.length) err(file, `question ${n} has duplicate choices`)
       if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer >= q.choices.length) err(file, `question ${n} answer ${q.answer} is not one of its choices`)
+      const earlier = firstSeen.get(norm(q.prompt))
+      if (earlier !== undefined) err(file, `question ${n} repeats question ${earlier}`)
+      else firstSeen.set(norm(q.prompt), n)
       if (quizPrompts.has(norm(q.prompt))) err(file, `question ${n} repeats a lesson-quiz prompt`)
     })
 

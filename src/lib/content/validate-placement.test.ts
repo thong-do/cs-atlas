@@ -64,6 +64,10 @@ describe('validatePlacements', () => {
     expect(validatePlacements([file('cs', [q('m1', { prompt: 'which structure is  fast?' }), q('m1'), q('m2'), q('m2')])], content()))
       .toContain('[V14] content/placement/cs.yaml: question 1 repeats a lesson-quiz prompt')
   })
+  it('rejects a prompt that repeats an earlier question in the same file', () => {
+    expect(validatePlacements([file('cs', [q('m1', { prompt: 'Same  thing?' }), q('m1'), q('m2'), q('m2', { prompt: 'same thing?' })])], content()))
+      .toContain('[V14] content/placement/cs.yaml: question 4 repeats question 1')
+  })
   it('reserves the lesson slug "placement"', () => {
     const c = content()
     c.lessons = [{ slug: 'placement', path: 'tracks/cs/lessons/placement' } as ContentInput['lessons'][number]]

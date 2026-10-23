@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
@@ -23,7 +24,12 @@ export function TrackHome({ slug, hasPlacement }: { slug: string; hasPlacement: 
   const next = continueLesson(track, masteries, skippedLessons(track, placement))
 
   async function clearPlacement() {
-    if (meta) await store.saveSettings(withPlacement(meta.settings, slug, null))
+    if (!meta) return
+    try {
+      await store.saveSettings(withPlacement(meta.settings, slug, null))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    }
   }
 
   return (
@@ -37,12 +43,12 @@ export function TrackHome({ slug, hasPlacement }: { slug: string; hasPlacement: 
             <Link href={lessonHref(lessonBySlug.get(next)!)}>Continue: {lessonBySlug.get(next)!.title}</Link>
           </Button>
         )}
-        {hasPlacement && (
+        {(hasPlacement || placement) && (
           <p className="text-sm text-muted-foreground">
             {placement ? (
               <>
                 Placement taken {formatDay(placement.takenAt)} ·{' '}
-                <Link href={`/${slug}/placement/`} className="underline">Retake</Link> ·{' '}
+                {hasPlacement && <><Link href={`/${slug}/placement/`} className="underline">Retake</Link> ·{' '}</>}
                 <button type="button" className="underline" onClick={() => void clearPlacement()}>Clear</button>
               </>
             ) : (

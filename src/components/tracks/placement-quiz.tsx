@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,16 @@ export function PlacementQuiz({ placement }: { placement: PlacementDoc }) {
   const track = trackBySlug.get(placement.track)!
   const [answers, setAnswers] = useState<number[]>([])
   const [result, setResult] = useState<{ score: PlacementScore; saved: Placement } | null>(null)
+  const promptRef = useRef<HTMLLegendElement>(null)
+  const resultRef = useRef<HTMLHeadingElement>(null)
   const total = placement.questions.length
+
+  // Move focus after an answer (the clicked button is replaced), but never on first mount.
+  useEffect(() => {
+    if (answers.length === 0) return
+    if (result) resultRef.current?.focus()
+    else promptRef.current?.focus()
+  }, [answers.length, result])
 
   async function choose(choice: number) {
     if (!meta) return
@@ -40,11 +49,11 @@ export function PlacementQuiz({ placement }: { placement: PlacementDoc }) {
 
   if (result) {
     const start = continueLesson(track, masteries, skippedLessons(track, result.saved))
-    const wrong = placement.questions.filter((q, i) => answers[i] !== q.answer)
+    const wrong = placement.questions.map((q, i) => ({ q, i })).filter(({ q, i }) => answers[i] !== q.answer)
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">{track.title} placement</h1>
-        <h2 className="text-xl font-semibold">Your placement</h2>
+        <h2 ref={resultRef} tabIndex={-1} className="text-xl font-semibold outline-none">Your placement</h2>
         <ul className="divide-y rounded-lg border">
           {track.modules.filter((m) => result.score.byModule[m.slug]).map((m) => {
             const s = result.score.byModule[m.slug]
@@ -66,8 +75,8 @@ export function PlacementQuiz({ placement }: { placement: PlacementDoc }) {
         {wrong.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Questions to revisit</h2>
-            {wrong.map((q) => (
-              <div key={q.prompt} className="space-y-1 rounded-lg border p-3 text-sm">
+            {wrong.map(({ q, i }) => (
+              <div key={i} className="space-y-1 rounded-lg border p-3 text-sm">
                 <p className="font-medium">{q.prompt}</p>
                 <p>Answer: {q.choices[q.answer]}</p>
                 <p className="text-muted-foreground">{q.explanation}</p>
@@ -88,7 +97,7 @@ export function PlacementQuiz({ placement }: { placement: PlacementDoc }) {
       </p>
       <p className="text-sm tabular-nums">Question {answers.length + 1} of {total}</p>
       <fieldset className="space-y-3">
-        <legend className="text-lg font-medium">{q.prompt}</legend>
+        <legend ref={promptRef} tabIndex={-1} className="text-lg font-medium outline-none">{q.prompt}</legend>
         {q.choices.map((c, i) => (
           <Button key={`${answers.length}-${i}`} variant="outline" className="h-auto w-full justify-start whitespace-normal text-left"
             disabled={!meta} onClick={() => void choose(i)}>

@@ -239,10 +239,10 @@ describe('placement quizzes', () => {
     return out
   }
   it('ships the planned question counts per module', () => {
-    expect([...placementTracks()].sort()).toEqual(['algorithms', 'cs-fundamentals'])
+    expect([...placementTracks()].sort()).toEqual(['algorithms', 'cs-fundamentals', 'system-design'])
     expect(counts('cs-fundamentals')).toEqual({ foundations: 2, 'operating-systems': 2, networking: 2, databases: 3, 'machine-math': 3 })
     expect(counts('algorithms')).toEqual({ foundations: 3, 'trees-heaps': 2, 'search-greedy': 2, 'graphs-dp': 3, 'math-bits': 2 })
-    expect(getPlacement('system-design')).toBeUndefined()
+    expect(counts('system-design')).toEqual({ foundations: 3, scaling: 3, advanced: 3 })
   })
   it('varies answer positions with no run of three in every file', () => {
     for (const track of placementTracks()) {

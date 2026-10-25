@@ -1,0 +1,83 @@
+track: system-design
+questions:
+  - module: foundations
+    prompt: "A client sends two requests to a cart API, and both time out even though each one reached the server and was applied. The API follows standard HTTP semantics and does no de-duplication: `DELETE /carts/9/items/3` removes line item 3, and `POST /carts/9/items` adds a new line item. The client retries each request once, and both retries reach the server. What does the cart now hold?"
+    choices:
+      - "Item 3 gone and one new line item, since POST is idempotent whenever the retried body is identical"
+      - "Item 3 still there, since the retried DELETE got a 404, plus two new line items from the two POSTs"
+      - "Item 3 gone, just as after a single delete, plus two new line items, one from each of the POSTs"
+      - "Item 3 gone and one new line item, since servers drop any request they have already applied"
+    answer: 2
+    explanation: "DELETE is idempotent: the repeat finds item 3 already removed (it may answer 404 or 204), so the state matches a single call. POST is not, so without server-side de-duplication, such as an idempotency key, each copy adds its own line item."
+  - module: foundations
+    prompt: "The A record for `api.example.net` has a TTL of 43,200 s (12 hours). At 14:00 you point it at a new IP address and, in the same edit, lower its TTL to 60 s. If every cache honours TTLs exactly, until about when can some clients still be sent to the old address?"
+    choices:
+      - "Until about 02:00 the next day, since answers cached before 14:00 still carry the 12-hour TTL"
+      - "Until about 14:01, since the new 60 s TTL applies at once to every cached copy of the record"
+      - "Only until resolvers receive the change, which authoritative servers push to them with NOTIFY"
+      - "Until the registrar republishes the zone, which can take up to 48 hours after any record change"
+    answer: 0
+    explanation: "A resolver that fetched the record just before 14:00 was told it may reuse it for 43,200 s, so it can serve the old address until 14:00 + 12 h = 02:00; the 60 s TTL governs only answers fetched after the change. Nothing is pushed to resolvers (NOTIFY reaches secondary authoritative servers), and the registrar plays no part in changing an A record."
+  - module: foundations
+    prompt: "A service reads through a cache that answers in 4 ms. On a miss it has already spent those 4 ms, and then it queries a database that takes 36 ms. What cache hit ratio brings the average read time down to 13 ms?"
+    choices:
+      - "About 64%: 13 ÷ 36 ≈ 0.36 of the database time, so about 64% of reads must hit"
+      - "About 72%: solving 4h + 36(1 − h) = 13, with a miss costing only the database time"
+      - "About 25%: the 9 ms above the cache time is 9 ÷ 36 = 0.25 of a database query"
+      - "75%: solving 4 + 36(1 − h) = 13 gives a miss share of 9 ÷ 36 = 0.25, so h = 0.75"
+    answer: 3
+    explanation: "Every read pays the 4 ms cache check and only misses add the 36 ms query, so the average is 4 + (1 − h) × 36; setting it to 13 gives 1 − h = 9 ÷ 36 = 0.25, so h = 0.75. Check: 0.75 × 4 + 0.25 × (4 + 36) = 3 + 10 = 13 ms."
+  - module: scaling
+    prompt: "Every user reaches `shop.example.com` over HTTPS. Requests from users whose session carries the cookie `beta=1` must go to a canary server pool, and all other requests to the stable pool. What does the balancer in front of the two pools need?"
+    choices:
+      - "A layer-4 balancer that hashes each client's source IP, so beta users keep landing on the canary pool"
+      - "A layer-7 balancer that terminates TLS and reads the Cookie header on each incoming HTTP request"
+      - "A layer-4 balancer that routes on the SNI hostname sent in the TLS handshake, before decryption"
+      - "Weighted DNS for the hostname, handing the canary pool's address to a share of all lookups"
+    answer: 1
+    explanation: "The cookie travels inside the encrypted HTTP request, so only a balancer that terminates TLS and parses HTTP can see it; a layer-4 balancer sees addresses, ports and at most the SNI name, which is the same for every user here. IP hashing and weighted DNS split traffic, but not by who carries the cookie."
+  - module: scaling
+    prompt: "A PostgreSQL primary is saturated by writes: 9,000 small inserts/s keep its disk busy, while reads are light. A teammate proposes adding three asynchronous streaming replicas. What happens to the cluster's write capacity?"
+    choices:
+      - "It roughly quadruples, since each insert can now be accepted by any one of the four nodes"
+      - "It falls, since the primary now waits for every replica to confirm an insert before committing"
+      - "It rises somewhat, since replicas take over index upkeep and leave the primary only the table writes"
+      - "It does not grow: every insert still goes to the primary, and each replica replays all 9,000/s"
+    answer: 3
+    explanation: "With single-leader replication the primary still executes every write and each replica replays the whole write stream, so replicas add read capacity and standby copies, not write capacity; asynchronous ones do not even make the primary wait. Spreading 9,000 inserts/s takes partitioning the data across several primaries."
+  - module: scaling
+    prompt: "A Kafka topic has 8 partitions and is read by one ordinary consumer group (not a share group) of 8 consumers, which is falling behind. The team scales the same group to 12 consumers. What changes?"
+    choices:
+      - "4 consumers sit idle: each partition goes to one consumer of the group, so throughput barely moves"
+      - "Throughput rises by about half, since the 8 partitions' messages are spread evenly over 12 consumers"
+      - "Every message is now processed 12 times, since each consumer in the group reads the whole topic"
+      - "Order within a partition breaks, since some partitions are now shared and read by two consumers"
+    answer: 0
+    explanation: "A group assigns each partition to exactly one of its members, so with 8 partitions at most 8 consumers get work and 12 − 8 = 4 stay idle. More parallelism needs more partitions or faster consumers; it is separate groups, not members of one group, that each receive every message."
+  - module: advanced
+    prompt: "A settings service sends writes to a leader and serves reads from any of several asynchronously replicated followers. A user changes their delivery address and gets `204 No Content`, then reloads the page and sees the old address; a few seconds later the new one shows up. Which guarantee for that user's session would have ruled this out?"
+    choices:
+      - "Monotonic reads: once the user has seen a value, no later read may show an older one"
+      - "Monotonic writes: the user's writes are applied in the order the user issued them"
+      - "Read-your-writes: the user's later reads always reflect the writes the user made"
+      - "Eventual consistency: all followers converge on the same value once writes stop"
+    answer: 2
+    explanation: "The user read after their own acknowledged write and did not see it, which is exactly what read-your-writes forbids; the follower serving the reload had not yet applied the write. Eventual consistency held, since the value converged, and monotonic reads held, since the user never saw the new address before seeing the old one."
+  - module: advanced
+    prompt: "A Raft cluster has a fixed set of voting members, and no membership change happens during an outage. It must keep electing a leader and committing writes while any 4 of its members are down. What is the smallest cluster that does this?"
+    choices:
+      - "8 members: with 4 down, the 4 still running are half the cluster, which is enough to commit"
+      - "9 members: a majority is 5, and 9 − 4 = 5 members are still running"
+      - "10 members: an even size is needed so a vote among the survivors cannot end in a tie"
+      - "13 members: tolerating f failures takes 3f + 1 nodes, so 3 × 4 + 1"
+    answer: 1
+    explanation: "A majority of N is ⌊N/2⌋ + 1, so 4 failures are survivable only if N − 4 ≥ ⌊N/2⌋ + 1, which first holds at N = 9 (majority 5, survivors 5); with 8 a majority is 5 but only 4 remain, so 8 tolerates just 3. The 3f + 1 rule is for Byzantine faults, not the crash faults Raft handles."
+  - module: advanced
+    prompt: "An API's requests mostly take about 40 ms, but 2% take about 500 ms, and a single page view makes 25 independent API calls. Why does the team alert on p99 latency instead of mean latency?"
+    choices:
+      - "The slow 2% lift the mean only to about 49 ms, yet about 40% of page views include a 500 ms call"
+      - "p99 leaves out the slow 2% of requests as outliers, so it stays steadier than the mean"
+      - "The mean cannot be combined across servers, while p99 values from several servers can be averaged"
+      - "p99 is cheaper to compute, since each server only has to keep its slowest 1% of timings"
+    answer: 0
+    explanation: "The mean is 0.98 × 40 + 0.02 × 500 = 39.2 + 10 ≈ 49 ms, which looks healthy, while p99 is 500 ms because more than 1% of calls are slow. A page with 25 calls avoids every slow one only 0.98²⁵ ≈ 0.60 of the time, so about 40% of page views wait on a 500 ms call."

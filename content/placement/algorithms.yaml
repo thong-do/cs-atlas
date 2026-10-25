@@ -1,0 +1,110 @@
+track: algorithms
+questions:
+  - module: foundations
+    prompt: "A service keeps 500,000 order IDs in a hash set that resolves collisions by chaining. Lookups were fast until a teammate replaced the key type's hash function; now each lookup takes time roughly proportional to the number of stored IDs. What is the most likely cause?"
+    choices:
+      - "The set has grown past the size at which hashing stays O(1), so any table this large scans all of its keys linearly"
+      - "The new function is slower to compute, and computing one key's hash now costs more as more IDs are stored"
+      - "The new function sends most IDs to a few buckets, so each lookup walks a chain holding a large share of them"
+      - "The new function returns much larger hash values, and larger values take longer to turn into a bucket index"
+    answer: 2
+    explanation: "A hash table answers in O(1) on average only while keys spread evenly over its buckets; if the hash puts most keys in the same few buckets, a lookup scans a chain of O(n) entries. Size alone does not cause this, because the table grows its bucket array to keep chains short."
+  - module: foundations
+    prompt: "Builds are numbered 0 to n − 1, and once a build fails every later build fails too. This loop finds the first failing build over the half-open range `[lo, hi)`: `lo, hi = 0, n`, then `while lo < hi: mid = (lo + hi) // 2; if fails(mid): ???; else: lo = mid + 1`, then `return lo`. What belongs at `???`?"
+    choices:
+      - "`hi = mid`, because build mid may itself be the first failure, so it has to stay inside the range"
+      - "`hi = mid - 1`, because build mid has already been tested, so it can safely be dropped from the range"
+      - "`lo = mid`, because the first failure must be at mid or later, so everything before mid can go"
+      - "`hi = mid + 1`, because a half-open range must end one position past the last candidate, mid"
+    answer: 0
+    explanation: "If build mid fails, the first failure is at mid or earlier, so the answer lies in `[lo, mid]`, which as a half-open range is `hi = mid`. Setting `hi = mid - 1` throws mid away, which is wrong whenever mid is the first failing build, and `hi = mid + 1` can stop the range from shrinking, as when hi = lo + 1."
+  - module: foundations
+    prompt: "For an array `a` of n non-negative integers and a non-negative `budget`, this finds the longest stretch whose sum is at most `budget`: `left = total = best = 0`, then for each `right` it adds `a[right]` to `total`, runs `while total > budget: total -= a[left]; left += 1`, and updates `best`. The inner loop can run many times for one `right`. What is the total running time?"
+    choices:
+      - "O(n²), because the inner loop can run up to n times for each of the n values of right"
+      - "O(n log n), because each run of the inner loop removes about half of the current window"
+      - "O(n) while the values stay small, but O(n²) as soon as one element is larger than the whole budget"
+      - "O(n), because left only moves forward and never passes n, so all inner passes total at most n"
+    answer: 3
+    explanation: "Each pass of the inner loop moves `left` one step right, and `left` never moves back or past n, so all the inner passes together number at most n. Adding the n steps of `right` gives at most 2n steps, which is O(n)."
+  - module: trees-heaps
+    prompt: "A binary min-heap holds 1,000 distinct numbers in the usual array layout, with the root at index 0. Without searching, what can you say about where its largest number is?"
+    choices:
+      - "At index 999, since a heap keeps its whole array sorted in ascending order from the root to the last slot"
+      - "At a leaf, since each parent is at most its children; for 1,000 entries, index 500 to 999"
+      - "At index 1 or 2, since the root's two children are the largest values below it"
+      - "Anywhere at all, since the heap rule fixes only the minimum, so even index 1 could hold it"
+    answer: 1
+    explanation: "Every parent is ≤ its children, so a node that has a child cannot hold the largest of distinct values; only a leaf can. Index i has a child only when 2i + 1 ≤ 999, that is i ≤ 499, so the leaves are indexes 500 to 999, and the array is not sorted, so any of them may hold it."
+  - module: trees-heaps
+    prompt: "Into an empty plain binary search tree with no rebalancing, you insert the keys 1, 2, 3, …, 4,096 in that order. How many nodes does a search for 4,096 then visit?"
+    choices:
+      - "About 12, since a binary search tree over 4,096 keys has height log₂ 4,096 = 12"
+      - "About 64, since sorted keys fill the tree level by level to a depth of √4,096 = 64"
+      - "All 4,096, since each key becomes the right child of the one before it, forming a chain"
+      - "About 2,048, since the sorted keys alternate between the left and the right branches of the root"
+    answer: 2
+    explanation: "Each new key is larger than every key already stored, so it goes right at every node and ends up as the right child of the previous key. The tree is a chain of height 4,096, and finding 4,096 visits every node, against about log₂ 4,096 = 12 in a balanced tree."
+  - module: search-greedy
+    prompt: "A test harness uses a backtracking generator to try every order in which 10 distinct database migrations could run, and separately every on/off setting of 10 independent feature flags. How many cases does each need?"
+    choices:
+      - "1,024 orders and 1,024 flag settings, since both come to 2 to the power 10"
+      - "100 orders and 1,024 flag settings: 10 × 10 slots, and 2¹⁰ for the flags"
+      - "3,628,800 orders and only 100 flag settings, 10 × 10 pairs of flags"
+      - "3,628,800 orders, which is 10!, and 1,024 flag settings, which is 2¹⁰"
+    answer: 3
+    explanation: "An order has 10 choices for the first migration, 9 for the second and so on, so 10! = 10 × 9 × … × 1 = 3,628,800. Each flag is on or off independently, so there are 2¹⁰ = 1,024 settings."
+  - module: search-greedy
+    prompt: "A postage machine has stamps worth 1, 4 and 5 cents in unlimited supply. It pays an amount by repeatedly taking the most valuable stamp that does not overshoot what is left. What is the smallest amount for which this rule uses more stamps than necessary?"
+    choices:
+      - "8 cents"
+      - "7 cents"
+      - "12 cents"
+      - "None: with a 1-cent stamp available, the rule always uses the fewest stamps"
+    answer: 0
+    explanation: "Up to 7 cents the rule is optimal (1 to 3 need 1-cent stamps anyway, 4 and 5 are one stamp, 6 = 5 + 1 and 7 = 5 + 1 + 1), but for 8 it takes 5 + 1 + 1 + 1, four stamps, while 4 + 4 needs two. 12 fails too (5 + 5 + 1 + 1 against 4 + 4 + 4), but later."
+  - module: graphs-dp
+    prompt: "In an unweighted graph, breadth-first search from a start node records each node's distance the first time it discovers that node. Why is that first recorded distance always a shortest one?"
+    choices:
+      - "BFS checks a node's neighbours before going deeper, as DFS does, so both find shortest paths"
+      - "Its queue releases nodes in non-decreasing distance, so all at distance d leave before any at d + 1"
+      - "BFS revisits a node each time it finds a shorter route to it, so the recorded distance keeps improving"
+      - "Marking nodes visited removes every cycle from the graph, so only one path is left to reach each node"
+    answer: 1
+    explanation: "The queue only ever holds nodes at distance d followed by nodes at distance d + 1, so every node at distance d is dequeued before any at d + 1. A node first discovered from a node at distance d therefore gets d + 1, and no shorter route to it remained unexplored."
+  - module: graphs-dp
+    prompt: "A directed graph has edges A→B costing 2, A→C costing 5 and C→B costing −4. You run Dijkstra's algorithm from A in the version that marks a node final when it leaves the priority queue and never updates a final node. What does it report for B?"
+    choices:
+      - "1, which is right: Dijkstra copes with a negative edge as long as the graph has no cycle"
+      - "−4, because the negative edge is the cheapest edge in the graph, so it is taken first"
+      - "No distance: Dijkstra checks every edge weight first and stops when it finds a negative one"
+      - "2, which is wrong: B was final before C left the queue, yet A→C→B costs only 5 − 4 = 1"
+    answer: 3
+    explanation: "B leaves the queue at distance 2 and is final; C leaves later at 5, and its edge would give B 5 + (−4) = 1, but a final node is never updated. With non-negative weights no later path can undercut a finalised distance, which is exactly what this negative edge does, even with no cycle."
+  - module: graphs-dp
+    prompt: "A table `dp` with m = 2,000 rows and n = 300 columns is filled row by row, left to right. Each `dp[i][j]` is computed in constant time from `dp[i - 1][j]` and `dp[i][j - 1]` alone, and only the final cell is needed. Which statement is accurate?"
+    choices:
+      - "O(m·n) time, 600,000 updates; one array of 300 values, overwritten left to right, is enough"
+      - "O(m·n) time, but the full 2,000 × 300 table must be kept, since every cell builds on earlier cells"
+      - "O(m + n) time, about 2,300 steps, because each cell reads only two neighbouring values"
+      - "O(m·n) time with O(1) space, since keeping just the two neighbour values is enough"
+    answer: 0
+    explanation: "There are 2,000 × 300 = 600,000 cells at O(1) each. One array of 300 values works: just before position j is overwritten it still holds dp[i − 1][j], and position j − 1 already holds dp[i][j − 1], whereas two scalars cannot recall a value written 300 updates earlier."
+  - module: math-bits
+    prompt: "For a positive integer x, when is `(x & (x - 1)) == 0` true?"
+    choices:
+      - "When x is odd, since x − 1 then differs from x only in its last bit"
+      - "When x is even, since x and x − 1 then have opposite last bits"
+      - "When x is a power of two, since x then has a single 1 bit"
+      - "When x is one less than a power of two, such as 7 or 15"
+    answer: 2
+    explanation: "A power of two has a single 1 bit, and subtracting 1 turns that bit off and every bit below it on, so the AND is 0; any other positive x keeps its highest 1 bit through the subtraction, so the AND is non-zero. Powers of two include x = 1 = 2⁰, since 1 & 0 = 0."
+  - module: math-bits
+    prompt: "Euclid's algorithm computes gcd(a, b) for positive integers a ≥ b by repeating (a, b) → (b, a mod b) until the second number is 0. How does its worst-case number of steps grow?"
+    choices:
+      - "In proportion to b, since each step can lower the smaller number by as little as 1"
+      - "In proportion to log b, since the remainder at least halves every two steps"
+      - "In proportion to a / b, the number of times that b fits into a"
+      - "It is constant, since each step strips every whole multiple of b from a"
+    answer: 1
+    explanation: "Because a mod b < a / 2 whenever b ≤ a, each number falls below half its value within two steps. That caps the count at about 2 log₂ b + 2, which is 2 × 20 + 2 = 42 for b ≈ 2²⁰ ≈ 10⁶; consecutive Fibonacci numbers are the slow case, and gcd(89, 55) takes 9 steps."

@@ -95,7 +95,7 @@ export function PlacementQuiz({ placement }: { placement: PlacementDoc }) {
       <p className="text-sm text-muted-foreground">
         Answer what you can; a module is placed out only when every question in it is right. Nothing is marked mastered.
       </p>
-      <p className="text-sm tabular-nums">Question {answers.length + 1} of {total}</p>
+      <p className="text-sm tabular-nums" aria-live="polite" aria-atomic="true">Question {answers.length + 1} of {total}</p>
       <fieldset className="space-y-3">
         <legend ref={promptRef} tabIndex={-1} className="text-lg font-medium outline-none">{q.prompt}</legend>
         {q.choices.map((c, i) => (

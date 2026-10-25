@@ -98,7 +98,7 @@ questions:
       - "When x is a power of two, since x then has a single 1 bit"
       - "When x is one less than a power of two, such as 7 or 15"
     answer: 2
-    explanation: "A power of two has a single 1 bit, and subtracting 1 turns that bit off and every bit below it on, so the AND is 0; any other positive x keeps its highest 1 bit through the subtraction, so the AND is non-zero. That includes x = 1 = 2⁰, since 1 & 0 = 0."
+    explanation: "A power of two has a single 1 bit, and subtracting 1 turns that bit off and every bit below it on, so the AND is 0; any other positive x keeps its highest 1 bit through the subtraction, so the AND is non-zero. Powers of two include x = 1 = 2⁰, since 1 & 0 = 0."
   - module: math-bits
     prompt: "Euclid's algorithm computes gcd(a, b) for positive integers a ≥ b by repeating (a, b) → (b, a mod b) until the second number is 0. How does its worst-case number of steps grow?"
     choices:

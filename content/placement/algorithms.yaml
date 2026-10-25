@@ -55,14 +55,14 @@ questions:
     answer: 3
     explanation: "An order has 10 choices for the first migration, 9 for the second and so on, so 10! = 10 × 9 × … × 1 = 3,628,800. Each flag is on or off independently, so there are 2¹⁰ = 1,024 settings."
   - module: search-greedy
-    prompt: "A postage machine has stamps worth 1, 4 and 5 cents in unlimited supply. It pays an amount by repeatedly taking the most valuable stamp that does not overshoot what is left. Does this rule always use the fewest stamps?"
+    prompt: "A postage machine has stamps worth 1, 4 and 5 cents in unlimited supply. It pays an amount by repeatedly taking the most valuable stamp that does not overshoot what is left. What is the smallest amount for which this rule uses more stamps than necessary?"
     choices:
-      - "No: for 8 cents it takes 5 + 1 + 1 + 1, four stamps, while 4 + 4 needs only two"
-      - "Yes: taking the largest stamp first always leaves the smallest remainder to cover"
-      - "Yes: a 1-cent stamp exists, so every amount is payable and greedy finds the minimum"
-      - "No, but it can fail only for amounts below 5 cents, where the 5 cannot be used"
+      - "8 cents"
+      - "7 cents"
+      - "12 cents"
+      - "None: with a 1-cent stamp available, the rule always uses the fewest stamps"
     answer: 0
-    explanation: "For 8 cents the rule takes 5, leaving 3, which only 1-cent stamps can cover: 5 + 1 + 1 + 1 = 8 is four stamps, while 4 + 4 = 8 is two. Below 5 cents the rule is optimal (1, 2 and 3 need 1-cent stamps anyway, and 4 is one stamp), so the failure appears only higher up."
+    explanation: "Up to 7 cents the rule is optimal (1 to 3 need 1-cent stamps anyway, 4 and 5 are one stamp, 6 = 5 + 1 and 7 = 5 + 1 + 1), but for 8 it takes 5 + 1 + 1 + 1, four stamps, while 4 + 4 needs two. 12 fails too (5 + 5 + 1 + 1 against 4 + 4 + 4), but later."
   - module: graphs-dp
     prompt: "In an unweighted graph, breadth-first search from a start node records each node's distance the first time it discovers that node. Why is that first recorded distance always a shortest one?"
     choices:
@@ -95,10 +95,10 @@ questions:
     choices:
       - "When x is odd, since x − 1 then differs from x only in its last bit"
       - "When x is even, since x and x − 1 then have opposite last bits"
-      - "Exactly when x is a power of two, so x has a single 1 bit"
+      - "When x is a power of two, since x then has a single 1 bit"
       - "When x is one less than a power of two, such as 7 or 15"
     answer: 2
-    explanation: "Subtracting 1 turns the lowest 1 bit of x into 0 and every 0 below it into 1, leaving higher bits alone, so `x & (x - 1)` is x with its lowest 1 bit removed. That is zero exactly when x had one 1 bit: 40 = 101000₂ gives 40 & 39 = 100000₂ = 32, while 64 & 63 = 0."
+    explanation: "A power of two has a single 1 bit, and subtracting 1 turns that bit off and every bit below it on, so the AND is 0; any other positive x keeps its highest 1 bit through the subtraction, so the AND is non-zero. That includes x = 1 = 2⁰, since 1 & 0 = 0."
   - module: math-bits
     prompt: "Euclid's algorithm computes gcd(a, b) for positive integers a ≥ b by repeating (a, b) → (b, a mod b) until the second number is 0. How does its worst-case number of steps grow?"
     choices:
@@ -107,4 +107,4 @@ questions:
       - "In proportion to a / b, the number of times that b fits into a"
       - "It is constant, since each step strips every whole multiple of b from a"
     answer: 1
-    explanation: "When b ≤ a, a mod b < a / 2, so each number is less than half its value two steps later, giving at most about 2 log₂ b + 2 steps: for b ≈ 2²⁰ ≈ 10⁶ that is 2 × 20 + 2 = 42. Consecutive Fibonacci numbers are the slow case, for example gcd(89, 55) takes 9 steps."
+    explanation: "Because a mod b < a / 2 whenever b ≤ a, each number falls below half its value within two steps. That caps the count at about 2 log₂ b + 2, which is 2 × 20 + 2 = 42 for b ≈ 2²⁰ ≈ 10⁶; consecutive Fibonacci numbers are the slow case, and gcd(89, 55) takes 9 steps."

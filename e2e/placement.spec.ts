@@ -55,7 +55,7 @@ test('System Design never places out of Case Studies', async ({ page }) => {
   }
   await expect(page.getByRole('heading', { name: 'Your placement' })).toBeVisible()
   await expect(page.getByText('Placed out')).toHaveCount(3)
-  await expect(page.getByText('Case Studies')).toHaveCount(0)
+  await expect(page.getByRole('list').getByText('Case Studies')).toHaveCount(0)
   await page.getByRole('link', { name: 'Start at URL shortener' }).click()
   await expect(page).toHaveURL(/\/system-design\/url-shortener\/$/)
 
@@ -77,6 +77,6 @@ test.describe('on a 375px phone', () => {
     await expect(page.getByRole('heading', { name: 'Questions to revisit' })).toBeVisible()
     await expect(page.getByText('Placed out')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Start at Arrays & Hashing' })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 })

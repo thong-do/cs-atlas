@@ -114,7 +114,7 @@ These are pure functions with unit tests:
 - **e2e:**
   - Take the CS Fundamentals placement, answering the Foundations and Operating systems questions correctly and the rest wrongly. Expect two "Placed out" badges, and Continue opening `tcp-ip-stack`.
   - Clear the placement, and Continue opens `complexity` again.
-  - The layout spec covers the placement page at 320, 375 and 1280 px.
+  - The layout spec covers each placement page at 375 px, the width the whole layout spec uses.
 
 ## Delivery
 

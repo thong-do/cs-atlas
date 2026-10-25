@@ -8,7 +8,7 @@ questions:
       - "Item 3 gone, just as after a single delete, plus two new line items, one from each of the POSTs"
       - "Item 3 gone and one new line item, since servers drop any request they have already applied"
     answer: 2
-    explanation: "DELETE is idempotent: the repeat finds item 3 already removed (it may answer 404 or 204), so the state matches a single call. POST is not, so without server-side de-duplication, such as an idempotency key, each copy adds its own line item."
+    explanation: "DELETE is idempotent: the repeat finds item 3 already removed, so whatever status it returns, the state matches a single call. POST is not, so without server-side de-duplication, such as an idempotency key, each copy adds its own line item."
   - module: foundations
     prompt: "The A record for `api.example.net` has a TTL of 43,200 s (12 hours). At 14:00 you point it at a new IP address and, in the same edit, lower its TTL to 60 s. If every cache honours TTLs exactly, until about when can some clients still be sent to the old address?"
     choices:
@@ -22,9 +22,9 @@ questions:
     prompt: "A service reads through a cache that answers in 4 ms. On a miss it has already spent those 4 ms, and then it queries a database that takes 36 ms. What cache hit ratio brings the average read time down to 13 ms?"
     choices:
       - "About 64%: 13 ÷ 36 ≈ 0.36 of the database time, so about 64% of reads must hit"
-      - "About 72%: solving 4h + 36(1 − h) = 13, with a miss costing only the database time"
-      - "About 25%: the 9 ms above the cache time is 9 ÷ 36 = 0.25 of a database query"
-      - "75%: solving 4 + 36(1 − h) = 13 gives a miss share of 9 ÷ 36 = 0.25, so h = 0.75"
+      - "About 72%: solving 4h + 36(1 − h) = 13 for the hit ratio h"
+      - "25%: the 9 ms above the cache time is 9 ÷ 36 = 0.25 of a database query"
+      - "75%: 4 + 36(1 − h) = 13 gives a miss share of 9 ÷ 36 = 0.25, so h = 0.75"
     answer: 3
     explanation: "Every read pays the 4 ms cache check and only misses add the 36 ms query, so the average is 4 + (1 − h) × 36; setting it to 13 gives 1 − h = 9 ÷ 36 = 0.25, so h = 0.75. Check: 0.75 × 4 + 0.25 × (4 + 36) = 3 + 10 = 13 ms."
   - module: scaling
@@ -40,7 +40,7 @@ questions:
     prompt: "A PostgreSQL primary is saturated by writes: 9,000 small inserts/s keep its disk busy, while reads are light. A teammate proposes adding three asynchronous streaming replicas. What happens to the cluster's write capacity?"
     choices:
       - "It roughly quadruples, since each insert can now be accepted by any one of the four nodes"
-      - "It falls, since the primary now waits for every replica to confirm an insert before committing"
+      - "It falls, since the primary now writes each insert's log record once for itself and once per replica"
       - "It rises somewhat, since replicas take over index upkeep and leave the primary only the table writes"
       - "It does not grow: every insert still goes to the primary, and each replica replays all 9,000/s"
     answer: 3
@@ -57,10 +57,10 @@ questions:
   - module: advanced
     prompt: "A settings service sends writes to a leader and serves reads from any of several asynchronously replicated followers. A user changes their delivery address and gets `204 No Content`, then reloads the page and sees the old address; a few seconds later the new one shows up. Which guarantee for that user's session would have ruled this out?"
     choices:
-      - "Monotonic reads: once the user has seen a value, no later read may show an older one"
-      - "Monotonic writes: the user's writes are applied in the order the user issued them"
+      - "Monotonic reads: a later read never returns data older than what an earlier read returned"
+      - "Monotonic writes: a second write from the user never takes effect ahead of the first one"
       - "Read-your-writes: the user's later reads always reflect the writes the user made"
-      - "Eventual consistency: all followers converge on the same value once writes stop"
+      - "Eventual consistency: all followers converge on the same value once writes stop arriving"
     answer: 2
     explanation: "The user read after their own acknowledged write and did not see it, which is exactly what read-your-writes forbids; the follower serving the reload had not yet applied the write. Eventual consistency held, since the value converged, and monotonic reads held, since the user never saw the new address before seeing the old one."
   - module: advanced

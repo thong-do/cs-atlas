@@ -233,17 +233,22 @@ it('ships contributor templates with the required sections and fields', () => {
 })
 
 describe('placement quizzes', () => {
-  it('ships CS Fundamentals with 2–3 questions per module', () => {
-    expect(placementTracks()).toEqual(['cs-fundamentals'])
-    const doc = getPlacement('cs-fundamentals')!
-    const counts: Record<string, number> = {}
-    for (const q of doc.questions) counts[q.module] = (counts[q.module] ?? 0) + 1
-    expect(counts).toEqual({ foundations: 2, 'operating-systems': 2, networking: 2, databases: 3, 'machine-math': 3 })
-    expect(getPlacement('algorithms')).toBeUndefined()
+  const counts = (track: string) => {
+    const out: Record<string, number> = {}
+    for (const q of getPlacement(track)!.questions) out[q.module] = (out[q.module] ?? 0) + 1
+    return out
+  }
+  it('ships the planned question counts per module', () => {
+    expect([...placementTracks()].sort()).toEqual(['algorithms', 'cs-fundamentals'])
+    expect(counts('cs-fundamentals')).toEqual({ foundations: 2, 'operating-systems': 2, networking: 2, databases: 3, 'machine-math': 3 })
+    expect(counts('algorithms')).toEqual({ foundations: 3, 'trees-heaps': 2, 'search-greedy': 2, 'graphs-dp': 3, 'math-bits': 2 })
+    expect(getPlacement('system-design')).toBeUndefined()
   })
-  it('varies answer positions with no run of three', () => {
-    const keys = getPlacement('cs-fundamentals')!.questions.map((q) => q.answer)
-    for (const k of [0, 1, 2, 3]) expect(keys.filter((x) => x === k).length).toBeGreaterThanOrEqual(2)
-    for (let i = 2; i < keys.length; i++) expect(keys[i] === keys[i - 1] && keys[i] === keys[i - 2]).toBe(false)
+  it('varies answer positions with no run of three in every file', () => {
+    for (const track of placementTracks()) {
+      const keys = getPlacement(track)!.questions.map((q) => q.answer)
+      for (const k of [0, 1, 2, 3]) expect(keys.filter((x) => x === k).length, `${track} key ${k}`).toBeGreaterThanOrEqual(2)
+      for (let i = 2; i < keys.length; i++) expect(keys[i] === keys[i - 1] && keys[i] === keys[i - 2], `${track} run at ${i}`).toBe(false)
+    }
   })
 })

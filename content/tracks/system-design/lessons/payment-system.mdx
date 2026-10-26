@@ -1,0 +1,119 @@
+---
+slug: payment-system
+title: Payment system
+level: advanced
+authors: [cs-atlas]
+prerequisites: [distributed-transactions, queues-streams]
+summary: "Charge cards through an external payment provider without ever charging twice, track each payment through an explicit state machine, and keep a double-entry ledger that reconciles with the provider's reports."
+---
+
+## Intuition
+
+Think of a hotel that takes your card at check-in. The terminal gets your bank's approval for an amount, but nothing is taken yet. At checkout, the final bill is charged. Days later the money reaches the hotel's bank, minus fees. If you dispute a charge, your bank claws it back weeks later.
+
+A **marketplace payment system** works the same way: cards are approved first and charged later, money arrives days later, and every step is recorded so it can be checked against someone else's books. The hard part is the timeout where you don't know whether the card was charged.
+
+## Requirements & estimates
+
+**Functional.** Buyers pay for an order by card at checkout. The platform keeps a commission and owes the rest to the seller, who is paid out later. Support full and partial refunds, disputes, and a record of every cent.
+
+**Non-functional (assumptions).** Never charge a buyer twice for one checkout attempt. Every payment ends in a known state, even after timeouts. The ledger always balances and is never edited. Card numbers never reach our servers: the provider's hosted fields or SDK collect them and return a token, which typically shrinks our PCI DSS scope to a much lighter assessment (exactly how much depends on the integration and on the assessor).
+
+**Estimates.** These numbers are illustrative; see [Back-of-the-envelope estimation](/system-design/estimation/) for the method. Assume 5 M card payments a day, a peak of 4× the average during sales, an average order of 4,000 minor units (€40.00), and 2.1 provider calls per payment: one authorise, one capture, and about 0.1 more for 3-D Secure confirmations, refunds and status lookups. Each payment posts two ledger movements: the capture (2 rows) and the split between seller and platform (3 rows).
+
+| Quantity | Arithmetic | Result |
+|---|---|---|
+| Average rate | 5 M ÷ 86,400 s | about 58 payments/s |
+| Peak rate | 57.9/s × 4 | about 230 payments/s |
+| Provider calls at peak | 231.5/s × 2.1 | about 490/s |
+| Value per day | 5 M × 4,000 | 20 billion minor units (€200 M) |
+| Ledger rows per payment | 2 + 3 | 5 |
+| Ledger rows at peak | 231.5/s × 5 | about 1,160/s |
+| Ledger rows per year | 5 M × 5 × 365 | about 9.1 billion |
+| Ledger size per year | 9.125 billion × 200 B | about 1.8 TB, before replicas and indexes |
+
+One well-indexed relational database handles this; the hard parts are correctness and years of history.
+
+## Visual
+
+```text
+ payment states: transitions only move forward
+
+ created ─▶ authorising ─▶ authorised ─▶ capturing ─▶ captured ─┬─▶ partially_refunded ─▶ refunded
+                                                                └─▶ refunded
+ branches
+ authorising ── declined ──────────────────────────────────────▶ failed
+ authorising ── issuer asks for 3-D Secure ─▶ requires_action ─▶ authorised | failed
+ authorising ── timeout ─▶ unknown ── lookup by key or webhook ─▶ authorised | failed
+ capturing   ── timeout ─▶ unknown ── lookup by key or webhook ─▶ captured | authorised
+ authorised  ── order cancelled ───────────────────────────────▶ voided
+```
+
+```text
+ browser ── card details ──▶ provider's hosted fields ──▶ token (our servers never see the card)
+    └─ 1. POST /orders/{id}/pay  Idempotency-Key: k ──▶ checkout API ──▶ payments service
+                                          2. key k seen before? return the stored result
+                                          3. created → authorising (conditional update)
+                                          4. authorise(token, amount, key k) ──▶ provider
+                                             ◀── response, or timeout → unknown
+ provider ── 5. signed webhooks ──▶ webhook receiver (event ids) ──▶ payments service
+                                          6. state change + outbox row in one transaction
+                                                       ▼
+                    outbox relay ──▶ stream ──▶ ledger (append-only), orders, emails
+ daily: provider settlement report ──▶ reconciliation job ◀── ledger + payments
+                                                       └── mismatches ──▶ review queue
+```
+
+## Design walkthrough
+
+**Idempotency key per checkout attempt.** On Pay, the client sends a key naming this attempt. The payments service stores key → result and returns the stored result for any replay, so a double click cannot start a second payment. The key is also passed to the provider, where supported (many providers do), which recognises a repeat for as long as it retains keys, a limited time that varies. This is the general pattern from [Distributed transactions](/system-design/distributed-transactions/), applied at both hops.
+
+**The state machine.** Each payment row has a `state`, and every transition is a conditional update, for example `UPDATE payments SET state = 'authorised' WHERE id = :id AND state = 'authorising'`. If zero rows change, another worker or webhook got there first; re-read and decide.
+
+**Authorise, then capture.** Authorisation asks the card issuer to approve the amount; the issuer typically reserves it on the card, but no money moves. Capture collects the approved amount (or, with many providers, less). Digital goods are captured at once; physical goods usually when the order ships, so a cancelled order is just voided. An uncaptured authorisation lapses after a period that depends on the card network, the provider and the merchant type, commonly days rather than weeks, so watch the age of authorised payments. Settlement, when funds actually reach the platform, comes later still, typically as periodic payouts net of fees, on a schedule that depends on the provider and country.
+
+**3-D Secure.** The issuer may demand that the buyer authenticate, say in their banking app; regulation makes this common in regions such as the EEA and the UK. The provider answers `requires_action`, the browser completes the challenge, and the result arrives by API response or webhook.
+
+**Timeouts with an unknown outcome.** A timeout says nothing about whether the provider authorised the card. Mark the payment `unknown`, never `failed`. A recovery job repeats the request with the *same* idempotency key, which returns the original outcome, or looks the payment up by our reference, or waits for the webhook. Never charge again with a new key.
+
+**Webhooks.** The provider reports asynchronous events (3-D Secure results, captures, refunds, disputes) by calling our endpoint, unlike API responses, which answer our requests. The receiver:
+- verifies each signature with the provider's secret, and rejects stale timestamps where the provider signs one;
+- stores the event, keyed by its id under a unique constraint, answers 2xx quickly and processes it afterwards, since providers typically redeliver on errors and sometimes deliver twice;
+- applies a transition only if it moves forward, so an `authorised` event arriving after `captured` changes nothing.
+
+When in doubt, fetch the payment's current state from the provider's API rather than trusting event order.
+
+**Double-entry ledger.** The ledger is append-only. Each movement is a set of rows, debits on one side and credits on the other, that sum to zero (here signed: minus leaves an account, plus arrives). Amounts are integers in the currency's minor units, stored with the currency code, never floats ([Number representation](/cs-fundamentals/number-representation/)). Take a 12,500 order (€125.00) with a 10% commission:
+
+| Movement | Account | Amount |
+|---|---|---|
+| Capture | buyer funding | −12,500 |
+| | platform clearing | +12,500 |
+| Split | platform clearing | −12,500 |
+| | seller payable | +11,250 |
+| | platform fees | +1,250 |
+
+Balances are derived by summing rows, never stored as an edited field. Post each movement with a unique key such as `(payment_id, 'capture')`, so a redelivered event cannot post it twice.
+
+**The outbox.** A state change and its outbox row are written in one database transaction; a relay publishes it to a stream ([Queues & streams](/system-design/queues-streams/)) for the ledger, orders and email. A crash between "captured" and "posted" cannot lose the posting.
+
+**Reconciliation.** Daily, match the ledger and payments table against the provider's settlement report by the provider's payment id: captures, refunds, disputes, fees and the net amount paid to our bank. Anything missing on one side, or with a different amount, goes to a queue for a person.
+
+**Refunds and chargebacks.** A refund is our request to return money; a chargeback is the buyer's bank reversing a payment after a dispute, often weeks or months later, within time limits set by network rules. Both are new movements, never edits. A full refund of the order above posts buyer funding +12,500, seller payable −11,250 and platform fees −1,250 (if the policy returns the commission). A chargeback usually adds a fee, and can be contested with evidence.
+
+**Seller payouts.** Payouts run later, in batches, from each seller's payable balance, as one more ledger movement per seller.
+
+## Pitfalls
+
+- **Floats for money.** 0.1 + 0.2 is not 0.3 in binary floating point. Fix: integer minor units plus a currency code.
+- **Treating a timeout as a decline.** The buyer tries again and pays twice. Fix: the `unknown` state, and lookup with the same key.
+- **A new idempotency key per retry.** The provider sees a fresh request. Fix: one key per attempt, stored before the first call.
+- **Trusting the browser's "success" redirect.** It can be faked or lost. Fix: confirm server-side from the API or a verified webhook.
+- **Editing ledger rows.** History disappears and reconciliation breaks. Fix: corrections are new movements.
+- **Letting authorisations lapse.** A capture after expiry fails. Fix: alert on old authorised payments.
+
+## Tips & tricks
+
+- **Trade-off:** capturing at shipment avoids refunding cancelled orders but risks lapsed authorisations.
+- **Measure** authorisation rate, payments stuck in `unknown` and their age, webhook delivery lag, the oldest uncaptured authorisation, reconciliation mismatches per day, and the ledger's total (always zero).
+- Interview phrasing: "The card is tokenised by the provider; each checkout attempt has an idempotency key; a forward-only state machine absorbs timeouts and webhooks; an outbox drives an append-only double-entry ledger that we reconcile daily against the settlement report."

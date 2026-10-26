@@ -10,12 +10,14 @@ test('tracks page lists all three tracks and links to their homes', async ({ pag
   await expect(page).toHaveURL(/\/system-design\/$/)
 })
 
-test('a track home shows modules, lessons and coming-soon titles', async ({ page }) => {
+test('a track home shows modules and lessons, with nothing coming soon', async ({ page }) => {
   await page.goto('/system-design/')
   await expect(page.getByRole('heading', { level: 1, name: 'System Design' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 2, name: 'Foundations' })).toBeVisible()
   await expect(page.getByText('Load balancing')).toBeVisible()
-  await expect(page.getByText('Coming soon').first()).toBeVisible()
+  await expect(page.getByText('Coming soon')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Video streaming/ })).toHaveAttribute('href', '/system-design/video-streaming/')
+  await expect(page.getByRole('link', { name: /Payment system/ })).toHaveAttribute('href', '/system-design/payment-system/')
   await page.getByRole('link', { name: 'Caching', exact: true }).click()
   await expect(page).toHaveURL(/\/system-design\/caching\/$/)
   await expect(page.getByRole('link', { name: 'System Design' }).first()).toBeVisible()

@@ -70,20 +70,20 @@ One well-indexed relational database handles this; the hard parts are correctnes
 
 **The state machine.** Each payment row has a `state`, and every transition is a conditional update, for example `UPDATE payments SET state = 'authorised' WHERE id = :id AND state = 'authorising'`. If zero rows change, another worker or webhook got there first; re-read and decide.
 
-**Authorise, then capture.** Authorisation asks the card issuer to approve the amount; the issuer typically reserves it on the card, but no money moves. Capture collects the approved amount (or, with many providers, less). Digital goods are captured at once; physical goods usually when the order ships, so a cancelled order is just voided. An uncaptured authorisation lapses after a period that depends on the card network, the provider and the merchant type, commonly days rather than weeks, so watch the age of authorised payments. Settlement, when funds actually reach the platform, comes later still, typically as periodic payouts net of fees, on a schedule that depends on the provider and country.
+**Authorise, then capture.** Authorisation asks the card issuer to approve the amount; the issuer typically reserves it on the card, but no money moves. Capture collects the approved amount (or, with many providers, less). Digital goods are captured at once; physical goods usually when the order ships, so a cancelled order is just voided. An uncaptured authorisation lapses after a period that depends on the card network, the provider and the merchant type, commonly a week or less online, so watch the age of authorised payments. Settlement, when funds actually reach the platform, comes later still, typically as periodic payouts net of fees, on a schedule that depends on the provider and country.
 
 **3-D Secure.** The issuer may demand that the buyer authenticate, say in their banking app; regulation makes this common in regions such as the EEA and the UK. The provider answers `requires_action`, the browser completes the challenge, and the result arrives by API response or webhook.
 
-**Timeouts with an unknown outcome.** A timeout says nothing about whether the provider authorised the card. Mark the payment `unknown`, never `failed`. A recovery job repeats the request with the *same* idempotency key, which returns the original outcome, or looks the payment up by our reference, or waits for the webhook. Never charge again with a new key.
+**Timeouts with an unknown outcome.** A timeout says nothing about whether the provider authorised the card. Mark the payment `unknown`, never `failed`. A recovery job repeats the request with the *same* idempotency key (within the provider's retention window) to get the original outcome, looks the payment up by our reference, or waits for the webhook. Never charge again with a new key.
 
 **Webhooks.** The provider reports asynchronous events (3-D Secure results, captures, refunds, disputes) by calling our endpoint, unlike API responses, which answer our requests. The receiver:
-- verifies each signature with the provider's secret, and rejects stale timestamps where the provider signs one;
+- verifies each signature with the endpoint's signing secret, and rejects stale timestamps where the provider signs one;
 - stores the event, keyed by its id under a unique constraint, answers 2xx quickly and processes it afterwards, since providers typically redeliver on errors and sometimes deliver twice;
 - applies a transition only if it moves forward, so an `authorised` event arriving after `captured` changes nothing.
 
 When in doubt, fetch the payment's current state from the provider's API rather than trusting event order.
 
-**Double-entry ledger.** The ledger is append-only. Each movement is a set of rows, debits on one side and credits on the other, that sum to zero (here signed: minus leaves an account, plus arrives). Amounts are integers in the currency's minor units, stored with the currency code, never floats ([Number representation](/cs-fundamentals/number-representation/)). Take a 12,500 order (€125.00) with a 10% commission:
+**Double-entry ledger.** The ledger is append-only. Each movement is a set of rows, debits on one side and credits on the other, that sum to zero (signed here). Amounts are integers in the currency's minor units, stored with the currency code, never floats ([Number representation](/cs-fundamentals/number-representation/)). Take a 12,500 order (€125.00) with a 10% commission:
 
 | Movement | Account | Amount |
 |---|---|---|
@@ -106,11 +106,11 @@ Balances are derived by summing rows, never stored as an edited field. Post each
 ## Pitfalls
 
 - **Floats for money.** 0.1 + 0.2 is not 0.3 in binary floating point. Fix: integer minor units plus a currency code.
-- **Treating a timeout as a decline.** The buyer tries again and pays twice. Fix: the `unknown` state, and lookup with the same key.
+- **Treating a timeout as a decline.** The buyer tries again and pays twice. Fix: the `unknown` state, then a replay with the same key.
 - **A new idempotency key per retry.** The provider sees a fresh request. Fix: one key per attempt, stored before the first call.
 - **Trusting the browser's "success" redirect.** It can be faked or lost. Fix: confirm server-side from the API or a verified webhook.
 - **Editing ledger rows.** History disappears and reconciliation breaks. Fix: corrections are new movements.
-- **Letting authorisations lapse.** A capture after expiry fails. Fix: alert on old authorised payments.
+- **Letting authorisations lapse.** A capture after expiry usually fails. Fix: alert on old authorised payments.
 
 ## Tips & tricks
 

@@ -76,7 +76,7 @@ describe('content inventory', () => {
     expect(diagnoses.every((x) => x.type === 'design-prompt' && x.kind === 'diagnose')).toBe(true)
     expect(designs.length + diagnoses.length).toBe(prompts.length)
   })
-  it('has a System Design track with the Caching lesson and coming-soon outline', () => {
+  it('has a System Design track with the Caching lesson and its full outline', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug).slice(0, 2)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]

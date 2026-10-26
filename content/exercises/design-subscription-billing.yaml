@@ -42,7 +42,7 @@ reference: |
 
   **No double charges.** A unique constraint on (subscription_id, period_start) allows one invoice per period. Each
   charge attempt sends the key `invoice_id:attempt_n` to the provider. After a timeout the invoice is marked unknown,
-  and the provider is queried with that key before any new attempt.
+  and the same request is replayed with that key, or the charge looked up by invoice id, before any new attempt.
 
   **Invoices.** An issued invoice never changes; corrections are credit notes. The revenue report is computed from
   invoices and credit notes; an annual invoice is typically recognised as 1/12 per month, following the company's

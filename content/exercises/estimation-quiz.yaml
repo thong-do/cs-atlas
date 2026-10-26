@@ -1,0 +1,56 @@
+slug: estimation-quiz
+type: quiz
+title: "Back-of-the-envelope estimation — quiz"
+lessons: [estimation]
+ladderOrder: 1
+questions:
+  - id: provision-peak
+    prompt: "A ticketing API averages 1,200 requests/s across the day, but in the hour after a sale opens, traffic runs at 5× that average. Which rate should capacity be planned for?"
+    choices: ["1,200/s, since the daily average already includes the busy hour", "6,000/s, the busy-hour rate, plus some headroom", "240/s, the daily average divided by the 5× peak factor", "28,800/s, the average multiplied by 24 hours"]
+    answer: 1
+    explanation: "Servers must survive the busiest hour, not the average one: 1,200/s × 5 = 6,000/s. The average hides the peak, 1,200 ÷ 5 = 240/s turns the peak factor upside down, and 1,200 × 24 = 28,800 multiplies a rate by hours, which gives no meaningful rate."
+  - id: link-transfer-time
+    prompt: "A backup job copies 900 GB over a link rated 1 Gbit/s and can use all of it. Ignoring protocol overhead, about how long does the copy take?"
+    choices: ["About 15 minutes", "About 16 hours", "About 2 minutes", "About 2 hours"]
+    answer: 3
+    explanation: "Links are rated in bits per second, and files in bytes. 900 GB × 8 = 7,200 Gbit, and 7,200 Gbit ÷ 1 Gbit/s = 7,200 s = 2 hours. 15 minutes (900 s) skips the × 8, 2 minutes (900 ÷ 8 = 112.5 s) divides by 8 instead, and 16 hours (57,600 s) applies the × 8 twice."
+  - id: replicated-year
+    prompt: "An event log takes in 2 TB of new data a day, counted as one copy, and the store keeps 3 copies of everything. About how much raw disk does one year of data need?"
+    choices: ["About 2 PB", "About 730 TB", "About 6 TB", "About 180 TB"]
+    answer: 0
+    explanation: "One copy for a year: 2 TB × 365 = 730 TB. Three copies: 730 TB × 3 = 2,190 TB, about 2 PB. 730 TB forgets the replicas, 180 TB (2 TB × 30 × 3) covers one month, and 6 TB (2 TB × 3) covers one day."
+  - id: daily-to-per-second
+    prompt: "A fleet of sensors sends 50 million readings a day, spread evenly over the day. Roughly what write rate must the ingest service sustain?"
+    choices: ["About 35,000/s", "About 14,000/s", "About 600/s", "About 50/s"]
+    answer: 2
+    explanation: "50,000,000 ÷ 86,400 s ≈ 579/s, so about 600/s; the 10⁵ shortcut gives 500/s, which is close enough. 35,000/s divides by the 1,440 minutes in a day, 14,000/s divides by the 3,600 seconds in an hour, and 50/s divides by 10⁶."
+  - id: fits-in-memory
+    prompt: "A service wants to keep a profile for each of 80 million users in memory, at about 2 KB per profile. What does a quick estimate say?"
+    choices: ["About 160 MB, so one process holds it with room to spare", "About 160 GB, so a few cache nodes can hold it", "About 16 TB, so it can only live on disk, not in memory", "About 1.6 GB, so any laptop could hold it in memory"]
+    answer: 1
+    explanation: "8 × 10⁷ users × 2 × 10³ B = 16 × 10¹⁰ B = 160 GB. That is more RAM than a small server has, so spread it over a few cache nodes or use one large-memory machine. 160 MB and 1.6 GB are 1,000 and 100 times too small, and 16 TB is 100 times too big."
+flashcards:
+  - id: seconds-per-day
+    front: "Seconds in a day"
+    back: "86,400, about 10⁵. So 1 million events a day is about 12 per second on average."
+  - id: powers-of-two
+    front: "2¹⁰ versus 10³"
+    back: "2¹⁰ = 1,024 ≈ 10³ (KB). Likewise 2²⁰ ≈ 10⁶ (MB), 2³⁰ ≈ 10⁹ (GB) and 2⁴⁰ ≈ 10¹² (TB)."
+  - id: memory-latency
+    front: "L1 cache vs main memory latency"
+    back: "L1 cache: about 1 ns. Main memory: about 100 ns, roughly 100 times slower."
+  - id: ssd-latency
+    front: "SSD random read latency"
+    back: "About 100 µs (tens of µs on fast NVMe), roughly 1,000 times slower than main memory."
+  - id: datacenter-round-trip
+    front: "Round trip within a datacenter"
+    back: "About 0.5 ms. Ten sequential calls to another service spend about 5 ms on round trips alone."
+  - id: cross-continent-round-trip
+    front: "Intercontinental round trip"
+    back: "About 100–150 ms. Light in fibre covers about 200 km per ms, so distance sets a floor that no faster server can lower."
+  - id: bits-vs-bytes
+    front: "Bits vs bytes"
+    back: "Links are rated in bits per second, storage in bytes. 1 byte = 8 bits, so 1 Gbit/s = 125 MB/s."
+  - id: peak-factor
+    front: "Peak factor"
+    back: "Busiest-period traffic ÷ average traffic. A daily cycle is often assumed at 2–3×, launches higher. Size capacity for the peak, not the average."

@@ -1,4 +1,5 @@
-import type { Flashcard, LessonMeta, ProblemExercise, QuizQuestion, RubricPoint } from '@/lib/types'
+import type { EstimateStep, Flashcard, LessonMeta, ProblemExercise, QuizQuestion, RubricPoint } from '@/lib/types'
+import { ESTIMATE_UNITS, formatAmount } from '@/lib/logic/estimate'
 import { VISUALIZER_KINDS } from '@/lib/visualizers/kinds'
 
 /** Track slugs become top-level routes, so they must not shadow a page or a redirected v1 path. */
@@ -23,6 +24,7 @@ export type ExerciseInputDoc =
   | ProblemExercise
   | (ExerciseCommon & { type: 'quiz'; questions: QuizQuestion[]; flashcards: Flashcard[] })
   | (ExerciseCommon & { type: 'design-prompt'; prompt: string; rubric: RubricPoint[]; reference: string; hint?: string })
+  | (ExerciseCommon & { type: 'estimate'; scenario: string; steps: (Omit<EstimateStep, 'unit'> & { unit: string })[]; takeaway: string })
 /** An exercise plus its file path (relative to content/, no extension). */
 export type ExerciseInput = ExerciseInputDoc & { path: string }
 export interface ContentInput {
@@ -118,7 +120,7 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
     }
   }
 
-  // V5/V7/V11/V12/V13 — exercises
+  // V5/V7/V11/V12/V13/V15 — exercises
   const exerciseSlugs = new Set<string>()
   const ids = new Set<number>()
   const ladderKeys = new Set<string>()
@@ -146,12 +148,32 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
         if (fids.has(f.id)) err('V12', file, `duplicate flashcard id "${f.id}"`)
         fids.add(f.id)
       }
-    } else {
+    } else if (e.type === 'design-prompt') {
       const rids = new Set<string>()
       for (const r of e.rubric) {
         if (rids.has(r.id)) err('V13', file, `duplicate rubric id "${r.id}"`)
         rids.add(r.id)
       }
+    } else if (e.type === 'estimate') {
+      if (e.steps.length < 2 || e.steps.length > 4) err('V15', file, `needs 2–4 steps, has ${e.steps.length}`)
+      const sids = new Set<string>()
+      for (const st of e.steps) {
+        if (sids.has(st.id)) err('V15', file, `duplicate step id "${st.id}"`)
+        sids.add(st.id)
+        const unit = ESTIMATE_UNITS.find((u) => u === st.unit)
+        if (!unit) err('V15', file, `step "${st.id}" has unknown unit "${st.unit}" (valid: ${ESTIMATE_UNITS.join(', ')})`)
+        const answerOk = Number.isFinite(st.answer) && st.answer > 0
+        if (!answerOk) err('V15', file, `step "${st.id}" answer must be a positive number`)
+        if (st.tolerance !== undefined && !(st.tolerance >= 1.5 && st.tolerance <= 10)) {
+          err('V15', file, `step "${st.id}" tolerance ${st.tolerance} must be between 1.5 and 10`)
+        }
+        // formatAmount needs a known unit and a positive finite answer.
+        if (unit && answerOk && !st.work.includes(formatAmount(st.answer, unit))) {
+          err('V15', file, `step "${st.id}" work must show its answer "${formatAmount(st.answer, unit)}"`)
+        }
+      }
+      if (!e.scenario.trim()) err('V15', file, 'scenario is empty')
+      if (!e.takeaway.trim()) err('V15', file, 'takeaway is empty')
     }
     if (e.lessons.length === 0) {
       err('V5', file, 'lists no lessons')

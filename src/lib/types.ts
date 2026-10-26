@@ -9,7 +9,7 @@ export interface LessonMeta {
   slug: string; track: string; title: string; summary: string; level: Level; authors: string[]
   prerequisites: string[]; confusedWith: string[]; triggers: string[]; complexity?: string
 }
-export type ExerciseType = 'external-problem' | 'quiz' | 'design-prompt'
+export type ExerciseType = 'external-problem' | 'quiz' | 'design-prompt' | 'estimate'
 interface ExerciseBase {
   slug: string; title: string
   /** First entry is the primary lesson (ladder placement + trainer answer). */
@@ -21,7 +21,8 @@ export interface ProblemExercise extends ExerciseBase {
 export interface QuizExercise extends ExerciseBase { type: 'quiz'; questionCount: number; flashcardIds: string[] }
 export type PromptKind = 'design' | 'diagnose'
 export interface DesignExercise extends ExerciseBase { type: 'design-prompt'; kind: PromptKind; rubric: string[] } // rubric point texts, for Today's reveal
-export type ExerciseMeta = ProblemExercise | QuizExercise | DesignExercise
+export interface EstimateExercise extends ExerciseBase { type: 'estimate'; stepCount: number }
+export type ExerciseMeta = ProblemExercise | QuizExercise | DesignExercise | EstimateExercise
 export interface QuizQuestion { id: string; prompt: string; choices: string[]; answer: number; explanation: string }
 export interface Flashcard { id: string; front: string; back: string }
 export interface RubricPoint { id: string; point: string }
@@ -31,7 +32,8 @@ export interface PlacementDoc { track: string; questions: PlacementQuestion[] }
 /** A saved placement result for one track. Only the start point moves; mastery is untouched. */
 export interface Placement { passedModules: string[]; takenAt: string }
 export interface DesignDoc extends Omit<DesignExercise, 'rubric'> { prompt: string; rubricPoints: RubricPoint[]; rubric: string[]; reference: string; hint?: string }
-export type ExerciseDoc = ProblemExercise | QuizDoc | DesignDoc
+export interface EstimateDoc extends EstimateExercise { scenario: string; steps: EstimateStep[]; takeaway: string }
+export type ExerciseDoc = ProblemExercise | QuizDoc | DesignDoc | EstimateDoc
 export interface FlashcardEntry { front: string; back: string; quiz: string; lesson: string }
 export interface Catalog { tracks: TrackMeta[]; lessons: LessonMeta[]; exercises: ExerciseMeta[]; flashcards: Record<string, FlashcardEntry> }
 export const isProblem = (e: ExerciseMeta | ExerciseDoc): e is ProblemExercise => e.type === 'external-problem'
@@ -120,3 +122,6 @@ export interface UserData {
 
 export const SCHEMA_VERSION = 1
 export const DEFAULT_SETTINGS: Settings = { desiredRetention: 0.9, theme: 'system' }
+
+export type EstimateUnit = 'bytes' | 'bytes/s' | 'bits/s' | 'requests/s' | 'count' | 'seconds'
+export interface EstimateStep { id: string; ask: string; unit: EstimateUnit; answer: number; tolerance?: number; work: string }

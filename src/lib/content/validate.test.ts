@@ -24,6 +24,15 @@ const design = (slug: string, lessons: string[], o: Record<string, unknown> = {}
   slug, type: 'design-prompt', title: slug, lessons, ladderOrder: 1, path: `exercises/${slug}`,
   prompt: 'p', reference: 'r', rubric: ['r1', 'r2', 'r3'].map((id) => ({ id, point: 'x' })), ...o,
 } as ExerciseInput)
+const estimate = (slug: string, lessons: string[], o: Record<string, unknown> = {}): ExerciseInput => ({
+  slug, type: 'estimate', title: slug, lessons, ladderOrder: 1, path: `exercises/${slug}`,
+  scenario: 's', takeaway: 't',
+  steps: [
+    { id: 'a', ask: 'a?', unit: 'bytes', answer: 1e13, work: '5 M × 2 MB = 10 TB/day' },
+    { id: 'b', ask: 'b?', unit: 'requests/s', answer: 230, tolerance: 3, work: '20 M ÷ 86,400 ≈ 230 /s' },
+  ],
+  ...o,
+} as ExerciseInput)
 const track = (slug: string, order: number, modules: TrackInput['modules'], folder = slug): TrackInput => ({ slug, folder, order, modules })
 
 const valid = (): ContentInput => ({
@@ -231,5 +240,57 @@ describe('validateContent', () => {
     c.exercises = c.exercises.filter((e) => !e.lessons.includes('ccc'))
     c.exercises.push(quiz('q2', ['ccc'], { ladderOrder: 1 }))
     expect(validateContent(c).filter((e) => e.startsWith('[V10]') && e.includes('/ccc.mdx'))).toEqual([])
+  })
+
+  it('V15 accepts a well-formed estimation drill', () => {
+    const c = valid()
+    c.exercises.push(estimate('e1', ['aaa'], { ladderOrder: 9 }))
+    expect(validateContent(c)).toEqual([])
+  })
+
+  it('V15: drill steps, units, answers, tolerances and worked arithmetic', () => {
+    const c = valid()
+    const step = (o: Record<string, unknown>) => ({ id: 'x', ask: 'x?', unit: 'bytes', answer: 1e9, work: '= 1 GB', ...o })
+    c.exercises.push(
+      estimate('e1', ['aaa'], { ladderOrder: 9, steps: [step({})] }),
+      estimate('e2', ['aaa'], { ladderOrder: 10, steps: [step({}), step({}), step({ id: 'y' }), step({ id: 'z' }), step({ id: 'w' })] }),
+      estimate('e3', ['aaa'], {
+        ladderOrder: 11,
+        steps: [
+          step({ id: 'u', unit: 'furlongs' }),
+          step({ id: 'n', answer: 0 }),
+          step({ id: 't', tolerance: 20 }),
+          step({ id: 'w', answer: 2e9 }),
+        ],
+        scenario: ' ', takeaway: '',
+      }),
+    )
+    const errors = validateContent(c)
+    expect(errors).toContain('[V15] content/exercises/e1.yaml: needs 2–4 steps, has 1')
+    expect(errors).toContain('[V15] content/exercises/e2.yaml: needs 2–4 steps, has 5')
+    expect(errors).toContain('[V15] content/exercises/e2.yaml: duplicate step id "x"')
+    expect(errors).toContain('[V15] content/exercises/e3.yaml: step "u" has unknown unit "furlongs" (valid: bytes, bytes/s, bits/s, requests/s, count, seconds)')
+    expect(errors).toContain('[V15] content/exercises/e3.yaml: step "n" answer must be a positive number')
+    expect(errors).toContain('[V15] content/exercises/e3.yaml: step "t" tolerance 20 must be between 1.5 and 10')
+    expect(errors).toContain('[V15] content/exercises/e3.yaml: step "w" work must show its answer "2 GB"')
+    expect(errors).toContain('[V15] content/exercises/e3.yaml: scenario is empty')
+    expect(errors).toContain('[V15] content/exercises/e3.yaml: takeaway is empty')
+  })
+
+  it('V15 rejects a NaN tolerance and reports each bad field of a step independently', () => {
+    const c = valid()
+    const step = (o: Record<string, unknown>) => ({ id: 'x', ask: 'x?', unit: 'bytes', answer: 1e9, work: '= 1 GB', ...o })
+    c.exercises.push(
+      estimate('e1', ['aaa'], {
+        ladderOrder: 9,
+        steps: [step({ id: 'nan', tolerance: NaN }), step({ id: 'both', tolerance: 0.5, answer: 3e9 })],
+      }),
+    )
+    const errors = validateContent(c).filter((e) => e.startsWith('[V15]'))
+    expect(errors).toEqual([
+      '[V15] content/exercises/e1.yaml: step "nan" tolerance NaN must be between 1.5 and 10',
+      '[V15] content/exercises/e1.yaml: step "both" tolerance 0.5 must be between 1.5 and 10',
+      '[V15] content/exercises/e1.yaml: step "both" work must show its answer "3 GB"',
+    ])
   })
 })

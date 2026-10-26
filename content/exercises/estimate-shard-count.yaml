@@ -1,0 +1,32 @@
+slug: estimate-shard-count
+type: estimate
+title: "Estimate: how many shards"
+lessons: [estimation, replication-sharding]
+ladderOrder: 6
+scenario: |
+  A payments ledger holds **28 TB** of data and must take **98,000 ledger-entry writes/s** at peak
+  (several entries per payment). It will be split into shards, each led by one primary database node.
+
+  Each primary can hold **3.5 TB** and sustain **7,000 writes/s**; both limits already leave headroom.
+  Followers keep copies of their shard for durability but add no write or storage capacity, so ignore them.
+  The shard count must satisfy whichever limit is tighter.
+steps:
+  - id: shards-for-storage
+    ask: "How many shards does the data volume alone need?"
+    unit: count
+    answer: 8
+    tolerance: 1.5
+    work: "28 TB ÷ 3.5 TB per shard = 8 shards."
+  - id: shards-for-writes
+    ask: "How many shards does the peak write rate alone need?"
+    unit: count
+    answer: 14
+    tolerance: 1.5
+    work: "98,000 writes/s ÷ 7,000 writes/s per primary = 14 shards."
+  - id: shards-needed
+    ask: "Using the two counts above, how many shards does the ledger need?"
+    unit: count
+    answer: 14
+    tolerance: 1.5
+    work: "The larger of 8 (storage) and 14 (writes) = 14 shards; writes are the tighter limit."
+takeaway: "Size shards against every limit, storage and write throughput, and take the largest. Here the write rate, not the data size, sets the count."

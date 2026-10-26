@@ -24,6 +24,7 @@ export function LadderList({ exercises }: { exercises: ExerciseMeta[] }) {
           <ExerciseTypeBadge exercise={p} />
           {p.type === 'quiz' && <span className="text-xs text-muted-foreground">{p.questionCount} questions</span>}
           {p.type === 'design-prompt' && <span className="text-xs text-muted-foreground">Self-graded</span>}
+          {p.type === 'estimate' && <span className="text-xs text-muted-foreground">{p.stepCount} steps</span>}
           {isProblem(p) && (
             <>
               <DifficultyBadge difficulty={p.difficulty} />

@@ -23,7 +23,7 @@ export function ExercisesTable() {
   const initialType = params.get('type')
   const [filter, setFilter] = useState<ExerciseFilter>({
     q: params.get('q') ?? '', track: trackBySlug.has(initialTrack) ? initialTrack : 'all', lesson: 'all', difficulty: 'all', status: 'all',
-    type: initialType === 'external-problem' || initialType === 'quiz' || initialType === 'design-prompt' ? initialType : 'all',
+    type: initialType === 'external-problem' || initialType === 'quiz' || initialType === 'design-prompt' || initialType === 'estimate' ? initialType : 'all',
   })
   // Follow `?q=` changes (404 search, back/forward) while mounted, without clobbering manual typing.
   const urlQ = params.get('q') ?? ''
@@ -61,6 +61,7 @@ export function ExercisesTable() {
           <option value="external-problem">LeetCode</option>
           <option value="quiz">Quiz</option>
           <option value="design-prompt">Design</option>
+          <option value="estimate">Estimate</option>
         </select>
         <select aria-label="Difficulty" className={selectClass} value={filter.difficulty} onChange={(e) => set('difficulty', e.target.value as ExerciseFilter['difficulty'])}>
           <option value="all">All difficulties (LeetCode)</option>

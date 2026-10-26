@@ -19,7 +19,7 @@ It is interesting because reads and writes pull in opposite directions, and one 
 
 **Non-functional (assumptions).** Feed reads are fast (p99 under a few hundred ms). Eventual consistency is fine: a new post may take seconds to appear, but a deleted one should vanish promptly.
 
-**Estimates.** These numbers are illustrative. Assume 100 M daily active users (DAU), 10% of them post once a day, each user follows about 200 accounts, and each reads their feed 10 times a day.
+**Estimates.** These numbers are illustrative. See [Back-of-the-envelope estimation](/system-design/estimation/) for the method. Assume 100 M daily active users (DAU), 10% of them post once a day, each user follows about 200 accounts, and each reads their feed 10 times a day.
 
 | Quantity | Arithmetic | Result |
 |---|---|---|

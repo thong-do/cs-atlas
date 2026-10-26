@@ -6,7 +6,7 @@ An open, community-built place to learn computer science — algorithms, system 
 
 ## What's inside
 
-- **Tracks**: Algorithms (18 lessons, 138 exercises) and System Design (growing), each with modules and a "continue" button
+- **Tracks**: Algorithms (18 lessons, 138 exercises), System Design (18 lessons) and CS Fundamentals (16 lessons), each with modules and a "continue" button
 - **Lessons**: intuition first, step-through visualizers, templates or worked examples, pitfalls and tips
 - **Exercises**: practice ladders linked to LeetCode, with notes in your own words
 - **Spaced repetition** (FSRS) on the Today page, so you review just before you'd forget

@@ -76,12 +76,12 @@ describe('content inventory', () => {
     expect(diagnoses.every((x) => x.type === 'design-prompt' && x.kind === 'diagnose')).toBe(true)
     expect(designs.length + diagnoses.length).toBe(prompts.length)
   })
-  it('has a System Design track with the Caching lesson and coming-soon outline', () => {
+  it('has a System Design track with the Caching lesson and its full outline', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug).slice(0, 2)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
-    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'estimation', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat'])
-    expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'estimation', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat', 'video-streaming', 'payment-system'])
+    expect(sd.modules.flatMap((m) => m.comingSoon)).toEqual([])
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(lessons.find((l) => l.slug === 'client-server-http')).toMatchObject({ track: 'system-design', prerequisites: [] })
@@ -127,6 +127,12 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'chat')).toMatchObject({ track: 'system-design', prerequisites: ['queues-streams', 'load-balancing'] })
     expect(getLessonDoc('chat')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('chat')).map((e) => e.slug).sort()).toEqual(['chat-quiz', 'design-live-comments'])
+    expect(lessons.find((l) => l.slug === 'video-streaming')).toMatchObject({ track: 'system-design', prerequisites: ['dns-cdn', 'queues-streams'] })
+    expect(getLessonDoc('video-streaming')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('video-streaming')).map((e) => e.slug).sort()).toEqual(['design-podcast-hosting', 'video-streaming-quiz'])
+    expect(lessons.find((l) => l.slug === 'payment-system')).toMatchObject({ track: 'system-design', prerequisites: ['distributed-transactions', 'queues-streams'] })
+    expect(getLessonDoc('payment-system')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('payment-system')).map((e) => e.slug).sort()).toEqual(['design-subscription-billing', 'payment-system-quiz'])
   })
   it('has the estimation lesson in System Design Foundations with its quiz', () => {
     const { lessons, exercises } = getCatalog()

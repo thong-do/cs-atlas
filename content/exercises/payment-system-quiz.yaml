@@ -1,0 +1,56 @@
+slug: payment-system-quiz
+type: quiz
+title: "Payment system — quiz"
+lessons: [payment-system]
+ladderOrder: 1
+questions:
+  - id: partial-refund-rows
+    prompt: "A buyer paid 8,000 minor units for an order. The ledger posted buyer funding −8,000 and platform clearing +8,000, then platform clearing −8,000, seller payable +7,040 and platform fees +960 (a 12% commission). The seller agrees to refund 2,000, and the marketplace's policy returns its commission in proportion to the amount refunded. What should be posted?"
+    choices: ["A new movement: buyer funding +2,000, seller payable −1,760 and platform fees −240, summing to zero", "A new movement: buyer funding +2,000, seller payable −1,040 and platform fees −960", "Updated rows: buyer funding −6,000, platform clearing ±6,000, seller payable +5,280 and platform fees +720", "A new movement: buyer funding +2,000, platform clearing −2,000, seller payable −1,760 and platform fees −240"]
+    answer: 0
+    explanation: "12% of the 2,000 refunded is 240, so the seller gives back 1,760, and the three rows sum to zero. Returning all 960 breaks the proportional policy, rewriting the old rows destroys history, and adding a clearing row makes the movement sum to −2,000."
+  - id: timeout-double-charges
+    prompt: "An app sells digital game credits and captures at once. It sends 1.2 M authorisations a day, and 0.2% of the calls time out. Provider logs show that about half of the timed-out calls had in fact succeeded. On any timeout the app shows 'Payment failed, try again', and 60% of those buyers press Pay again, which starts a new attempt with a new idempotency key; nearly all of these succeed. Roughly how many buyers a day are charged twice?"
+    choices: ["About 1,440: the 2,400 timed-out calls, of which 60% are paid again", "About 1,200: the half of the 2,400 timed-out calls that succeeded", "About 720: of the 2,400 timeouts, 1,200 were charged; 60% pay again", "About 1,920: the 1,200 charged on timeout plus the 720 charged a second time"]
+    answer: 2
+    explanation: "1.2 M × 0.2% = 2,400 timeouts; 1,200 of those buyers were already charged, and 60% of them, 720, pay a second time. Counting every retry ignores the buyers whose first call failed, 1,200 ignores who retries, and 1,920 counts charges rather than buyers charged twice."
+  - id: auth-lapse-shipping
+    prompt: "A furniture marketplace authorises at checkout and captures when an order ships. Its provider cancels any authorisation that is not captured within 7 days. 35% of orders are in stock and ship within 3 days; the rest are made to order and ship 12 to 20 days after checkout. What would the team observe after launch?"
+    choices: ["Every capture succeeds, since none asks for more than the amount the issuer approved", "About 35% of captures fail, since in-stock orders ship before the authorisation has finished settling", "Captures fail only for orders shipping after day 14, twice the provider's 7-day window", "About 65% of captures fail, as those authorisations were cancelled before the orders shipped"]
+    answer: 3
+    explanation: "Every made-to-order item ships on day 12 or later, after its authorisation was cancelled on day 7, so 65% of captures fail. Staying within the approved amount does not revive a cancelled authorisation, nothing waits for settlement before capture, and no doubled window applies."
+  - id: webhook-redelivery
+    prompt: "A webhook receiver keeps processed event ids in a cache that expires after 1 hour. For each event it records the id, posts the ledger movement, then replies. During a slow database period, some replies took longer than the provider's 30 s timeout, and the provider redelivered those events hours later, each attempt signed afresh. Some refunds now appear twice in the ledger. Which change fixes the root cause?"
+    choices: ["Tighten signature checks so that a second delivery of an event that was already accepted is rejected", "Key each ledger movement uniquely, e.g. by the provider's refund id, and keep event ids past the retry window", "Apply events strictly in the order of the provider's creation time, so a late copy is merged in before newer events", "Reply 2xx as soon as a request arrives, before any write, so the provider never has a reason to redeliver"]
+    answer: 1
+    explanation: "A durable unique key makes the second posting a no-op however late it arrives, and the event-id record must outlive the redelivery window. Each redelivery carries a valid new signature, reordering does not stop a duplicate, and replying before writing loses events if the receiver then crashes."
+  - id: settlement-cutoff
+    prompt: "Each night at 02:00 UTC a job matches our captures for the previous UTC day against the provider's settlement report for that day, by payment id. Every morning a few hundred captures are flagged 'missing at provider'. All were made between 22:00 and 24:00 UTC, and every one appears in the next day's report. What is the most likely cause, and the fix?"
+    choices: ["Webhooks for late-evening captures were lost; replay them from the provider and post the missing ledger entries now", "The captures have not reached the provider yet; send them again with new idempotency keys so they go through", "Server clocks have drifted by up to two hours; resync them with NTP and run the job again each morning", "The report's day closes at an earlier cut-off; match across a rolling window and flag only what stays unmatched"]
+    answer: 3
+    explanation: "Items that always appear a day later point to a different reporting cut-off, so match by id across several days. The captures are already in our ledger, so no webhook is missing; resending with new keys risks double charges; and drift would not consistently move two hours of captures."
+flashcards:
+  - id: pay-auth-capture
+    front: "Authorisation vs capture"
+    back: "Authorisation asks the card issuer to approve an amount; no money moves. Capture collects it, at once or later (say at shipping), before the authorisation lapses."
+  - id: pay-settlement
+    front: "Settlement and the settlement report"
+    back: "Funds for captured payments reach the merchant later, typically as periodic payouts net of fees. The provider's report lists each item; timing depends on provider and country."
+  - id: pay-tokenisation
+    front: "Card tokenisation and PCI scope"
+    back: "The provider's hosted fields or SDK collect the card and return a token, so our servers never see card numbers. This typically shrinks PCI DSS scope."
+  - id: pay-3ds
+    front: "3-D Secure and requires_action"
+    back: "The issuer may ask the buyer to authenticate, such as in a bank app. The provider answers requires_action; the result arrives by API response or webhook."
+  - id: pay-unknown-state
+    front: "Unknown payment outcome after a timeout"
+    back: "A timeout is not a decline. Mark the payment unknown, then repeat with the same idempotency key or look it up at the provider. Never charge again with a new key."
+  - id: pay-webhook-handling
+    front: "Handling payment-provider webhooks"
+    back: "Verify the signature, store the event id under a unique constraint, reply 2xx quickly, and apply only forward state transitions, since events can be late, repeated or out of order."
+  - id: pay-double-entry
+    front: "Double-entry ledger for payments"
+    back: "Append-only rows in integer minor units with a currency; every movement's debits and credits sum to zero. Balances are sums of rows; corrections are new movements."
+  - id: pay-chargeback
+    front: "Refund vs chargeback"
+    back: "A refund is the merchant returning money. A chargeback is the buyer's bank reversing a payment after a dispute, often weeks later; it may carry a fee and can be contested."

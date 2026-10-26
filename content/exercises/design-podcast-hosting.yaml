@@ -1,0 +1,50 @@
+slug: design-podcast-hosting
+type: design-prompt
+title: "Design: podcast hosting"
+lessons: [video-streaming]
+ladderOrder: 2
+prompt: |
+  A podcast host stores **400 k shows** with **20 M episodes**, each an MP3 of about **50 MB** on average. Listeners
+  make **60 M downloads/day**, most of them within 3 days of an episode's release. Podcast apps fetch each show's
+  **RSS feed** on a schedule: **25 M app instances**, each subscribed to about **6 shows**, check each of their feeds about
+  **every 30 minutes**. Publishers sell ads on **download counts**, so the counts must be numbers advertisers trust.
+  When a publisher releases an episode, apps should see it **about 15 minutes later on average**, and no app should
+  wait much longer than one 30-minute check. All numbers are illustrative.
+
+  Describe how episodes are stored, how episode files are delivered, how the feed checks are served cheaply, how
+  downloads are counted without inflating the numbers, and how a new episode reaches the apps. Show the arithmetic.
+hint: "Compare how many feed requests arrive in half an hour with how many feeds actually change in that time."
+rubric:
+  - id: storage-math
+    point: "Computes storage as 20 M × 50 MB = 1 PB in an object store, and notes that the recent episodes most downloads hit are a small hot set."
+  - id: cdn-delivery
+    point: "Delivers episodes from a CDN with immutable episode URLs, and supports HTTP byte-range requests so apps can resume and fetch partial files."
+  - id: feed-polling
+    point: "Shows 25 M × 6 ÷ 1,800 s ≈ 83 k feed requests/s on average for only 400 k feeds, served from the CDN or a cache with a short TTL and conditional GET (ETag or If-Modified-Since, answered with 304)."
+  - id: trusted-counts
+    point: "Counts from CDN logs, combines the many byte-range requests of one listen and repeats from the same client within a window, ignores tiny partial requests and drops bots, ideally citing industry guidance such as the IAB podcast measurement guidelines."
+  - id: propagation
+    point: "On release, regenerates the feed and purges it at the CDN or relies on a short TTL, so the only delay left is the apps' 30-minute check cycle, about 15 minutes on average, optionally notifying aggregators with WebSub (hedged)."
+reference: |
+  **Storage.** 20 M episodes × 50 MB = 1,000,000,000 MB = 1 PB of audio in an object store. Most downloads
+  hit episodes under 3 days old, a small hot set that caches well.
+
+  **Delivery.** If every download were complete, 60 M × 50 MB = 3 PB/day, and 3 PB ÷ 86,400 s ≈ 34.7 GB/s, about
+  278 Gbit/s on average, so serve episodes from a CDN. An episode URL never changes content (a replaced file gets a
+  new URL), so edges cache it for a long time. The CDN honours HTTP byte-range requests, so apps resume downloads and
+  fetch parts of a file.
+
+  **Feed checks.** 25 M apps × 6 shows = 150 M checks per 30 minutes, and 150 M ÷ 1,800 s ≈ 83,000 requests/s on
+  average, yet there are only 400 k feeds. Serve feeds from the CDN with a short TTL, and support
+  conditional GET: the app sends `If-None-Match` (the ETag) or `If-Modified-Since`, and an unchanged feed returns 304
+  with no body.
+
+  **Trustworthy counts.** Count from CDN logs, not from app pings. One listen can be many byte-range requests, so
+  combine requests for the same episode from the same client (IP address and user agent) within a window such as
+  24 hours, ignore requests that delivered too few bytes, and drop known bots. The IAB Tech Lab podcast measurement
+  guidelines describe rules like these; follow their current version so advertisers accept the numbers.
+
+  **Propagation.** On release, store the episode, regenerate the feed and purge its URL at the CDN, which takes
+  seconds to minutes depending on the provider; a TTL of about a minute is the simpler alternative. Apps then see the
+  episode at their next check, about 15 minutes later on average with 30-minute checks. Optionally notify
+  aggregators through WebSub where supported.

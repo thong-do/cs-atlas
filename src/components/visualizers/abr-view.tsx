@@ -17,7 +17,15 @@ const sec = (n: number) => `${Number(n.toFixed(1))} s`
 export function AbrView({ step }: { step: AbrStep }) {
   const { segment, bandwidthMbps, renditionKbps, stallSeconds, bufferSeconds, totalStallSeconds, history } = step
   const stalledAt = segment !== null && stallSeconds > 0 ? segment : null
-  const label = `Adaptive bitrate player: ${segment === null ? 'no segment downloaded' : `segment ${segment} of ${ABR_BANDWIDTH_MBPS.length} at ${renditionKbps} kbps`}, buffer ${sec(bufferSeconds)} of ${BUFFER_MAX_SECONDS} s, total stalls ${sec(totalStallSeconds)}`
+  const total = ABR_BANDWIDTH_MBPS.length
+  const done = history.length === total
+  const segmentText =
+    segment === null
+      ? 'no segment downloaded'
+      : done
+        ? `${total} of ${total} segments downloaded, final rendition ${history[history.length - 1].toLocaleString('en-US')} kbps`
+        : `segment ${segment} of ${total} at ${renditionKbps?.toLocaleString('en-US')} kbps`
+  const label = `Adaptive bitrate player: ${segmentText}, buffer ${sec(bufferSeconds)} of ${BUFFER_MAX_SECONDS} s, total stalls ${sec(totalStallSeconds)}`
 
   return (
     <div role="img" aria-label={label} className="space-y-3">

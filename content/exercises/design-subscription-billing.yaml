@@ -16,13 +16,13 @@ prompt: |
 hint: "Work out how many charges the 1st brings, then ask what happens on the 1st if the provider times out on one of them."
 rubric:
   - id: renewal-scheduling
-    point: "Schedules renewals from an index on the next due date feeding a job queue, not a single cron loop; anchors new subscriptions to their sign-up date, and shows the 1st-of-month arithmetic spread over a stated window (2.4 M × 40% = 960,000 charges, about 22/s over 12 hours)."
+    point: "Schedules renewals from an index on the next due date feeding a job queue, not a single cron loop; anchors new subscriptions to their sign-up date, and shows the 1st-of-month arithmetic spread over a stated window (for example 2.4 M × 40% = 960,000 charges, about 22/s over 12 hours)."
   - id: dunning
     point: "Retries a failed renewal on a schedule over days (for example days 1, 3, 5 and 7, illustrative), uses card-updater services where the provider offers them (hedged), emails the customer, and suspends access only after a stated grace period."
   - id: proration
     point: "Prorates a mid-cycle change: credits the unused time on the old plan and charges the new plan for the rest of the period, either at once or on the next invoice, in integer minor units."
   - id: no-double-charges
-    point: "Allows one open invoice per subscription and period through a unique constraint, sends an idempotency key per invoice attempt, and after a timeout looks the charge up before retrying."
+    point: "Allows one renewal invoice per subscription and period through a unique constraint, sends an idempotency key per invoice attempt, and after a timeout looks the charge up before retrying."
   - id: immutable-invoices
     point: "Treats invoices as immutable records, correcting them with credit notes, and derives the monthly revenue report from them, spreading annual plans over their months."
 reference: |
@@ -40,7 +40,7 @@ reference: |
   15/30 × 1,000 = 500 and charges 15/30 × 3,000 = 1,500, net 1,000, charged now; a downgrade's credit goes on the
   next invoice.
 
-  **No double charges.** A unique constraint on (subscription_id, period_start) allows one invoice per period. Each
+  **No double charges.** A unique constraint on (subscription_id, period_start) allows one renewal invoice per period; a mid-cycle proration invoice is keyed by its plan change instead. Each
   charge attempt sends the key `invoice_id:attempt_n` to the provider. After a timeout the invoice is marked unknown,
   and the same request is replayed with that key, or the charge looked up by invoice id, before any new attempt.
 

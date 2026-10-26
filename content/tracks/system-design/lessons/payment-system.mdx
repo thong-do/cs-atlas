@@ -107,7 +107,7 @@ Balances are derived by summing rows, never stored as an edited field. Post each
 
 - **Floats for money.** 0.1 + 0.2 is not 0.3 in binary floating point. Fix: integer minor units plus a currency code.
 - **Treating a timeout as a decline.** The buyer tries again and pays twice. Fix: the `unknown` state, then a replay with the same key.
-- **A new idempotency key per retry.** The provider sees a fresh request. Fix: one key per attempt, stored before the first call.
+- **A new idempotency key per retry.** The provider sees a fresh request. Fix: one key per checkout attempt, stored before the first call and reused on every retry.
 - **Trusting the browser's "success" redirect.** It can be faked or lost. Fix: confirm server-side from the API or a verified webhook.
 - **Editing ledger rows.** History disappears and reconciliation breaks. Fix: corrections are new movements.
 - **Letting authorisations lapse.** A capture after expiry usually fails. Fix: alert on old authorised payments.

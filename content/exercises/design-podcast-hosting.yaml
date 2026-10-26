@@ -22,7 +22,7 @@ rubric:
   - id: feed-polling
     point: "Shows 25 M × 6 ÷ 1,800 s ≈ 83 k feed requests/s on average for only 400 k feeds, served from the CDN or a cache with a short TTL and conditional GET (ETag or If-Modified-Since, answered with 304)."
   - id: trusted-counts
-    point: "Counts from CDN logs, combines the many byte-range requests of one listen and repeats from the same client within a window, ignores tiny partial requests and drops bots, following industry guidance such as the IAB podcast measurement guidelines (hedged)."
+    point: "Counts from CDN logs, combines the many byte-range requests of one listen and repeats from the same client within a window, ignores tiny partial requests and drops bots, ideally citing industry guidance such as the IAB podcast measurement guidelines."
   - id: propagation
     point: "On release, regenerates the feed and purges it at the CDN or relies on a short TTL, so the only delay left is the apps' 30-minute check cycle, about 15 minutes on average, optionally notifying aggregators with WebSub (hedged)."
 reference: |

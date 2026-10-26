@@ -50,7 +50,7 @@ flashcards:
     back: "Split the source at keyframes and encode each chunk × rendition as its own queue task, writing to a deterministic key so a retried task is idempotent."
   - id: vs-origin-shield
     front: "Origin shield"
-    back: "A mid-tier cache between CDN edges and the origin. Misses from many edges collapse into one origin fetch, which matters when a new video gets popular fast."
+    back: "A mid-tier cache between CDN edges and the origin. Misses from many edges collapse into one origin fetch per shield, which matters when a new video gets popular fast."
   - id: vs-segment-caching
     front: "Cache lifetimes for video segments and playlists"
     back: "Segments never change, so cache them for a long time and use new paths for a new encode. Playlists that gain renditions get a short lifetime."

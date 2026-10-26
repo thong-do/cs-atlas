@@ -276,4 +276,21 @@ describe('validateContent', () => {
     expect(errors).toContain('[V15] content/exercises/e3.yaml: scenario is empty')
     expect(errors).toContain('[V15] content/exercises/e3.yaml: takeaway is empty')
   })
+
+  it('V15 rejects a NaN tolerance and reports each bad field of a step independently', () => {
+    const c = valid()
+    const step = (o: Record<string, unknown>) => ({ id: 'x', ask: 'x?', unit: 'bytes', answer: 1e9, work: '= 1 GB', ...o })
+    c.exercises.push(
+      estimate('e1', ['aaa'], {
+        ladderOrder: 9,
+        steps: [step({ id: 'nan', tolerance: NaN }), step({ id: 'both', tolerance: 0.5, answer: 3e9 })],
+      }),
+    )
+    const errors = validateContent(c).filter((e) => e.startsWith('[V15]'))
+    expect(errors).toEqual([
+      '[V15] content/exercises/e1.yaml: step "nan" tolerance NaN must be between 1.5 and 10',
+      '[V15] content/exercises/e1.yaml: step "both" tolerance 0.5 must be between 1.5 and 10',
+      '[V15] content/exercises/e1.yaml: step "both" work must show its answer "3 GB"',
+    ])
+  })
 })

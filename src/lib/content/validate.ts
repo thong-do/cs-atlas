@@ -162,10 +162,13 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
         sids.add(st.id)
         const unit = ESTIMATE_UNITS.find((u) => u === st.unit)
         if (!unit) err('V15', file, `step "${st.id}" has unknown unit "${st.unit}" (valid: ${ESTIMATE_UNITS.join(', ')})`)
-        if (!Number.isFinite(st.answer) || st.answer <= 0) err('V15', file, `step "${st.id}" answer must be a positive number`)
-        else if (st.tolerance !== undefined && (st.tolerance < 1.5 || st.tolerance > 10)) {
+        const answerOk = Number.isFinite(st.answer) && st.answer > 0
+        if (!answerOk) err('V15', file, `step "${st.id}" answer must be a positive number`)
+        if (st.tolerance !== undefined && !(st.tolerance >= 1.5 && st.tolerance <= 10)) {
           err('V15', file, `step "${st.id}" tolerance ${st.tolerance} must be between 1.5 and 10`)
-        } else if (unit && !st.work.includes(formatAmount(st.answer, unit))) {
+        }
+        // formatAmount needs a known unit and a positive finite answer.
+        if (unit && answerOk && !st.work.includes(formatAmount(st.answer, unit))) {
           err('V15', file, `step "${st.id}" work must show its answer "${formatAmount(st.answer, unit)}"`)
         }
       }

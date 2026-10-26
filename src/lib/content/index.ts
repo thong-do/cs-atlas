@@ -1,5 +1,5 @@
 import { exercises, lessons, placements, tracks } from '#site/content'
-import type { Catalog, DesignDoc, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, PlacementDoc, QuizDoc, TrackMeta } from '@/lib/types'
+import type { Catalog, DesignDoc, EstimateDoc, EstimateUnit, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, PlacementDoc, QuizDoc, TrackMeta } from '@/lib/types'
 import { flashcardKey } from './review-keys'
 
 export interface TocEntry {
@@ -50,6 +50,8 @@ function toExerciseMeta(e: RawExercise): ExerciseMeta {
       return { ...base, type: e.type, questionCount: e.questions.length, flashcardIds: e.flashcards.map((f) => f.id) }
     case 'design-prompt':
       return { ...base, type: e.type, kind: e.kind, rubric: e.rubric.map((r) => r.point) }
+    case 'estimate':
+      return { ...base, type: e.type, stepCount: e.steps.length }
   }
 }
 
@@ -98,6 +100,17 @@ export function getExerciseDoc(slug: string): ExerciseDoc | undefined {
         slug: e.slug, title: e.title, lessons: e.lessons, ladderOrder: e.ladderOrder, type: e.type, kind: e.kind,
         prompt: e.prompt, rubric: e.rubric.map((r) => r.point), rubricPoints: e.rubric, reference: e.reference,
         ...(e.hint ? { hint: e.hint } : {}),
+      }
+      return d
+    }
+    case 'estimate': {
+      const d: EstimateDoc = {
+        slug: e.slug, title: e.title, lessons: e.lessons, ladderOrder: e.ladderOrder, type: e.type, stepCount: e.steps.length,
+        scenario: e.scenario, takeaway: e.takeaway,
+        steps: e.steps.map((st) => ({
+          id: st.id, ask: st.ask, unit: st.unit as EstimateUnit, answer: st.answer, work: st.work,
+          ...(st.tolerance !== undefined ? { tolerance: st.tolerance } : {}),
+        })),
       }
       return d
     }

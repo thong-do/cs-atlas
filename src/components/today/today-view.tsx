@@ -19,6 +19,7 @@ import { useLive, useStore } from '@/lib/store/context'
 import { resolveDue } from '@/lib/logic/review-queue'
 import { isProblem, type ReviewRating } from '@/lib/types'
 import { DesignReviewItem } from './design-review-item'
+import { EstimateReviewItem } from './estimate-review-item'
 import { FlashcardReviewItem } from './flashcard-review-item'
 import { QuizReviewItem } from './quiz-review-item'
 import { ReviewItem } from './review-item'
@@ -124,6 +125,7 @@ export function TodayView() {
                 {item.kind === 'quiz' && (
                   <QuizReviewItem exercise={item.exercise} lessonTitle={lessonBySlug.get(item.exercise.lessons[0])?.title ?? item.exercise.lessons[0]} />
                 )}
+                {item.kind === 'estimate' && <EstimateReviewItem exercise={item.exercise} />}
                 {item.kind === 'flashcard' && (
                   <FlashcardReviewItem card={item.card} lessonTitle={lessonBySlug.get(item.card.lesson)?.title ?? item.card.lesson} onRate={(rating) => rate(item.key, rating)} />
                 )}

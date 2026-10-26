@@ -1,10 +1,11 @@
 import { parseReviewKey } from '@/lib/content/review-keys'
-import type { DesignExercise, ExerciseMeta, FlashcardEntry, ProblemExercise, QuizExercise } from '@/lib/types'
+import type { DesignExercise, EstimateExercise, ExerciseMeta, FlashcardEntry, ProblemExercise, QuizExercise } from '@/lib/types'
 
 export type DueItem =
   | { kind: 'problem'; key: string; exercise: ProblemExercise }
   | { kind: 'quiz'; key: string; exercise: QuizExercise }
   | { kind: 'design'; key: string; exercise: DesignExercise }
+  | { kind: 'estimate'; key: string; exercise: EstimateExercise }
   | { kind: 'flashcard'; key: string; card: FlashcardEntry }
 
 /** Resolve due review keys to renderable items, in order. Keys that no longer resolve are dropped. */
@@ -25,6 +26,7 @@ export function resolveDue(
     if (!e) continue
     if (e.type === 'external-problem') items.push({ kind: 'problem', key, exercise: e })
     else if (e.type === 'quiz') items.push({ kind: 'quiz', key, exercise: e })
+    else if (e.type === 'estimate') items.push({ kind: 'estimate', key, exercise: e })
     else items.push({ kind: 'design', key, exercise: e })
   }
   return items

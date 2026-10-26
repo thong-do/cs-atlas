@@ -4,6 +4,7 @@ export const TYPE_LABEL: Record<ExerciseType, string> = {
   'external-problem': 'LeetCode',
   quiz: 'Quiz',
   'design-prompt': 'Design',
+  estimate: 'Estimate',
 }
 
 /** Badge text for an exercise. Diagnose prompts share the design-prompt type but read differently. */

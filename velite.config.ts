@@ -98,6 +98,20 @@ const exercises = defineCollection({
       hint: s.string().min(1).optional(),
       kind: s.enum(['design', 'diagnose']).default('design'),
     }).strict(),
+    s.object({
+      ...base,
+      type: s.literal('estimate'),
+      scenario: s.string(),
+      steps: s.array(s.object({
+        id,
+        ask: s.string().min(1),
+        unit: s.string(),
+        answer: s.number(),
+        tolerance: s.number().optional(),
+        work: s.string().min(1),
+      }).strict()).min(1),
+      takeaway: s.string(),
+    }).strict(),
   ]), // unknown fields (e.g. a pasted solution) fail the build
 })
 

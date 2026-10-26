@@ -109,6 +109,34 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V12 | Quiz: unique question and flashcard ids; each answer is one of its choices |
 | V13 | Design prompt: unique rubric ids |
 | V14 | Placement files: the track exists and the file name equals it; each module has 2–3 questions (none for `comingSoon`-only or exempt modules); 4 distinct choices and an `answer` that is one of them; no repeat of a lesson-quiz prompt or of an earlier placement prompt; no lesson takes the reserved slug `placement` |
+| V15 | Estimation drills: 2–4 steps with unique ids; a known `unit` (bytes, bytes/s, bits/s, requests/s, count, seconds); `answer` > 0 in base units; `tolerance`, if set, 1.5–10 (default 2); each step's `work` shows its answer as the app formats it (e.g. "10 TB"); non-empty `scenario` and `takeaway` |
+
+## Estimation drills
+
+One file per drill at `content/exercises/estimate-<topic>.yaml`, shown as an exercise and scored by `Check` on each step.
+
+```yaml
+slug: estimate-photo-storage
+type: estimate
+title: "Estimate: photo storage"
+lessons: [estimation, sql-vs-nosql]   # the first entry is the home lesson
+ladderOrder: 3
+scenario: |                            # markdown
+  A photo app gets **5 M uploads/day**, averaging **2 MB**…
+steps:                                 # 2–4, answered in order
+  - id: daily-storage
+    ask: "Storage added per day?"
+    unit: bytes                        # bytes, bytes/s, bits/s, requests/s, count or seconds
+    answer: 1.0e13                     # in base units
+    tolerance: 2                       # optional, default 2; must be 1.5–10
+    work: "5 M × 2 MB = 10 TB/day"     # worked arithmetic, shown after Check
+takeaway: "…"                          # 1–2 sentences, shown at the end
+```
+
+- Byte prefixes are decimal: KB = 10³ bytes, not 2¹⁰.
+- `answer` is always in base units (bytes, bytes/s, bits/s, requests/s, a plain count, seconds).
+- `work` must contain the answer as the app formats it, such as "10 TB" (V15 checks this).
+- Scenario numbers must differ from the numbers in the lessons and design prompts, so the drill is not a lookup.
 
 ## Placement quizzes
 

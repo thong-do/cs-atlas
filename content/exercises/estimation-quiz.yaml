@@ -6,7 +6,7 @@ ladderOrder: 1
 questions:
   - id: provision-peak
     prompt: "A ticketing API averages 1,200 requests/s across the day, but in the hour after a sale opens, traffic runs at 5× that average. Which rate should capacity be planned for?"
-    choices: ["1,200/s, since the daily average already includes the busy hour", "6,000/s, the busy-hour rate, plus some headroom", "240/s, since only one hour in 24 is busy", "28,800/s, the average multiplied by 24 hours"]
+    choices: ["1,200/s, since the daily average already includes the busy hour", "6,000/s, the busy-hour rate, plus some headroom", "240/s, the daily average divided by the 5× peak factor", "28,800/s, the average multiplied by 24 hours"]
     answer: 1
     explanation: "Servers must survive the busiest hour, not the average one: 1,200/s × 5 = 6,000/s. The average hides the peak, 1,200 ÷ 5 = 240/s turns the peak factor upside down, and 1,200 × 24 = 28,800 multiplies a rate by hours, which gives no meaningful rate."
   - id: link-transfer-time
@@ -46,7 +46,7 @@ flashcards:
     front: "Round trip within a datacenter"
     back: "About 0.5 ms. Ten sequential calls to another service spend about 5 ms on round trips alone."
   - id: cross-continent-round-trip
-    front: "Cross-continent round trip"
+    front: "Intercontinental round trip"
     back: "About 100–150 ms. Light in fibre covers about 200 km per ms, so distance sets a floor that no faster server can lower."
   - id: bits-vs-bytes
     front: "Bits vs bytes"

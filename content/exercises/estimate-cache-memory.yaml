@@ -26,4 +26,4 @@ steps:
     answer: 6
     tolerance: 1.5
     work: "432 GB ÷ 72 GB per node = 6 nodes."
-takeaway: "You rarely cache everything: size the hot set, not the whole dataset. Here 3.6 TB of records needs only 6 cache nodes because 12% of them carry the traffic."
+takeaway: "You rarely cache everything: size the hot set, not the whole dataset. Here 3.6 TB of records needs only 6 cache nodes because 12% of them carry the traffic, and the nodes are sized on the 72 GB usable, not the 96 GB installed."

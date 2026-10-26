@@ -13,7 +13,7 @@ Before you pick a database, a cache or a number of servers, you need a sense of 
 
 The answers decide the shape of the design early:
 
-- **Does it fit on one machine?** A single large server can hold hundreds of GB of RAM and tens of TB of SSD. If the data fits, keep it simple. If it doesn't, you need [replication & sharding](/system-design/replication-sharding/).
+- **Does it fit on one machine?** A typical server holds hundreds of GB of RAM and tens of TB of SSD (the largest hold several TB of RAM). If the data fits, keep it simple. If it doesn't, you need [replication & sharding](/system-design/replication-sharding/).
 - **Does the hot data fit in RAM?** If it does, a [cache](/system-design/caching/) can serve most reads from memory.
 - **Is the outbound traffic heavy, or far from users?** Gigabits per second of images or video belong on a [CDN](/system-design/dns-cdn/), not on your own servers.
 - **Can one database primary keep up with the writes?** If it can't, you partition.
@@ -45,9 +45,9 @@ On this site KB = 1,000 bytes; the 2.4% difference from 1,024 never matters at t
 | Main memory reference | 100 ns | 100× |
 | SSD random read | 100 µs (tens of µs on fast NVMe) | 100,000× |
 | Round trip within a datacenter | 0.5 ms | 500,000× |
-| Cross-continent round trip | 100–150 ms | about 10⁸× |
+| Intercontinental round trip (e.g. US west coast to Europe) | 100–150 ms | about 10⁸× |
 
-Light in fibre covers about 200 km per ms. A 10,000 km trip there and back therefore takes at least 100 ms, and no server upgrade can beat that.
+Light in fibre covers about 200 km per ms. A round trip to a server 10,000 km away covers 20,000 km of fibre, so it takes at least 100 ms, and no server upgrade can beat that.
 
 **Time.**
 
@@ -108,7 +108,7 @@ What the numbers say:
 
 ## Tips & tricks
 
-- **Round to one significant figure early.** 86,400 becomes 10⁵, 174 becomes 200, and 46,875 becomes 50,000. The arithmetic gets easy, and the result stays within 2×.
+- **Round to one significant figure early.** 86,400 becomes 10⁵, 174 becomes 200, and 46,875 becomes 50,000. The arithmetic gets easy, and the result usually stays within 2×; if several roundings push the same way, round one of them the other way.
 - **Work in powers of ten.** 15 M × 300 KB is 1.5 × 10⁷ × 3 × 10⁵ B = 4.5 × 10¹² B = 4.5 TB. Multiply the small numbers and add the exponents.
 - **Write units on every line.** `views/s × KB/view = KB/s`. If the units don't cancel to what you want, the formula is wrong.
 - **Sanity-check against something known.** Compare the result with one machine's limits, such as hundreds of GB of RAM, tens of TB of disk and a 10 Gbit/s network card. Or compare it with a system you know. If a small app comes out bigger than a famous one, recheck your assumptions.

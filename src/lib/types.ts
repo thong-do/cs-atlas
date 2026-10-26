@@ -120,3 +120,6 @@ export interface UserData {
 
 export const SCHEMA_VERSION = 1
 export const DEFAULT_SETTINGS: Settings = { desiredRetention: 0.9, theme: 'system' }
+
+export type EstimateUnit = 'bytes' | 'bytes/s' | 'bits/s' | 'requests/s' | 'count' | 'seconds'
+export interface EstimateStep { id: string; ask: string; unit: EstimateUnit; answer: number; tolerance?: number; work: string }

@@ -1,0 +1,98 @@
+---
+slug: video-streaming
+title: Video streaming
+level: advanced
+authors: [cs-atlas]
+prerequisites: [dns-cdn, queues-streams]
+summary: "Turn uploaded videos into several bitrates, serve them from CDN edges as small cacheable segments, and let each player pick the quality its network can sustain."
+---
+
+## Intuition
+
+Think of a publisher that prints every new book in four editions, from a slim pocket paperback to a heavy hardback, and stocks them in bookshops near every reader. A reader on a crowded train takes the pocket edition, one at home takes the hardback, and anyone can swap editions between chapters. A **video-on-demand platform** works the same way: each upload is encoded into several qualities, cut into short chunks, and served from caches near viewers, and each player swaps quality chunk by chunk.
+
+The hard parts sit at both ends: encoding is heavy batch work, and delivery pushes terabits per second over networks you don't control.
+
+## Requirements & estimates
+
+**Functional.** Upload a video. Watch it on phones, laptops and TVs. Resume where you stopped on any device. Show a view count.
+
+**Non-functional (assumptions).** Playback starts within about 2 s and rarely rebuffers. Uploads survive flaky connections and are stored durably. A new video is watchable within minutes. View counts may lag and be approximate.
+
+**Estimates.** These numbers are illustrative; see [Back-of-the-envelope estimation](/system-design/estimation/) for the method. Assume 100,000 uploads a day averaging 6 minutes, a 4-rendition ladder of 400, 1,000, 2,500 and 5,000 kbps (8,900 kbps together), originals averaging 8 Mbit/s, 4 M concurrent viewers at peak, and an average delivered bitrate of 3 Mbit/s across phones and TVs. Real ladders and bitrates depend on codec, resolution and content.
+
+| Quantity | Arithmetic | Result |
+|---|---|---|
+| Video uploaded per day | 100,000 × 6 min | 600,000 min = 36 M s |
+| One minute across the ladder | 8.9 Mbit/s × 60 s ÷ 8 | 66.75 MB |
+| Renditions per day | 600,000 min × 66.75 MB | 40.05 TB, about 40 TB |
+| Originals per day | 36 M s × 8 Mbit/s ÷ 8 | 36 TB |
+| Storage per year | (40.05 + 36) TB × 365 | about 27.8 PB, before replication |
+| Source arriving per minute | 600,000 min ÷ 1,440 | about 417 min of video |
+| Peak egress | 4 M × 3 Mbit/s | 12 Tbit/s (1.5 TB/s) |
+| Served by the CDN at 95% | 12 Tbit/s × 0.95 | 11.4 Tbit/s |
+| Left for the origin side | 12 Tbit/s × 0.05 | 600 Gbit/s (75 GB/s) |
+| Resume writes, every 10 s | 4 M ÷ 10 s | 400,000/s |
+
+The 95% byte hit ratio is an assumption; real ratios depend on the catalogue and the provider. Even the 5% that misses would fill sixty 10 Gbit/s network cards, and the total would fill 1,200, so delivery must be CDN-first. Encoders face about 417 minutes of new video per minute (more at peak); multiply by the encode cost per minute, measured for your codec and hardware, to size the workers.
+
+## Visual
+
+<Visualizer kind="abr-player" />
+
+The animation plays 8 segments of 4 s each from the ladder 400, 1,000, 2,500 and 5,000 kbps, while bandwidth runs 8, 8, 8, then 2, 2, 2, then 4, 4 Mbit/s. Its rule is simplified: segment 1 uses the lowest rendition because nothing has been measured yet, and each later segment takes the highest rendition at or below 0.8 × the throughput measured on the previous download. Segment 1 at 400 kbps downloads in 0.2 s and playback starts. Having measured 8 Mbit/s, segment 2 jumps to 5,000 kbps, and the buffer reaches 7 s after segment 3. Then bandwidth falls to 2 Mbit/s: segment 4, still chosen at 5,000 kbps from the old measurement, takes 10 s, drains the 7 s buffer and stalls playback for 3 s. Segment 5 steps down to 1,000 kbps, and after bandwidth recovers to 4 Mbit/s, segment 8 steps back up to 2,500 kbps with 12.5 s buffered. Real players also weigh the buffer level (buffer-based ABR is one family of such rules), so their choices differ.
+
+```text
+ upload path
+ client ──1. POST /v1/uploads──▶ API ──▶ metadata DB (video: uploading)
+   │       ◀── pre-signed URLs ──┘
+   └──2. PUT parts ────────────────▶ object store: originals/
+                                        │ 3. upload-complete event
+                                        ▼
+                               transcode queue ──▶ workers (chunk × rendition)
+                                                     │ 4. encode, then package
+                                                     ▼
+                               object store: renditions/ + manifests
+                                        │          (video: ready once the low rungs exist)
+ playback path                          ▼
+ player ──manifest, then segments──▶ CDN edge ──miss──▶ origin shield ──miss──▶ object store
+   ▲ picks a rendition per segment
+   └── beacons: progress, quality, stalls ──▶ event stream ──▶ view counts, resume positions
+```
+
+## Design walkthrough
+
+**Upload.** The client asks the API to create a video and gets back pre-signed URLs: short-lived links for writing straight to the object store. Most object stores support multipart or resumable uploads, so a phone that loses signal resends only missing parts. The API servers never proxy video bytes.
+
+**Transcoding.** When the original is complete, an event goes onto a queue ([Queues & streams](/system-design/queues-streams/)). A splitter cuts the source into chunks at keyframes, say a minute each, and enqueues one task per chunk and rendition. Each task writes to a key derived from `(video, rendition, chunk)`, so a redelivered task overwrites the same object: it is idempotent. Keyframes must line up across renditions at segment boundaries, so the player can switch quality between any two segments.
+
+**Packaging.** Encoded chunks are cut into segments of a few seconds, described by manifests. **HLS** uses `.m3u8` playlists: a multivariant playlist lists the renditions, and a media playlist per rendition lists its segments. **DASH** describes the same things in an XML file called an MPD. **CMAF** standardises fragmented-MP4 segments that both can reference, so one set of segments can often serve both, though device and DRM support vary. Mark the video ready once the lowest renditions are packaged, and add higher ones to the multivariant playlist as they finish, so it is watchable sooner.
+
+**Storage.** Keep originals for re-encoding with better codecs later, and renditions for serving. Viewing is skewed: recent and popular videos are hot, and the long tail is rarely watched. Old renditions can move to a cheaper storage class, which typically adds retrieval cost, latency or minimum storage periods, depending on the provider. Or skip rarely used rungs for unpopular videos and encode them on demand.
+
+**Delivery.** Serve everything through a CDN ([DNS & CDNs](/system-design/dns-cdn/)). A segment never changes after it is written, so give it a long cache lifetime; a new encode gets new paths. Give the multivariant playlist a short lifetime, because it gains renditions after the video goes live. An **origin shield** (a mid-tier cache) sits between the edges and the object store, so when a new video takes off, hundreds of edge misses collapse into a few origin fetches. For private videos, use **signed URLs** or signed cookies with an expiry, checked at the edge; where the CDN supports it, a cookie or token covering a path prefix avoids signing each segment URL.
+
+**Adaptive bitrate on the client.** The player, not the server, picks each segment's rendition. Starting low is common: the first segment is small, so playback starts fast (0.2 s in the trace, against 2.5 s at 5,000 kbps), and its download gives the first throughput measurement. Trusting one old measurement caused the stall at segment 4, which is one reason real players also watch how many seconds are buffered.
+
+**Metadata and resume position.** Video metadata (title, owner, status, renditions) lives in a database, with a cache in front for hot videos ([Caching](/system-design/caching/)). The resume position is a tiny write per user per video, sent about every 10 s and on pause. At 400,000 writes/s, use a key-value store partitioned by user, with only the latest position kept.
+
+**View counting.** Never increment a counter row on every play: a popular video becomes one hot row. Players send beacons into a stream; consumers aggregate them per video in short windows and write totals periodically. The displayed count is approximate and lags by seconds to minutes.
+
+**Failure handling.** A failed or timed-out chunk task is redelivered and retried, and one that keeps failing goes to a dead-letter queue for a person to check. If the origin errors, many CDNs can be configured to serve a stale cached copy instead (behaviour depends on the provider). Players retry a failed segment, then step down.
+
+## Pitfalls
+
+- **Proxying uploads through API servers.** They become a bandwidth bottleneck. Use pre-signed URLs to the object store.
+- **Encoding a whole video on one machine.** It is slow, and a crash restarts it. Encode chunks in parallel, idempotently.
+- **Unaligned keyframes across renditions.** Switching quality glitches or stalls. Encode with fixed keyframe intervals aligned to segment boundaries.
+- **One cache lifetime for everything.** A long-lived multivariant playlist hides new renditions. Cache segments long and changing playlists briefly.
+- **Counting views with a database increment.** Hot rows contend. Stream beacons and aggregate.
+
+## Tips & tricks
+
+- **Structure the answer.** Numbers, upload, transcoding, storage, delivery, ABR, resume, view counts, failures.
+- **Say the trade-offs out loud.** More renditions smooth switching but cost encoding and storage.
+- **Show the arithmetic.** 12 Tbit/s at peak, 600 Gbit/s of it missing at 95%: the hit ratio dominates the design.
+- **Commit to one design:** pre-signed uploads, chunked idempotent encoding, HLS or DASH over CMAF segments, CDN with a shield, client-side ABR, streamed view counts.
+- **Measure** startup time, rebuffering ratio, average delivered bitrate, CDN byte hit ratio, origin egress, transcode queue lag and time from upload to ready.
+- Interview phrasing: "Uploads go straight to object storage, a queue fans chunks out to encoders, segments are immutable and served from a shielded CDN, and the player chooses each segment's bitrate."

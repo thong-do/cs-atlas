@@ -14,5 +14,5 @@ modules:
     lessons: [consistency-models, consensus-raft, distributed-transactions, observability]
   - slug: case-studies
     title: Case Studies
-    lessons: [url-shortener, news-feed, chat]
-    comingSoon: ["Video streaming", "Payment system"]
+    lessons: [url-shortener, news-feed, chat, video-streaming]
+    comingSoon: ["Payment system"]

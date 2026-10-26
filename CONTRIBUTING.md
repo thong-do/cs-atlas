@@ -79,7 +79,7 @@ content/
 
 ## Add an exercise
 
-1. Copy a template to `content/exercises/<slug>.yaml`: `templates/exercise.yaml` for a LeetCode problem (the slug must match the LeetCode URL), `templates/quiz.yaml` for a quiz with flashcards, or `templates/design-prompt.yaml` for a design prompt.
+1. Copy a template to `content/exercises/<slug>.yaml`: `templates/exercise.yaml` for a LeetCode problem (the slug must match the LeetCode URL), `templates/quiz.yaml` for a quiz with flashcards, or `templates/design-prompt.yaml` for a design prompt, or see [Estimation drills](#estimation-drills) for an estimation drill.
 2. Set `ladderOrder` to the next free number in the primary lesson's ladder.
 3. Write the text **in your own words** (for a LeetCode problem: `recognitionPrompt` and `hint`). Never paste a problem statement or a solution.
 

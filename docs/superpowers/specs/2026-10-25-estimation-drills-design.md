@@ -85,7 +85,7 @@ These are pure functions with unit tests:
 
 - **Header:** the title, status icon and lesson badges, as for a quiz. The scenario is rendered as markdown.
 - **Steps** appear one at a time, and earlier steps stay visible above the current one.
-  - Each step has a labelled number input (`inputMode="decimal"`) and a unit `<select>` that defaults to the middle prefix.
+  - Each step has a labelled number input (`inputMode="decimal"`) and a unit `<select>` with no unit chosen until the learner picks one; Check stays disabled until then.
   - **Check** is disabled while the input is empty or doesn't parse. A value of 0 or below shows an inline error.
 - **After Check:**
   - The step locks and shows ✓ or ✗ as text and an icon, not colour alone.
@@ -154,7 +154,7 @@ Everywhere the exercise type is switched on:
 
 **Effects on other content:**
 - System Design grows to 16 lessons.
-- The System Design placement quiz is unchanged. Placing out of Foundations also skips `estimation`, and its drills stay reachable from the lessons they also link to.
+- The System Design placement quiz is unchanged. Placing out of Foundations also skips `estimation`, and its drills stay reachable from /exercises/ (filter by lesson) and from the estimation lesson page.
 
 ## Tests
 

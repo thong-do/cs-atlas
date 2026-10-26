@@ -1,0 +1,115 @@
+---
+slug: estimation
+title: Back-of-the-envelope estimation
+level: beginner
+authors: [cs-atlas]
+prerequisites: [client-server-http]
+summary: "Turn users and object sizes into requests per second, storage and bandwidth, quickly and to within 2×."
+---
+
+## Intuition
+
+Before you pick a database, a cache or a number of servers, you need a sense of size. Is it 50 requests a second or 50,000? Is it 10 GB or 10 PB? **Back-of-the-envelope estimation** answers these questions in a few minutes, with arithmetic small enough for the back of an envelope.
+
+The answers decide the shape of the design early:
+
+- **Does it fit on one machine?** A single large server can hold hundreds of GB of RAM and tens of TB of SSD. If the data fits, keep it simple. If it doesn't, you need [replication & sharding](/system-design/replication-sharding/).
+- **Does the hot data fit in RAM?** If it does, a [cache](/system-design/caching/) can serve most reads from memory.
+- **Is the outbound traffic heavy, or far from users?** Gigabits per second of images or video belong on a [CDN](/system-design/dns-cdn/), not on your own servers.
+- **Can one database primary keep up with the writes?** If it can't, you partition.
+
+**The goal is the right order of magnitude, not the right digits.** Your inputs are guesses, such as daily users, actions per user and average object size, and each one can easily be off by 2×. Working the arithmetic out to four digits on top of that is false precision. What matters is which side of a limit you land on. 30 GB and 60 GB both fit in one server's memory, and 6 TB does not fit in a typical one. An estimate within 2× of the truth rarely moves you across such a line, but one that is 10× off can.
+
+Estimation is a loop. State your assumptions, multiply, round, compare the result with a limit, and adjust.
+
+## Visual
+
+A reference ladder of numbers worth remembering. Each one is a rough order of magnitude.
+
+**Powers of two vs powers of ten.** Each step of 2¹⁰ is close to a step of 10³.
+
+| Power of two | Exact value | About | Prefix |
+|---|---|---|---|
+| 2¹⁰ | 1,024 | 10³, a thousand | KB |
+| 2²⁰ | 1,048,576 | 10⁶, a million | MB |
+| 2³⁰ | 1,073,741,824 | 10⁹, a billion | GB |
+| 2⁴⁰ | 1,099,511,627,776 | 10¹², a trillion | TB |
+
+On this site KB = 1,000 bytes; the 2.4% difference from 1,024 never matters at this precision. The gap grows to about 10% at TB, which still doesn't matter.
+
+**Latency.** Rounded orders of magnitude. Real hardware and networks vary by 2× or more.
+
+| Operation | About | Compared with L1 |
+|---|---|---|
+| L1 cache reference | 1 ns | 1× |
+| Main memory reference | 100 ns | 100× |
+| SSD random read | 100 µs (tens of µs on fast NVMe) | 100,000× |
+| Round trip within a datacenter | 0.5 ms | 500,000× |
+| Cross-continent round trip | 100–150 ms | about 10⁸× |
+
+Light in fibre covers about 200 km per ms. A 10,000 km trip there and back therefore takes at least 100 ms, and no server upgrade can beat that.
+
+**Time.**
+
+| Period | Seconds | About |
+|---|---|---|
+| 1 hour | 3,600 | 3.6 × 10³ |
+| 1 day | 86,400 | 10⁵ |
+| 1 month (30 days) | 2,592,000 | 2.6 × 10⁶, or 2.6 M |
+| 1 year (365 days) | 31,536,000 | 3.15 × 10⁷ |
+
+Two handy consequences: 1 M requests a day is about 12 per second (1,000,000 ÷ 86,400 ≈ 11.6), and a year is close to π × 10⁷ seconds.
+
+**Bits and bytes.** Networks are rated in bits per second, and storage is measured in bytes. 1 byte = 8 bits, so 1 Gbit/s = 125 MB/s.
+
+## Example
+
+Estimate the load for a photo-sharing app. These numbers are illustrative assumptions:
+
+- 45 M daily active users (DAU).
+- 1 in 3 of them uploads one photo a day.
+- Each user views 30 photos a day, and each view serves the whole photo.
+- A stored photo averages 300 KB. Its metadata row (owner, caption, timestamps) is about 1 KB.
+- The busiest hour runs at **3× the daily average**. This is the peak factor; measure it on real traffic when you can.
+- The photo store keeps 3 replicas.
+
+| Quantity | Arithmetic | Result |
+|---|---|---|
+| Uploads per day | 45 M × 1/3 | 15 M |
+| Average upload rate | 15,000,000 ÷ 86,400 s | about 174/s |
+| Peak upload rate | 174/s × 3 | about 520/s |
+| Views per day | 45 M × 30 | 1.35 B |
+| Average view rate | 1,350,000,000 ÷ 86,400 s | 15,625/s |
+| Peak view rate | 15,625/s × 3 | 46,875/s, about 47,000/s |
+| Photo storage per day | 15 M × 300 KB | 4.5 TB |
+| Metadata per day | 15 M × 1 KB | 15 GB, 0.3% of the photo bytes |
+| Photo storage per year | 4.5 TB × 365 | 1,642.5 TB, about 1.6 PB |
+| With 3 replicas | 1,642.5 TB × 3 | 4,927.5 TB, about 4.9 PB |
+| Average egress | 15,625/s × 300 KB | 4.6875 GB/s, about 4.7 GB/s |
+| Average egress in bits | 4.6875 GB/s × 8 | 37.5 Gbit/s |
+| Peak egress | 37.5 Gbit/s × 3 | 112.5 Gbit/s |
+
+The 10⁵ shortcut for a day gives the same picture: 15 M ÷ 10⁵ = 150 uploads/s and 1.35 B ÷ 10⁵ = 13,500 views/s, both well within 2×.
+
+What the numbers say:
+
+- **Uploads are easy.** About 520 writes/s at peak is modest; a few app servers and one database primary can handle it.
+- **Metadata is small; photos are not.** 15 GB a day of rows is about 5.5 TB a year (15 GB × 365 = 5,475 GB), which one database can hold for a while. Photos take petabytes, so they go in an object store, not on database disks.
+- **Egress needs a CDN.** One 10 Gbit/s network card moves 1.25 GB/s. An average of 37.5 Gbit/s would keep almost four such cards fully busy all day, and the 112.5 Gbit/s peak would need more than eleven. A CDN serves popular photos from its edges and keeps most of those bytes off your servers.
+- **Reads dominate.** 1.35 B views against 15 M uploads is 90 reads per write, so design the read path first.
+
+## Pitfalls
+
+- **Average vs peak.** Traffic is not flat. A system sized for the daily average falls over in the busiest hour. Always state a peak factor and size for the peak.
+- **Bits vs bytes.** Link speeds are in bits, and file sizes are in bytes. Forgetting the ×8 makes a transfer look 8 times faster than it is. Write `Gbit/s` or `GB/s`, never a bare `G`.
+- **Forgetting replication.** Storage estimates usually count one copy. Three replicas triple the disk, and backups and indexes add more.
+- **Counting only half of the data.** Count the metadata but not the payload, or the payload but not the metadata, and you miss whichever part is large. In the Example, counting only the 1 KB rows would make storage look 300 times smaller than it is. For tiny records the reverse holds, and indexes and per-row overhead can rival the data itself. List every kind of data you store, then add up its size.
+- **Per-day vs per-second slips.** Dividing a daily count by 3,600 (seconds in an hour) or 1,440 (minutes in a day) instead of 86,400 makes the rate 24 or 60 times too high. Comparing a per-day count with a per-second limit is off by 86,400. Convert everything to per second before comparing.
+
+## Tips & tricks
+
+- **Round to one significant figure early.** 86,400 becomes 10⁵, 174 becomes 200, and 46,875 becomes 50,000. The arithmetic gets easy, and the result stays within 2×.
+- **Work in powers of ten.** 15 M × 300 KB is 1.5 × 10⁷ × 3 × 10⁵ B = 4.5 × 10¹² B = 4.5 TB. Multiply the small numbers and add the exponents.
+- **Write units on every line.** `views/s × KB/view = KB/s`. If the units don't cancel to what you want, the formula is wrong.
+- **Sanity-check against something known.** Compare the result with one machine's limits, such as hundreds of GB of RAM, tens of TB of disk and a 10 Gbit/s network card. Or compare it with a system you know. If a small app comes out bigger than a famous one, recheck your assumptions.
+- In interviews, say your assumptions out loud, round boldly, and say which design choice each number drives.

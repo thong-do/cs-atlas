@@ -79,7 +79,7 @@ describe('content inventory', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug).slice(0, 2)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
-    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat'])
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'estimation', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat'])
     expect(sd.modules.flatMap((m) => m.comingSoon).length).toBeGreaterThan(0)
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
@@ -126,6 +126,12 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'chat')).toMatchObject({ track: 'system-design', prerequisites: ['queues-streams', 'load-balancing'] })
     expect(getLessonDoc('chat')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('chat')).map((e) => e.slug).sort()).toEqual(['chat-quiz', 'design-live-comments'])
+  })
+  it('has the estimation lesson in System Design Foundations with its quiz', () => {
+    const { lessons, exercises } = getCatalog()
+    expect(lessons.find((l) => l.slug === 'estimation')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'], level: 'beginner' })
+    expect(getLessonDoc('estimation')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.find((e) => e.slug === 'estimation-quiz')).toMatchObject({ type: 'quiz', lessons: ['estimation'], ladderOrder: 1 })
   })
 
   it('has a CS Fundamentals track whose lessons, tables of contents and exercises match the inventory', () => {

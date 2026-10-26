@@ -1,0 +1,28 @@
+slug: estimate-video-egress
+type: estimate
+title: "Estimate: live video egress"
+lessons: [estimation, dns-cdn]
+ladderOrder: 5
+scenario: |
+  A live sports final peaks at **1.5 million concurrent viewers**. Each viewer watches a 1080p stream at
+  **6 Mbit/s** on average.
+
+  A CDN serves **97%** of the bytes from its edge caches; the remaining **3%** are fetched from the origin.
+  Use 8 bits per byte.
+steps:
+  - id: total-egress
+    ask: "What total egress do the viewers pull at the peak?"
+    unit: bits/s
+    answer: 9000000000000
+    work: "1.5 million × 6 Mbit/s = 9 million Mbit/s = 9 Tbit/s."
+  - id: origin-egress
+    ask: "Using the total egress, how much must the origin send at the 97% CDN hit ratio?"
+    unit: bits/s
+    answer: 270000000000
+    work: "9 Tbit/s × 0.03 = 0.27 Tbit/s = 270 Gbit/s from the origin."
+  - id: origin-bytes
+    ask: "Using the origin egress, what is that in bytes per second?"
+    unit: bytes/s
+    answer: 33800000000
+    work: "270 Gbit/s ÷ 8 = 33.75 GB/s, about 33.8 GB/s."
+takeaway: "A CDN turns an impossible egress bill into a manageable one: the edge absorbs 97% of 9 Tbit/s. Network links are rated in bits, storage and disks in bytes, so convert with the factor of 8."

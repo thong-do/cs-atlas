@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { DesignDoc, DesignExercise, QuizDoc, QuizExercise } from '@/lib/types'
+import type { DesignDoc, DesignExercise, EstimateDoc, QuizDoc, QuizExercise } from '@/lib/types'
 import { isProblem } from '@/lib/types'
+import { formatAmount } from '@/lib/logic/estimate'
 import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, placementTracks } from './index'
 
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
@@ -88,17 +89,17 @@ describe('content inventory', () => {
     expect(exercises.filter((e) => e.lessons.includes('client-server-http')).map((e) => e.slug)).toEqual(['client-server-http-quiz'])
     expect(lessons.find((l) => l.slug === 'dns-cdn')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('dns-cdn')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('dns-cdn')).map((e) => e.slug).sort()).toEqual(['design-global-static-site', 'dns-cdn-quiz'])
-    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['caching-quiz', 'design-product-page-cache', 'lru-cache', 'time-based-key-value-store'])
+    expect(exercises.filter((e) => e.lessons.includes('dns-cdn')).map((e) => e.slug).sort()).toEqual(['design-global-static-site', 'dns-cdn-quiz', 'estimate-video-egress'])
+    expect(exercises.filter((e) => e.lessons.includes('caching')).map((e) => e.slug).sort()).toEqual(['caching-quiz', 'design-product-page-cache', 'estimate-cache-memory', 'lru-cache', 'time-based-key-value-store'])
     expect(lessons.find((l) => l.slug === 'sql-vs-nosql')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('sql-vs-nosql')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('sql-vs-nosql')).map((e) => e.slug).sort()).toEqual(['design-orders-and-activity-storage', 'sql-vs-nosql-quiz'])
+    expect(exercises.filter((e) => e.lessons.includes('sql-vs-nosql')).map((e) => e.slug).sort()).toEqual(['design-orders-and-activity-storage', 'estimate-photo-storage', 'sql-vs-nosql-quiz'])
     expect(lessons.find((l) => l.slug === 'load-balancing')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('load-balancing')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('load-balancing')).map((e) => e.slug).sort()).toEqual(['design-checkout-load-balancing', 'load-balancing-quiz'])
+    expect(exercises.filter((e) => e.lessons.includes('load-balancing')).map((e) => e.slug).sort()).toEqual(['design-checkout-load-balancing', 'estimate-peak-qps', 'load-balancing-quiz'])
     expect(lessons.find((l) => l.slug === 'replication-sharding')).toMatchObject({ track: 'system-design', prerequisites: ['sql-vs-nosql'] })
     expect(getLessonDoc('replication-sharding')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('replication-sharding')).map((e) => e.slug).sort()).toEqual(['design-message-store-sharding', 'replication-sharding-quiz'])
+    expect(exercises.filter((e) => e.lessons.includes('replication-sharding')).map((e) => e.slug).sort()).toEqual(['design-message-store-sharding', 'estimate-shard-count', 'replication-sharding-quiz'])
     expect(lessons.find((l) => l.slug === 'queues-streams')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('queues-streams')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('queues-streams')).map((e) => e.slug).sort()).toEqual(['design-order-email-pipeline', 'queues-streams-quiz'])
@@ -116,7 +117,7 @@ describe('content inventory', () => {
     expect(exercises.filter((e) => e.lessons.includes('distributed-transactions')).map((e) => e.slug).sort()).toEqual(['design-money-transfer', 'distributed-transactions-quiz'])
     expect(lessons.find((l) => l.slug === 'observability')).toMatchObject({ track: 'system-design', prerequisites: ['load-balancing'] })
     expect(getLessonDoc('observability')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
-    expect(exercises.filter((e) => e.lessons.includes('observability')).map((e) => e.slug).sort()).toEqual(['design-checkout-slos', 'observability-quiz'])
+    expect(exercises.filter((e) => e.lessons.includes('observability')).map((e) => e.slug).sort()).toEqual(['design-checkout-slos', 'estimate-log-volume', 'observability-quiz'])
     expect(lessons.find((l) => l.slug === 'url-shortener')).toMatchObject({ track: 'system-design', prerequisites: ['caching', 'sql-vs-nosql'] })
     expect(getLessonDoc('url-shortener')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('url-shortener')).map((e) => e.slug).sort()).toEqual(['design-pastebin', 'url-shortener-quiz'])
@@ -255,6 +256,28 @@ describe('placement quizzes', () => {
       const keys = getPlacement(track)!.questions.map((q) => q.answer)
       for (const k of [0, 1, 2, 3]) expect(keys.filter((x) => x === k).length, `${track} key ${k}`).toBeGreaterThanOrEqual(2)
       for (let i = 2; i < keys.length; i++) expect(keys[i] === keys[i - 1] && keys[i] === keys[i - 2], `${track} run at ${i}`).toBe(false)
+    }
+  })
+})
+
+describe('estimation drills', () => {
+  const DRILLS: [string, string][] = [
+    ['estimate-peak-qps', 'load-balancing'], ['estimate-photo-storage', 'sql-vs-nosql'], ['estimate-cache-memory', 'caching'],
+    ['estimate-video-egress', 'dns-cdn'], ['estimate-shard-count', 'replication-sharding'], ['estimate-log-volume', 'observability'],
+  ]
+  it('ships six drills in the estimation ladder, each also linking its topic lesson', () => {
+    const { exercises } = getCatalog()
+    for (const [i, [slug, also]] of DRILLS.entries()) {
+      expect(exercises.find((e) => e.slug === slug), slug).toMatchObject({ type: 'estimate', lessons: ['estimation', also], ladderOrder: i + 2 })
+    }
+    expect(exercises.filter((e) => e.type === 'estimate')).toHaveLength(6)
+  })
+  it('gives every drill 2–4 steps with its answer shown in the worked arithmetic', () => {
+    for (const [slug] of DRILLS) {
+      const d = getExerciseDoc(slug) as EstimateDoc
+      expect(d.steps.length, slug).toBeGreaterThanOrEqual(2)
+      expect(d.steps.length, slug).toBeLessThanOrEqual(4)
+      for (const st of d.steps) expect(st.work, `${slug}/${st.id}`).toContain(formatAmount(st.answer, st.unit))
     }
   })
 })

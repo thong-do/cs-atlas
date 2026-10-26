@@ -1,0 +1,29 @@
+slug: estimate-cache-memory
+type: estimate
+title: "Estimate: cache memory and nodes"
+lessons: [estimation, caching]
+ladderOrder: 4
+scenario: |
+  A maps service stores **1.2 billion place records** (name, address, opening hours, rating), about
+  **3 KB** each when serialized. Reads are heavily skewed: caching the hottest **12%** of records serves most lookups.
+
+  The cache runs on nodes with **96 GB of RAM**, of which **72 GB** is usable for cached data after
+  leaving room for the OS, fragmentation and replication buffers. Use decimal units (1 KB = 1,000 bytes).
+steps:
+  - id: total-data
+    ask: "How much data do all the place records add up to?"
+    unit: bytes
+    answer: 3600000000000
+    work: "1.2 billion × 3 KB = 3.6 billion KB = 3.6 TB."
+  - id: hot-set
+    ask: "Using the total, how much memory does the hottest 12% need?"
+    unit: bytes
+    answer: 432000000000
+    work: "3.6 TB × 0.12 = 0.432 TB = 432 GB."
+  - id: cache-nodes
+    ask: "Using the hot-set size, how many cache nodes hold it at 72 GB usable each?"
+    unit: count
+    answer: 6
+    tolerance: 1.5
+    work: "432 GB ÷ 72 GB per node = 6 nodes."
+takeaway: "You rarely cache everything: size the hot set, not the whole dataset. Here 3.6 TB of records needs only 6 cache nodes because 12% of them carry the traffic."

@@ -1,0 +1,28 @@
+slug: estimate-log-volume
+type: estimate
+title: "Estimate: log storage"
+lessons: [estimation, observability]
+ladderOrder: 7
+scenario: |
+  A fleet of services emits **250,000 log events per second**, around the clock, at about **400 bytes**
+  per event as structured JSON.
+
+  The log store keeps one uncompressed copy of everything for **7 days** of retention, then deletes it.
+  Use **86,400 seconds** in a day and decimal units (1 MB = 1,000,000 bytes).
+steps:
+  - id: ingest-rate
+    ask: "What is the log ingest rate in bytes per second?"
+    unit: bytes/s
+    answer: 100000000
+    work: "250,000 events/s × 400 bytes = 100,000,000 B/s = 100 MB/s."
+  - id: per-day
+    ask: "Using the ingest rate, how much log data arrives per day?"
+    unit: bytes
+    answer: 8640000000000
+    work: "100 MB/s × 86,400 s = 8,640,000 MB = 8.64 TB/day."
+  - id: retained
+    ask: "Using the daily figure, how much data does the store hold at 7 days of retention?"
+    unit: bytes
+    answer: 60500000000000
+    work: "8.64 TB/day × 7 days = 60.48 TB, about 60.5 TB."
+takeaway: "Small events at a high, steady rate add up fast: 400 bytes per event becomes tens of TB within a week. Retention length is the main lever on log storage cost."

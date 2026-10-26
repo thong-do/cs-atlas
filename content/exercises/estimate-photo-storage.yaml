@@ -1,0 +1,29 @@
+slug: estimate-photo-storage
+type: estimate
+title: "Estimate: listing photo storage"
+lessons: [estimation, sql-vs-nosql]
+ladderOrder: 3
+scenario: |
+  A second-hand marketplace lets sellers attach photos to their listings. Sellers upload about
+  **3.2 million photos a day**, kept at original quality, averaging **2.5 MB** each. Photo metadata is tiny
+  next to that, so ignore it.
+
+  The photos go to an object store that keeps **3 copies** of every object. Use **365 days** in a year
+  and decimal units (1 TB = 1,000 GB).
+steps:
+  - id: per-day
+    ask: "How much new photo data arrives per day, counting one copy?"
+    unit: bytes
+    answer: 8000000000000
+    work: "3.2 million × 2.5 MB = 8 million MB = 8 TB/day."
+  - id: per-year
+    ask: "Using the daily figure, how much photo data arrives per year, still counting one copy?"
+    unit: bytes
+    answer: 2920000000000000
+    work: "8 TB/day × 365 = 2,920 TB = 2.92 PB/year."
+  - id: replicated
+    ask: "Using the yearly figure, how much raw storage does one year of photos take with 3 copies?"
+    unit: bytes
+    answer: 8760000000000000
+    work: "2.92 PB × 3 = 8.76 PB of raw storage."
+takeaway: "Blobs like photos dominate storage, so they belong in an object store while the small metadata rows sit in a database. Remember to multiply by the copies the store keeps: here a year of photos needs about 9 PB of raw disk."

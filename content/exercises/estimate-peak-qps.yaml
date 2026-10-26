@@ -1,0 +1,28 @@
+slug: estimate-peak-qps
+type: estimate
+title: "Estimate: peak requests per second"
+lessons: [estimation, load-balancing]
+ladderOrder: 2
+scenario: |
+  A food-delivery app has **14 million daily active users**. Each user's app makes about **45 API requests a day**
+  (browsing menus, placing orders, tracking the courier).
+
+  Traffic is not flat: the dinner rush runs at about **4× the daily average**. Use **86,400 seconds** in a day.
+  Size the load-balanced API tier for the peak.
+steps:
+  - id: requests-per-day
+    ask: "How many API requests does the app serve per day?"
+    unit: count
+    answer: 630000000
+    work: "14 million users × 45 requests = 630 million requests/day."
+  - id: average-rate
+    ask: "Using the daily total, what is the average request rate?"
+    unit: requests/s
+    answer: 7290
+    work: "630 million ÷ 86,400 s ≈ 7,292/s, about 7.29 K/s."
+  - id: peak-rate
+    ask: "Using the average rate and the 4× dinner-rush factor, what peak rate must the API tier handle?"
+    unit: requests/s
+    answer: 29200
+    work: "7.29 K/s × 4 ≈ 29,160/s, about 29.2 K/s."
+takeaway: "Daily totals turn into rates by dividing by 86,400, and capacity is planned for the peak, not the average. Here the dinner rush needs four times the servers the average suggests."

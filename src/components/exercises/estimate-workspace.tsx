@@ -9,28 +9,36 @@ import { Input } from '@/components/ui/input'
 import { DEFAULT_TOLERANCE, formatAmount, parseAmount, scoreEstimate, stepCorrect, UNIT_PREFIXES } from '@/lib/logic/estimate'
 import { exerciseStatus } from '@/lib/logic/filter'
 import { useLive, useStore } from '@/lib/store/context'
-import type { EstimateDoc, EstimateStep } from '@/lib/types'
+import type { EstimateDoc } from '@/lib/types'
 import { LessonBadges } from './lesson-badges'
 import { ReviewHistory } from './review-history'
 
 const RESULT_LABEL = { alone: 'solved alone', hint: 'solved with help', solution: 'needs another try' } as const
-const middle = (step: EstimateStep) => Math.floor((UNIT_PREFIXES[step.unit].length - 1) / 2)
 
 export function EstimateWorkspace({ drill }: { drill: EstimateDoc }) {
   const store = useStore()
   const progress = useLive((s) => s.getProgress(drill.slug), [drill.slug])
-  const fresh = () => drill.steps.map((st) => ({ text: '', prefix: middle(st) }))
+  const fresh = () => drill.steps.map(() => ({ text: '', prefix: -1 })) // -1: no unit chosen yet
   const [entries, setEntries] = useState(fresh)
   const [values, setValues] = useState<number[]>([]) // base-unit values of the checked steps, in order
   const resultRefs = useRef<(HTMLDivElement | null)[]>([])
   const summaryRef = useRef<HTMLParagraphElement>(null)
+  const firstInputRef = useRef<HTMLInputElement>(null)
+  const refocusFirst = useRef(false) // set by Try again, so first mount never steals focus
+  const savingRef = useRef(false)
   const total = drill.steps.length
   const done = values.length === total
   const solved = progress?.status === 'solved'
 
   // Move focus to the newest result (the form it replaced is gone), but never on first mount.
   useEffect(() => {
-    if (values.length === 0) return
+    if (values.length === 0) {
+      if (refocusFirst.current) {
+        refocusFirst.current = false
+        firstInputRef.current?.focus()
+      }
+      return
+    }
     if (values.length === total) summaryRef.current?.focus()
     else resultRefs.current[values.length - 1]?.focus()
   }, [values.length, total])
@@ -38,16 +46,28 @@ export function EstimateWorkspace({ drill }: { drill: EstimateDoc }) {
   async function check(i: number) {
     const step = drill.steps[i]
     const n = parseAmount(entries[i].text)
-    if (n === null || n <= 0) return
-    const next = [...values, n * UNIT_PREFIXES[step.unit][entries[i].prefix].scale]
+    const prefix = entries[i].prefix
+    if (n === null || n <= 0 || prefix < 0) return
+    if (values.length !== i) return // this step was already checked
+    const next = [...values, n * UNIT_PREFIXES[step.unit][prefix].scale]
     setValues(next)
-    if (next.length < total) return
+    if (next.length < total || savingRef.current) return
+    savingRef.current = true
     try {
       await store.completeQuiz(drill.slug, [], scoreEstimate(drill.steps, next), new Date())
       toast.success('Saved to your progress')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      savingRef.current = false
     }
+  }
+
+  function tryAgain() {
+    savingRef.current = false
+    refocusFirst.current = true
+    setEntries(fresh())
+    setValues([])
   }
 
   function edit(i: number, patch: Partial<{ text: string; prefix: number }>) {
@@ -66,7 +86,7 @@ export function EstimateWorkspace({ drill }: { drill: EstimateDoc }) {
           <LessonBadges lessons={drill.lessons} />
         </div>
         <p className="text-sm text-muted-foreground">
-          {total} steps · an answer within the stated factor of the reference counts
+          {total} steps · answers are graded by order of magnitude
           {solved && progress?.solveRating && <> · Last result: {RESULT_LABEL[progress.solveRating]}</>}
         </p>
       </header>
@@ -107,6 +127,7 @@ export function EstimateWorkspace({ drill }: { drill: EstimateDoc }) {
                 <label className="min-w-0 flex-1 space-y-1 text-sm">
                   <span className="block">Your estimate</span>
                   <Input
+                    ref={i === 0 ? firstInputRef : undefined}
                     inputMode="decimal"
                     autoComplete="off"
                     value={text}
@@ -122,12 +143,14 @@ export function EstimateWorkspace({ drill }: { drill: EstimateDoc }) {
                     value={entries[i].prefix}
                     onChange={(ev) => edit(i, { prefix: Number(ev.target.value) })}
                   >
+                    <option value={-1} disabled>Choose a unit</option>
                     {UNIT_PREFIXES[step.unit].map((p, k) => <option key={p.label} value={k}>{p.label}</option>)}
                   </select>
                 </label>
-                <Button type="submit" disabled={n === null || n <= 0}>Check</Button>
+                <Button type="submit" disabled={n === null || n <= 0 || entries[i].prefix < 0}>Check</Button>
                 {unparsable && <p id={errorId} className="w-full text-sm text-destructive">Enter a number like 7.5, 7,500 or 1e4.</p>}
                 {nonPositive && <p id={errorId} className="w-full text-sm text-destructive">Enter an amount above zero.</p>}
+                <p className="w-full text-xs text-muted-foreground">Within {step.tolerance ?? DEFAULT_TOLERANCE}× of the reference counts.</p>
               </form>
             </section>
           )
@@ -138,7 +161,7 @@ export function EstimateWorkspace({ drill }: { drill: EstimateDoc }) {
         <div className="space-y-3">
           <p ref={summaryRef} tabIndex={-1} role="status" className="font-medium outline-none">{correct} of {total} right</p>
           <p className="text-sm">{drill.takeaway}</p>
-          <Button variant="outline" onClick={() => { setEntries(fresh()); setValues([]) }}>Try again</Button>
+          <Button variant="outline" onClick={tryAgain}>Try again</Button>
         </div>
       )}
 

@@ -8,7 +8,7 @@ scenario: |
   **3 KB** each when serialized. Reads are heavily skewed: caching the hottest **12%** of records serves most lookups.
 
   The cache runs on nodes with **96 GB of RAM**, of which **72 GB** is usable for cached data after
-  leaving room for the OS, fragmentation and replication buffers. Use decimal units (1 KB = 1,000 bytes).
+  leaving room for the OS and fragmentation. Count primary nodes only, with no replicas. Use decimal units (1 KB = 1,000 bytes).
 steps:
   - id: total-data
     ask: "How much data do all the place records add up to?"

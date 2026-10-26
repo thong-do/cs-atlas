@@ -18,6 +18,8 @@ import { pageTableSteps } from '@/lib/visualizers/pt-steps'
 import { mutexSteps } from '@/lib/visualizers/mutex-steps'
 import { tcpHandshakeSteps } from '@/lib/visualizers/tcp-steps'
 import { bTreeInsertSteps } from '@/lib/visualizers/btree-steps'
+import { abrPlayerSteps } from '@/lib/visualizers/abr-steps'
+import { AbrView } from './abr-view'
 import { BTreeView } from './btree-view'
 import { TcpView } from './tcp-view'
 import { PtView } from './pt-view'
@@ -146,6 +148,11 @@ function BTreeInsertVisualizer() {
   return <StepPlayer steps={steps} title="B-tree insert: leaf splits and a root split" captionClassName="min-h-[5rem] sm:min-h-[3.75rem]" render={(s) => <BTreeView step={s} />} />
 }
 
+function AbrPlayerVisualizer() {
+  const steps = useMemo(() => abrPlayerSteps(), [])
+  return <StepPlayer steps={steps} title="Adaptive bitrate: a bandwidth drop, one stall, then a step down" captionClassName="min-h-[7.5rem] sm:min-h-[3.75rem]" render={(s) => <AbrView step={s} />} />
+}
+
 export function Visualizer({ kind }: { kind: VisualizerKind }) {
   switch (kind) {
     case 'heap':
@@ -180,6 +187,8 @@ export function Visualizer({ kind }: { kind: VisualizerKind }) {
       return <TcpHandshakeVisualizer />
     case 'b-tree-insert':
       return <BTreeInsertVisualizer />
+    case 'abr-player':
+      return <AbrPlayerVisualizer />
     default:
       if (isArrayKind(kind)) return <ArrayVisualizer kind={kind} />
       throw new Error(`Unknown <Visualizer kind="${kind}">. Valid kinds: ${VISUALIZER_KINDS.join(', ')}`)

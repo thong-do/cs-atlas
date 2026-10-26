@@ -20,6 +20,7 @@ export const VISUALIZER_KINDS = [
   'mutex',
   'tcp-handshake',
   'b-tree-insert',
+  'abr-player',
 ] as const
 
 export type VisualizerKind = (typeof VISUALIZER_KINDS)[number]

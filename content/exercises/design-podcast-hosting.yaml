@@ -6,7 +6,7 @@ ladderOrder: 2
 prompt: |
   A podcast host stores **400 k shows** with **20 M episodes**, each an MP3 of about **50 MB** on average. Listeners
   make **60 M downloads/day**, most of them within 3 days of an episode's release. Podcast apps fetch each show's
-  **RSS feed** on a schedule: **25 M app instances**, each subscribed to about **6 shows**, check every feed about
+  **RSS feed** on a schedule: **25 M app instances**, each subscribed to about **6 shows**, check each of their feeds about
   **every 30 minutes**. Publishers sell ads on **download counts**, so the counts must be numbers advertisers trust.
   When a publisher releases an episode, apps should see it **about 15 minutes later on average**, and no app should
   wait much longer than one 30-minute check. All numbers are illustrative.

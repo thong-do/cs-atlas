@@ -121,7 +121,7 @@ Everywhere the exercise type is switched on:
   - **Intuition:** why rough numbers decide designs early.
   - **Visual:** a static reference ladder covering:
     - powers of two against powers of ten;
-    - latency orders (L1 → RAM → SSD → same-datacenter round trip → cross-continent round trip);
+    - latency orders (L1 → RAM → SSD → same-datacenter round trip → intercontinental round trip);
     - time conversions (86,400 s/day ≈ 10⁵, about 2.6 M s/month).
   - **Example:** one walk-through from DAU to QPS, peak, storage and bandwidth.
   - **Pitfalls:** peak vs average, bits vs bytes, the replication factor, metadata vs payload.

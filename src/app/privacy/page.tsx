@@ -31,6 +31,10 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">What we don&apos;t do</h2>
         <p>No ads, no third-party analytics or trackers, and no selling or sharing your data.</p>
+        <p>
+          We compute anonymous, aggregate usage figures, such as how many learners are still active after four weeks, from
+          synced activity counts. They never identify you, and groups smaller than five learners are merged.
+        </p>
       </section>
 
       <section className="space-y-2">

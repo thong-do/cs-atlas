@@ -190,7 +190,8 @@ New pieces for this track:
   - they count as retained if they have any activity on days 22–28, counting that first day as day 1;
   - only cohorts whose day 28 has passed are counted, and cohorts under 5 learners are merged.
   - It covers signed-in learners only, because guest progress never leaves the browser. Phase 4 compares against the same function.
-  - Baseline: *recorded after the first production run.*
+  - First production run, 2026-10-28: no cohort was complete. Only one signed-in learner had synced activity, first active 2026-10-15; their cohort (week of 2026-10-12) completes on 2026-11-14.
+  - The baseline is recorded once at least one complete cohort has 5 or more learners. Until then the figure would describe individuals, not a baseline.
 
 ### Phase 3 — In-app contributions
 

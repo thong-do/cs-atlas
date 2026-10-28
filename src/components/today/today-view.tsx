@@ -12,7 +12,7 @@ import { useNow } from '@/lib/hooks/use-now'
 import { useMasteries } from '@/lib/hooks/use-masteries'
 import { usePlacements } from '@/lib/hooks/use-placements'
 import { currentStreak } from '@/lib/logic/dates'
-import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
+import { DEFAULT_TRACK, exercisesInTracks, lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
 import { useLive, useStore } from '@/lib/store/context'
@@ -60,8 +60,11 @@ export function TodayView() {
   const started = new Set([...startedTracks(exercises, solved, trackOf), ...placedTracks(tracks, placements)])
   const recommended = recommendedLesson(lessons, masteries, started, allSkippedLessons(tracks, placements))
   const recLesson = recommended ? lessonBySlug.get(recommended) : undefined
-  const recLadder = recLesson ? lessonExercises(recLesson, exercises, trackOf) : []
-  const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : exercises
+  const recLadder = recLesson ? lessonExercises(recLesson, exercises) : []
+  // Fall back to the learner's own tracks, never to a track they haven't started.
+  const ownTracks = started.size > 0 ? started : new Set([DEFAULT_TRACK])
+  const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : exercisesInTracks(exercises, ownTracks, trackOf)
+  const finishedTracks = recLesson ? [] : tracks.filter((t) => started.has(t.slug))
   const nextUp = pool.filter((p) => !solved.has(p.slug)).slice(0, 3)
 
   async function rate(slug: string, rating: ReviewRating) {
@@ -86,6 +89,17 @@ export function TodayView() {
           <Stat label="Solved" value={String(solved.size)} />
         </div>
       </header>
+
+      {finishedTracks.length > 0 && (
+        <section className="space-y-2 rounded-lg border bg-muted/40 p-4" aria-label="Tracks finished">
+          <p className="font-semibold">
+            You’ve mastered every lesson in {finishedTracks.map((t) => t.title).join(' and ')}.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Keep your reviews going to hold on to it, or <Link href="/tracks/" className="underline">start another track</Link>.
+          </p>
+        </section>
+      )}
 
       {recLesson && (
         <section className="space-y-3 rounded-lg border bg-muted/40 p-4" aria-label="Continue">

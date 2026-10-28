@@ -38,7 +38,7 @@ export function RoadmapView() {
   const started = new Set([...startedTracks(exercises, solved, trackOf), ...placedTracks(tracks, placements)])
   const recommended = masteries ? recommendedLesson(lessons, masteries, started, allSkippedLessons(tracks, placements)) : null
   const count = (slug: string) => {
-    const ladder = lessonExercises(lessonBySlug.get(slug)!, exercises, trackOf)
+    const ladder = lessonExercises(lessonBySlug.get(slug)!, exercises)
     return `${ladder.filter((p) => solved.has(p.slug)).length}/${ladder.length}`
   }
 

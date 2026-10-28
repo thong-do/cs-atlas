@@ -62,7 +62,7 @@ describe('lessonMastery', () => {
     expect(lessonMastery(L('tp'), input)).toBe(0)
   })
 
-  it('counts a shared exercise for a lesson in another track, without recognition weight', () => {
+  it('does not count an exercise from another track (it is only related practice there)', () => {
     const input = {
       ...base,
       lessons: [L('tp'), L('cache', 'system-design')],
@@ -70,7 +70,7 @@ describe('lessonMastery', () => {
       progress: [solved('p1', 'alone')],
       cards: [freshCard('p1')],
     }
-    expect(lessonMastery(L('cache', 'system-design'), input)).toBe(100)
+    expect(lessonMastery(L('cache', 'system-design'), input)).toBe(0)
     expect(lessonMastery(L('tp'), input)).toBe(70)
   })
 

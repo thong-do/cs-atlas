@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { lessonHref } from '@/lib/content/hrefs'
 import { useMasteries } from '@/lib/hooks/use-masteries'
-import { continueLesson, trackMastery } from '@/lib/logic/lessons'
+import { continueLesson, trackComplete, trackMastery } from '@/lib/logic/lessons'
 import { formatDay } from '@/lib/format'
 import { usePlacements } from '@/lib/hooks/use-placements'
 import { MASTERED } from '@/lib/logic/mastery'
@@ -22,6 +22,7 @@ export function TrackHome({ slug, hasPlacement }: { slug: string; hasPlacement: 
   const meta = useLive((s) => s.getMeta())
   const placement = usePlacements()?.[slug]
   const next = continueLesson(track, masteries, skippedLessons(track, placement))
+  const complete = trackComplete(track, masteries)
 
   async function clearPlacement() {
     if (!meta) return
@@ -38,7 +39,11 @@ export function TrackHome({ slug, hasPlacement }: { slug: string; hasPlacement: 
         <h1 className="text-3xl font-bold">{track.title}</h1>
         <p className="text-lg text-muted-foreground">{track.summary}</p>
         <p className="text-sm text-muted-foreground">{trackMastery(track, masteries)}% mastered</p>
-        {next && (
+        {complete ? (
+          <p role="status" className="font-medium">
+            Track complete: every lesson is mastered. Keep your reviews going on <Link href="/" className="underline">Today</Link>.
+          </p>
+        ) : next && (
           <Button asChild>
             <Link href={lessonHref(lessonBySlug.get(next)!)}>Continue: {lessonBySlug.get(next)!.title}</Link>
           </Button>

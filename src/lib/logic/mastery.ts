@@ -1,6 +1,6 @@
 import type { LessonMeta, ExerciseMeta, ProblemProgress, ReviewCard, SolveRating, TrainAttempt } from '@/lib/types'
 import { retrievability } from './fsrs'
-import { MASTERED, TRAINER_TRACK, lessonExercises, trackLookup } from './lessons'
+import { MASTERED, TRAINER_TRACK, lessonExercises } from './lessons'
 
 export { MASTERED }
 
@@ -26,7 +26,7 @@ export function recognitionAccuracy(attempts: TrainAttempt[], lessonSlug: string
 }
 
 export function lessonMastery(lesson: LessonMeta, input: MasteryInput): number {
-  const exercises = lessonExercises(lesson, input.exercises, trackLookup(input.lessons))
+  const exercises = lessonExercises(lesson, input.exercises)
   const progress = new Map(input.progress.map((p) => [p.slug, p]))
   const cards = new Map(input.cards.map((c) => [c.slug, c]))
 

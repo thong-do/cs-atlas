@@ -182,6 +182,16 @@ New pieces for this track:
 - Each new track has at least 12 lessons that meet the quality bar: intuition, a visual, an exercise and review items.
 - Learners can follow either track from the start to its case studies or capstone.
 
+**Close-out (2026-10-28)**
+
+- Both exit criteria were verified by walking each track on production as a fresh guest, using only Continue. The walk found that other tracks' exercises held a lesson back (Caching) and that a finished track had no end state; both were fixed (PR #29).
+- **Retention baseline.** 4-week retention is measured by `report.retention_w4()` (Supabase, `service_role` only):
+  - a learner's cohort is the week of their first synced activity day;
+  - they count as retained if they have any activity on days 22–28, counting that first day as day 1;
+  - only cohorts whose day 28 has passed are counted, and cohorts under 5 learners are merged.
+  - It covers signed-in learners only, because guest progress never leaves the browser. Phase 4 compares against the same function.
+  - Baseline: *recorded after the first production run.*
+
 ### Phase 3 — In-app contributions
 
 **Goal:** anyone can improve content without knowing Git, and admins can keep up with what comes in.

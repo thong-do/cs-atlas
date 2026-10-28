@@ -7,7 +7,7 @@ import { MasteryBadge } from '@/components/lessons/mastery-badge'
 import { Visualizer } from '@/components/visualizers/visualizer'
 import { getCatalog, getLessonDoc, type TocEntry } from '@/lib/content'
 import { lessonHref, trackHref } from '@/lib/content/hrefs'
-import { lessonExercises, trackLookup } from '@/lib/logic/lessons'
+import { lessonExercises, relatedExercises, trackLookup } from '@/lib/logic/lessons'
 
 export const dynamicParams = false
 
@@ -31,12 +31,14 @@ export default async function LessonPage({ params }: { params: Promise<{ track: 
   const doc = getLessonDoc(slug)
   if (!doc || doc.track !== track) notFound()
   const { exercises, lessons } = getCatalog()
-  const ladder = lessonExercises(doc, exercises, trackLookup(lessons))
+  const ladder = lessonExercises(doc, exercises)
+  const related = relatedExercises(doc, exercises, trackLookup(lessons))
   const lessonOf = (s: string) => lessons.find((l) => l.slug === s)
   const toc: TocEntry[] = [
     ...(doc.triggers.length > 0 ? [{ title: 'Recognize it', url: '#recognize-it', items: [] }] : []),
     ...doc.toc,
     { title: 'Practice ladder', url: '#practice-ladder', items: [] },
+    ...(related.length > 0 ? [{ title: 'Related practice', url: '#related-practice', items: [] }] : []),
   ]
 
   return (
@@ -83,6 +85,16 @@ export default async function LessonPage({ params }: { params: Promise<{ track: 
           </p>
           <LadderList exercises={ladder} />
         </section>
+
+        {related.length > 0 && (
+          <section id="related-practice" className="scroll-mt-20 space-y-3">
+            <h2 className="text-2xl font-semibold">Related practice</h2>
+            <p className="text-sm text-muted-foreground">
+              From other tracks. Optional: they use this lesson’s ideas but don’t count toward its mastery.
+            </p>
+            <LadderList exercises={related} />
+          </section>
+        )}
       </article>
 
       <aside className="hidden lg:block">

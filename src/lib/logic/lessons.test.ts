@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseMeta, LessonMeta, TrackMeta } from '@/lib/types'
-import { continueLesson, lessonExercises, startedTracks, trackLessons, trackLookup, trackMastery } from './lessons'
+import { continueLesson, exercisesInTracks, lessonExercises, relatedExercises, startedTracks, trackComplete, trackLessons, trackLookup, trackMastery } from './lessons'
 
 const lesson = (slug: string, track: string): LessonMeta => ({
   slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith: [], triggers: [],
@@ -19,19 +19,41 @@ const sd: TrackMeta = {
 
 describe('lessonExercises', () => {
   it('returns the ladder (primary lesson) first', () => {
-    expect(lessonExercises(lessons[0], exercises, trackOf).map((e) => e.slug)).toEqual(['lru', 'reverse'])
+    expect(lessonExercises(lessons[0], exercises).map((e) => e.slug)).toEqual(['lru', 'reverse'])
   })
   it('does not share an exercise with a second lesson in the same track', () => {
-    expect(lessonExercises(lessons[1], exercises, trackOf).map((e) => e.slug)).toEqual(['own'])
+    expect(lessonExercises(lessons[1], exercises).map((e) => e.slug)).toEqual(['own'])
   })
-  it('shares an exercise with a lesson in another track', () => {
-    expect(lessonExercises(lessons[2], exercises, trackOf).map((e) => e.slug)).toEqual(['lru'])
+  it('does not count an exercise from another track toward a lesson', () => {
+    expect(lessonExercises(lessons[2], exercises).map((e) => e.slug)).toEqual([])
+  })
+})
+
+describe('exercisesInTracks', () => {
+  it('keeps exercises whose primary lesson is in one of the tracks', () => {
+    expect(exercisesInTracks(exercises, new Set(['algorithms']), trackOf).map((e) => e.slug)).toEqual(['lru', 'own', 'reverse'])
+    expect(exercisesInTracks(exercises, new Set(['system-design']), trackOf)).toEqual([])
+  })
+})
+
+describe('relatedExercises', () => {
+  it('lists exercises from other tracks that also name the lesson', () => {
+    expect(relatedExercises(lessons[2], exercises, trackOf).map((e) => e.slug)).toEqual(['lru'])
+  })
+  it('lists nothing for a lesson whose sharers are all in its own track', () => {
+    expect(relatedExercises(lessons[1], exercises, trackOf)).toEqual([])
+    expect(relatedExercises(lessons[0], exercises, trackOf)).toEqual([])
   })
 })
 
 describe('track helpers', () => {
   it('lists a track’s lessons in module order', () => {
     expect(trackLessons(sd)).toEqual(['cache', 'lb'])
+  })
+  it('is complete only when every lesson is mastered', () => {
+    expect(trackComplete(sd, new Map([['cache', 90], ['lb', 80]]))).toBe(true)
+    expect(trackComplete(sd, new Map([['cache', 90], ['lb', 79]]))).toBe(false)
+    expect(trackComplete({ ...sd, modules: [] }, new Map())).toBe(false)
   })
   it('averages lesson mastery over the track, rounding', () => {
     expect(trackMastery(sd, new Map([['cache', 85], ['lb', 20]]))).toBe(53)

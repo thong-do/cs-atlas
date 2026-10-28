@@ -13,24 +13,45 @@ export function trackLookup(lessons: LessonMeta[]): (slug: string) => string | u
 }
 
 /**
- * Exercises that count for a lesson: its ladder (exercises whose primary lesson it is), then
- * exercises from other tracks that also list it. A second lesson in the same track does not
- * count, which keeps v1 algorithms mastery unchanged.
+ * Exercises that count for a lesson's mastery: its ladder, the exercises whose primary lesson it is.
+ * An exercise that also lists a lesson from another track shows there as related practice instead
+ * (see relatedExercises), so finishing a track never requires another track's exercises.
  */
 export function lessonExercises(
   lesson: LessonMeta,
   exercises: ExerciseMeta[],
+): ExerciseMeta[] {
+  return exercises.filter((e) => e.lessons[0] === lesson.slug)
+}
+
+/** Exercises from other tracks that also list the lesson: shown as related practice, never counted. */
+export function relatedExercises(
+  lesson: LessonMeta,
+  exercises: ExerciseMeta[],
   trackOf: (slug: string) => string | undefined,
 ): ExerciseMeta[] {
-  const ladder = exercises.filter((e) => e.lessons[0] === lesson.slug)
-  const shared = exercises.filter(
+  return exercises.filter(
     (e) => e.lessons[0] !== lesson.slug && e.lessons.includes(lesson.slug) && trackOf(e.lessons[0]) !== lesson.track,
   )
-  return [...ladder, ...shared]
+}
+
+/** Exercises whose primary lesson belongs to one of the given tracks. */
+export function exercisesInTracks(
+  exercises: ExerciseMeta[],
+  tracks: Set<string>,
+  trackOf: (slug: string) => string | undefined,
+): ExerciseMeta[] {
+  return exercises.filter((e) => tracks.has(trackOf(e.lessons[0]) ?? ''))
 }
 
 export function trackLessons(track: TrackMeta): string[] {
   return track.modules.flatMap((m) => m.lessons)
+}
+
+/** True once every lesson in the track is mastered. */
+export function trackComplete(track: TrackMeta, masteries: Map<string, number>): boolean {
+  const slugs = trackLessons(track)
+  return slugs.length > 0 && slugs.every((s) => (masteries.get(s) ?? 0) >= MASTERED)
 }
 
 export function trackMastery(track: TrackMeta, masteries: Map<string, number>): number {

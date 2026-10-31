@@ -22,7 +22,7 @@ rubric:
   - id: capacity
     point: "Does the arithmetic: yearly growth, shard count, per-shard storage and per-shard read and write rates, with headroom."
   - id: hot-users
-    point: "Handles very active users by salting the keys of flagged hot users (for example user_id plus hash(message_id) mod k) so writes spread, fanning newest-first reads out to the k sub-keys and merging, plus caching or limits. Notes that a time bucket alone only bounds partition size."
+    point: "Handles very active users by salting the routing keys of flagged hot users (for example hash(user_id, salt) with salt = hash(message_id) mod k) so writes spread, fanning newest-first reads out to the k sub-keys and merging, plus caching or limits. Notes that a time bucket alone only bounds partition size."
 reference: |
   **Key and scheme.** Partition by `user_id`, sorting rows by `(conversation_id, sent_at DESC)` inside the
   partition, so opening a conversation newest first reads one shard in order. Hash `user_id` into a fixed
@@ -42,8 +42,8 @@ reference: |
   **Adding capacity.** Add servers and move whole buckets in the background, then switch the routing table.
 
   **Very active users.** A time bucket such as `(user_id, month)` only bounds partition size: the current
-  month still takes all the heat. Instead flag hot users and salt their key,
-  `(user_id, hash(message_id) mod k)` with k around 16, so writes spread over several buckets. Newest-first
+  month still takes all the heat. Instead flag hot users and route their rows by
+  `hash(user_id, salt)` with `salt = hash(message_id) mod k` and k around 16, so writes spread over several logical buckets. Newest-first
   reads fan out to the k sub-keys and merge, and the flag must stay until old sub-keys are drained. Also cache the first page.
 
   **Trade-offs.** Cross-user queries need a copy per mailbox or an index, which adds writes. Watch per-shard size, write rate and replication lag.

@@ -15,10 +15,10 @@ questions:
     answer: 2
     explanation: "LRU tracks recency of use, not frequency (that's LFU) or insertion time (that's FIFO)."
   - id: invalidation-order
-    prompt: "With cache-aside, what should a write do to keep readers from seeing stale data?"
+    prompt: "With cache-aside, which write order keeps stale reads rarest?"
     choices: ["Delete the cached key, then update the database", "Update the database, then delete the cached key", "Only update the cache", "Nothing — wait for the TTL"]
     answer: 1
-    explanation: "Deleting after the write commits means the next read refills from fresh data. Deleting first lets a concurrent read refill the cache with the old value."
+    explanation: "A read that misses after the commit refills from fresh data. Deleting first leaves the whole write open: any read before the commit refills the old value. A narrow race remains: a read that fetched the old row before the commit can set it after the delete, so the TTL bounds the staleness, and leases or versioned sets reject that late set."
   - id: thundering-herd
     prompt: "A hot key expires and thousands of requests miss at once. Which change helps most?"
     choices: ["Shorten the TTL so keys refresh more often", "Disable caching for that key so the database serves it", "Retry failed reads against the database faster", "Jitter the TTLs and let one request refill the key"]
@@ -44,7 +44,7 @@ flashcards:
     back: "When full, remove the entry used least recently. Hash map + doubly linked list gives O(1)."
   - id: cache-aside
     front: "Cache-aside"
-    back: "The app reads the cache, falls back to the database on a miss, and fills the cache itself."
+    back: "The app reads the cache, falls back to the database on a miss, and fills the cache itself. In read-through, the cache does that loading instead."
   - id: write-through
     front: "Write-through"
     back: "Writes go to the cache and the database together, so recently written data is already cached, but writes are slower."

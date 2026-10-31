@@ -51,38 +51,45 @@ With `hash mod N`, going from 3 to 4 servers keeps a key in place only when `h m
 Plan sharding for a `comments` table: about 600 million rows at roughly 300 bytes each, so 600M × 300 B ≈ 180 GB, plus indexes (illustrative).
 
 ```sql
--- Logical schema; shard key = post_id
+-- Logical schema; each row is routed by hash(post_id, salt)
 CREATE TABLE comments (
   post_id    BIGINT   NOT NULL,
-  bucket     SMALLINT NOT NULL DEFAULT 0,   -- 0 unless the post is salted (below)
+  salt       SMALLINT NOT NULL DEFAULT 0,   -- 0 unless the post is salted (below)
   comment_id BIGINT   NOT NULL,      -- time-ordered id
   author_id  BIGINT NOT NULL,
   body       TEXT   NOT NULL,
-  PRIMARY KEY (post_id, bucket, comment_id)
+  PRIMARY KEY (post_id, salt, comment_id)
 );
--- No extra index: within a bucket the primary key serves newest-first (a backward scan);
--- a salted hot post merges its buckets (see below).
+-- No extra index: within one (post_id, salt) the primary key serves newest-first (a backward scan);
+-- a salted hot post merges its sub-keys (see below).
 ```
 
-**Partition key: `post_id`.** The main query is "most recent 20 comments for a post". With `post_id` as key, that touches **one shard**, using the primary key above. Sharding by `comment_id` would scatter one post's comments over every shard.
+**Partition key: `post_id`, plus a salt that is normally 0.** The main query is "most recent 20 comments for a post". Every comment of a normal post has `salt = 0`, so they all route together and that query touches **one shard**, using the primary key above. Sharding by `comment_id` would scatter one post's comments over every shard.
 
-**Range vs hash on `post_id`.** Range partitioning (ids 1–1M on shard 1, and so on) allows range scans, but new posts all have the highest ids, so the newest range takes most writes. Hash partitioning (`hash(post_id) mod` a fixed number of buckets) spreads posts evenly; you give up scans over adjacent posts. Pick hash: no query needs adjacent post ids.
+**Range vs hash on `post_id`.** Range partitioning (ids 1–1M on shard 1, and so on) allows range scans, but new posts all have the highest ids, so the newest range takes most writes. Hash partitioning (`hash(post_id, salt) mod` a fixed number of routing buckets) spreads posts evenly; you give up scans over adjacent posts. Pick hash: no query needs adjacent post ids.
 
-**Buckets, not machines.** Hash into 64 fixed buckets and map buckets to servers. With 4 servers, that is 16 buckets each, about 45 GB per server (180 GB ÷ 4). Adding a fifth server moves about 1/5 of the buckets (about 13 of 64) whole, with no rehashing of every row.
+**Routing buckets, not machines.** Hash into 64 fixed routing buckets and map those buckets to servers. With 4 servers, that is 16 buckets each, about 45 GB per server (180 GB ÷ 4). Adding a fifth server moves about 1/5 of the buckets (about 13 of 64) whole, with no rehashing of every row.
 
 **The viral post.** One post draws thousands of reads and writes per second, and all of them hit its single shard. Mitigations:
 - Cache the first page of comments (the usual fix for reads).
-- **Salt** the key for writes: store `(post_id, bucket)` with `bucket = hash(comment_id) mod 8`. Writes spread across up to 8 buckets (and so across the servers). The cost is that "most recent 20" now **fans out** to 8 buckets, merges and sorts. Salt only posts flagged as hot.
+- **Salt** the key for writes: give each new comment `salt = hash(comment_id) mod 8`. Routing hashes `(post_id, salt)`, so the post's 8 sub-keys land in up to 8 routing buckets and so on several servers (sub-keys can collide, and 4 servers can split the load at most 4 ways). The cost is that "most recent 20" now **fans out** to 8 sub-keys, merges and sorts. Salt only posts flagged as hot.
+- **Keep the flag until the old sub-keys are drained.** Comments already written under salts 1–7 stay there, so a reader that stopped fanning out would lose them. A post stays salted, or you first migrate its rows back to salt 0 and only then clear the flag. When flagging a post, tell readers before writers, so no reader misses a salted write. Older comments at salt 0 need no move: salt 0 is one of the 8 sub-keys.
 
 ```python
-def shard_key(post_id, comment_id, hot_posts):
-    if post_id in hot_posts:                  # small, explicit set
-        return (post_id, hash(comment_id) % 8)
-    return (post_id, 0)
+SALTS = 8
 
-def recent(post_id, hot_posts, n=20):
-    keys = [(post_id, b) for b in range(8)] if post_id in hot_posts else [(post_id, 0)]
-    rows = [r for k in keys for r in query_shard(k, limit=n)]   # fan out
+def salt_for(post_id, comment_id, salted_posts):
+    if post_id in salted_posts:               # small, explicit set; see the flag rule above
+        return hash(comment_id) % SALTS
+    return 0
+
+def routing_bucket(post_id, salt):
+    return hash((post_id, salt)) % 64         # a table maps each routing bucket to a server
+
+def recent(post_id, salted_posts, n=20):
+    salts = range(SALTS) if post_id in salted_posts else [0]
+    rows = [r for s in salts                  # fan out to each sub-key's shard
+            for r in query_shard(routing_bucket(post_id, s), post_id, s, limit=n)]
     return sorted(rows, key=lambda r: r.comment_id, reverse=True)[:n]
 ```
 
@@ -92,7 +99,7 @@ def recent(post_id, hot_posts, n=20):
 - **Promoting a follower without fencing.** The old leader returns and both accept writes. Use fencing tokens and a majority-based election.
 - **Assuming async replication is durable.** An acknowledged write may exist only on the dead leader. If you cannot lose it, use synchronous replication to one follower.
 - **Treating W + R > N as strong consistency.** With strict quorums it guarantees overlap of the read and write sets, no more. Concurrent writes still need a conflict rule (such as last-write-wins, which can drop data).
-- **A monotonic shard key.** Range-partitioning on a timestamp or auto-increment id sends all new writes to one shard. Hash it, or prefix with a bucket.
+- **A monotonic shard key.** Range-partitioning on a timestamp or auto-increment id sends all new writes to one shard. Hash it, or prefix it with a salt.
 - **Cross-shard queries and transactions.** Joins, secondary-index lookups and multi-shard transactions are slow or complex (fan-out, [two-phase commit, or sagas](/system-design/distributed-transactions/)). Choose the key so the frequent queries stay on one shard.
 
 ## Tips & tricks

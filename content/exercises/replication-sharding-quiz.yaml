@@ -28,7 +28,7 @@ questions:
     prompt: "An events table is range-partitioned by created_at, one range per month. What problem appears first under steady write traffic?"
     choices: ["Queries spanning two months need two-phase commit", "The newest range receives nearly every new write", "Old months run out of storage before new ones", "Each month needs its own replication leader election"]
     answer: 1
-    explanation: "A monotonic key sends every new row to the latest range. Hashing the key, or adding a bucket prefix, spreads writes at the cost of cheap time-range scans."
+    explanation: "A monotonic key sends every new row to the latest range. Hashing the key, or adding a salt prefix, spreads writes at the cost of cheap time-range scans."
 flashcards:
   - id: replication-lag
     front: "Replication lag"
@@ -50,7 +50,7 @@ flashcards:
     back: "Range keeps neighbours together for scans but can create hot ranges. Hash spreads keys evenly but loses cheap range scans."
   - id: hot-key
     front: "Hot key (salting)"
-    back: "One key takes far more traffic than its shard can handle. Split it across sub-keys (salt); reads then fan out and merge."
+    back: "One key takes far more traffic than its shard can handle. Route on hash(key, salt) to split it across sub-keys; reads then fan out and merge. Keep the key salted until old sub-keys are drained."
   - id: virtual-nodes
     front: "Virtual nodes"
     back: "Each server sits at many ring positions in consistent hashing, evening out load and spreading a departing server's keys across many nodes."

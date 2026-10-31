@@ -17,14 +17,14 @@ That is a cache: a small, fast store in front of a large, slow one.
 |---|---|
 | Memory (in-process map) | ~100 ns |
 | Redis on the same network | ~0.5 ms |
-| Database query from disk | 5–50 ms |
+| Indexed database query on SSD | ~1–10 ms (tens of ms on HDD, cold data or heavier queries) |
 | Another region | 50–150 ms |
 
-The number that matters is the **hit rate**. At a 95% hit rate with a 1 ms cache and a 20 ms database, the average read costs `0.95 × 1 + 0.05 × 20 = 1.95 ms` — ten times faster than no cache, and the database sees only 5% of the traffic.
+The number that matters is the **hit rate**. At a 95% hit rate with a 1 ms cache and a 20 ms database query, the average read costs `0.95 × 1 + 0.05 × 20 = 1.95 ms` — ten times faster than no cache, and the database sees only 5% of the traffic.
 
 Every cache answers three questions:
 
-- **What goes in?** Usually whatever was just read (read-through / cache-aside).
+- **What goes in?** Usually whatever was just read. In **cache-aside** the app fills the cache after a miss. In **read-through** the cache itself loads from the database on a miss, and the app only ever talks to the cache.
 - **What comes out when it's full?** The **eviction policy** — most often *least recently used* (LRU).
 - **When is it wrong?** When the source changed and the copy didn't — the **invalidation** problem.
 
@@ -109,11 +109,12 @@ def update_user(user_id: str, fields: dict) -> None:
     cache.delete(f"user:{user_id}")                    # invalidate; the next read refills it
 ```
 
-**Time Based Key-Value Store** is the other half of the story: a versioned store where reads ask for "the latest value at or before time t" — the same question a cache asks when it must not serve data newer than a snapshot.
+**Time Based Key-Value Store** shows a neighbouring idea: a versioned store where reads ask for "the latest value at or before time t". That is how MVCC databases answer snapshot reads, and it is a different tool from a cache, which keeps a copy of the current value.
 
 ## Pitfalls
 
 - **Stale data.** Updating the database without deleting (or updating) the cached copy serves old values until the TTL runs out. Delete *after* the write commits.
+- **The refill race.** Deleting after the commit shrinks the stale window but does not close it. A reader misses and reads the old row, the writer commits and deletes the key, then the reader sets the old value. That entry stays wrong until it expires, so the **TTL is your bound on staleness**. If that bound is too long, make late sets fail: **leases** (the cache issues a token on a miss and a delete voids it, as in Memcache at Facebook) or **versioned sets** (store only if the version is newer).
 - **Thundering herd.** A hot key expires and a thousand requests miss at once, all hitting the database. Add jitter to TTLs, and let one request refill while the others wait (request coalescing).
 - **Caching failures.** Storing an error or an empty result with a normal TTL hides a recovery. Cache negative results only briefly, and never cache exceptions.
 - **Unbounded growth.** A cache with no size limit or eviction policy is a memory leak. Always set a capacity or a max memory with an eviction policy.
@@ -121,7 +122,7 @@ def update_user(user_id: str, fields: dict) -> None:
 
 ## Tips & tricks
 
-- **Write strategies:** *cache-aside* (the app reads and fills the cache — the default), *write-through* (writes go to cache and database together; reads are always warm), *write-back* (writes go to the cache and reach the database later; fast but can lose data).
+- **Write strategies:** *cache-aside* (the app reads and fills the cache — the default), *write-through* (writes go to cache and database together, so recently written data is already cached, though evicted or never-written keys still miss), *write-back* (writes go to the cache and reach the database later; fast but can lose data).
 - **Eviction:** LRU suits most workloads; LFU keeps long-term favourites; a TTL alone is fine when data naturally expires.
 - **Measure** the hit rate, the p99 latency of hits and misses, and the eviction rate. A low hit rate means the wrong things are cached or the cache is too small.
 - **Cache close to the reader:** browser → CDN → service memory → shared cache → database. Each layer absorbs traffic before the next.

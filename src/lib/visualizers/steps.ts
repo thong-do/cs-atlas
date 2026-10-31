@@ -60,29 +60,37 @@ export function slidingWindowSteps(s: string): VisStep[] {
 }
 
 export function binarySearchSteps(nums: number[], target: number): VisStep[] {
+  // Lower bound on the half-open range [lo, hi), as in the lesson's first_true template.
+  // hi can equal nums.length, so an extra 'end' cell gives its marker somewhere to sit.
+  const cells = [...nums, 'end']
   const steps: VisStep[] = []
   let lo = 0
-  let hi = nums.length - 1
-  while (lo <= hi) {
+  let hi = nums.length
+  while (lo < hi) {
     const mid = (lo + hi) >> 1
-    const markers = { lo, mid, hi }
-    if (nums[mid] === target) {
-      steps.push({ cells: nums, markers, highlight: [lo, hi], caption: `nums[${mid}] = ${target} — found it!`, done: true })
-      return steps
-    }
-    const goRight = nums[mid] < target
+    const ok = nums[mid] >= target
     steps.push({
-      cells: nums,
-      markers,
-      highlight: [lo, hi],
-      caption: goRight
-        ? `nums[${mid}] = ${nums[mid]} < ${target}: the answer is to the right, lo = ${mid + 1}`
-        : `nums[${mid}] = ${nums[mid]} > ${target}: the answer is to the left, hi = ${mid - 1}`,
+      cells,
+      markers: { lo, mid, hi },
+      highlight: [lo, hi - 1],
+      caption: ok
+        ? `nums[${mid}] = ${nums[mid]} >= ${target}: index ${mid} could be the first, so keep it, hi = ${mid}`
+        : `nums[${mid}] = ${nums[mid]} < ${target}: index ${mid} is too early, lo = ${mid + 1}`,
     })
-    if (goRight) lo = mid + 1
-    else hi = mid - 1
+    if (ok) hi = mid
+    else lo = mid + 1
   }
-  steps.push({ cells: nums, markers: {}, caption: `The range is empty — ${target} is not in the array.`, done: true })
+  const found = lo < nums.length && nums[lo] === target
+  steps.push({
+    cells,
+    markers: { lo, hi },
+    caption: found
+      ? `lo = hi = ${lo}: the first value >= ${target} is nums[${lo}] = ${target} — found it!`
+      : lo < nums.length
+        ? `lo = hi = ${lo}: the first value >= ${target} is nums[${lo}] = ${nums[lo]}, so ${target} is not in the array.`
+        : `lo = hi = ${lo}, the end: no value is >= ${target}, so ${target} is not in the array.`,
+    done: true,
+  })
   return steps
 }
 

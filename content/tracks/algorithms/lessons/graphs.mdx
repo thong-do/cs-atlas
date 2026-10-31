@@ -109,7 +109,7 @@ def topo_order(n: int, edges: list[tuple[int, int]]) -> list[int]:
 ## Tips & tricks
 
 - Grid neighbours: loop over `((1, 0), (-1, 0), (0, 1), (0, -1))` and bounds-check once.
-- **Multi-source BFS**: start with every source in the queue at distance 0 (all rotten oranges at once). The number of BFS levels is the answer.
+- **Multi-source BFS**: start with every source in the queue at distance 0 (all rotten oranges at once). Count the levels that spread to new cells: that is the answer, since the last level, with nothing left to spread to, adds no minute.
 - Process BFS level by level with `for _ in range(len(queue))` — the same trick as tree level order — when you need "minutes" or "steps".
 - Word Ladder: generate neighbours by changing one letter at a time (or group words by wildcard patterns like `h*t`) instead of comparing every pair.
 - Cycle detection in a directed graph: Kahn's algorithm leaves nodes unprocessed, or DFS finds a node that is still "in progress".

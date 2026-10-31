@@ -25,13 +25,14 @@ Two shapes:
 
 ```text
 Daily Temperatures: temps = [73, 74, 75, 71, 69, 72, 76]
-i=0  73                          stack [73]
-i=1  74  pop 73 → wait 1         stack [74]
-i=2  75  pop 74 → wait 1         stack [75]
-i=3  71                          stack [75, 71]
-i=4  69                          stack [75, 71, 69]
-i=5  72  pop 69 → 1, pop 71 → 2  stack [75, 72]
-i=6  76  pop 72 → 1, pop 75 → 4  stack [76]
+The stack holds indices; shown as index:temp.
+i=0  73                               stack [0:73]
+i=1  74  pop 0 → wait 1               stack [1:74]
+i=2  75  pop 1 → wait 1               stack [2:75]
+i=3  71                               stack [2:75, 3:71]
+i=4  69                               stack [2:75, 3:71, 4:69]
+i=5  72  pop 4 → wait 1, pop 3 → 2    stack [2:75, 5:72]
+i=6  76  pop 5 → wait 1, pop 2 → 4    stack [6:76]
 ```
 
 ## Template

@@ -116,7 +116,7 @@ def is_happy(n: int) -> bool:
 
 ## Tips & tricks
 
-- Counter-clockwise rotation is transpose + reverse each **column** (or reverse the rows first, then transpose).
+- Counter-clockwise rotation is transpose + reverse each **column** (or reverse each row first, then transpose).
 - Plus One: walk from the last digit; turn 9s into 0s until you find a digit below 9. If every digit was 9, prepend a 1.
 - Multiply Strings: the product of `num1[i]` and `num2[j]` lands at positions `i + j` and `i + j + 1` of the result.
 - Happy Number can use a `seen` set instead of fast/slow pointers — simpler, but O(cycle length) space.

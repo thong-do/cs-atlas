@@ -12,7 +12,7 @@ summary: "Cache answers to subproblems indexed by one variable."
 
 ## Intuition
 
-Dynamic programming is **backtracking that remembers**. When the same subproblem shows up again and again in the recursion tree, solve it once, store the answer, and reuse it. Exponential time collapses to linear.
+Dynamic programming is **backtracking that remembers**. When the same subproblem shows up again and again in the recursion tree, solve it once, store the answer, and reuse it. Exponential time collapses to polynomial: the number of states × the work per state, which is linear for the simplest problems.
 
 Climbing stairs makes this concrete. The number of ways to reach step n is the ways to reach step n−1 (then take 1 step) plus the ways to reach n−2 (then take 2). Plain recursion recomputes `ways(3)` many times; DP computes each step once.
 
@@ -109,4 +109,5 @@ def word_break(s: str, words: list[str]) -> bool:
 - "Count the ways" → add the transitions. "Min/max" → take the min/max of them. "Is it possible" → OR them.
 - Min Cost Climbing Stairs: `dp[i] = cost[i] + min(dp[i-1], dp[i-2])`, answer `min(dp[-1], dp[-2])`.
 - Word Break bottom-up: `ok[i]` is True if some `ok[j]` is True and `s[j:i]` is a word.
+- Longest Increasing Subsequence: `dp[i]` is the longest one ending at `i`, so `dp[i] = 1 + max(dp[j])` over `j < i` with `nums[j] < nums[i]`, or 1 if there is none. For O(n log n), keep `tails`, where `tails[k]` is the smallest tail of any increasing subsequence of length `k + 1`. For each `x`, replace the first tail `>= x`, or append if there is none. The answer is `len(tails)`; `tails` itself need not be a real subsequence.
 - When the state needs **two** indices (two strings, a grid, item × capacity), you've moved on to **2-D DP**.

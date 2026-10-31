@@ -14,7 +14,7 @@ summary: "Move two indices toward or along each other to avoid nested loops."
 
 A brute-force pair search checks every (i, j) — O(n²). Two pointers cut that to O(n) by using **structure** in the input (usually sortedness) to rule out many pairs with a single comparison.
 
-Picture two people walking toward each other along a shelf of items sorted by price, looking for two that cost exactly your budget. If the pair is too expensive, the person at the expensive end steps left — nothing to their right can work with anything the other person could still pick. Too cheap? The cheap end steps right. Every step throws away a whole row of candidate pairs.
+Picture two people walking toward each other along a shelf of items sorted by price, looking for two that cost exactly your budget. If the pair is too expensive, the person at the expensive end steps left — that item is too pricey even with the cheapest item still in play, so it can't be in any answer. Too cheap? The cheap item falls short even with the priciest one left, so the cheap end steps right. Every step throws away a whole row of candidate pairs.
 
 Three common shapes:
 

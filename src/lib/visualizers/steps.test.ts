@@ -29,16 +29,36 @@ describe('slidingWindowSteps', () => {
 })
 
 describe('binarySearchSteps', () => {
-  it('halves the range until found', () => {
+  it('narrows the half-open range to the first match, without stopping at a hit', () => {
     const steps = binarySearchSteps([1, 3, 5, 7, 9, 11], 7)
-    expect(steps).toHaveLength(3)
-    expect(steps.at(-1)).toMatchObject({ markers: { lo: 3, mid: 3, hi: 3 }, done: true })
+    expect(steps.map((s) => s.markers)).toEqual([
+      { lo: 0, mid: 3, hi: 6 },
+      { lo: 0, mid: 1, hi: 3 },
+      { lo: 2, mid: 2, hi: 3 },
+      { lo: 3, hi: 3 },
+    ])
+    expect(steps.at(-1)).toMatchObject({ done: true })
+    expect(steps.at(-1)!.caption).toContain('found it')
   })
 
-  it('reports not found when the range empties', () => {
-    const last = binarySearchSteps([1, 3, 5], 4).at(-1)!
-    expect(last).toMatchObject({ done: true })
-    expect(last.caption).toContain('not in the array')
+  it('finds the first of several equal values', () => {
+    expect(binarySearchSteps([2, 2, 2, 2], 2).at(-1)).toMatchObject({ markers: { lo: 0, hi: 0 }, done: true })
+  })
+
+  it('never tests hi, and adds a cell for the one-past-the-end marker', () => {
+    const steps = binarySearchSteps([1, 3, 5], 9)
+    expect(steps[0].cells).toEqual([1, 3, 5, 'end'])
+    expect(steps[0].markers.hi).toBe(3)
+    for (const s of steps.slice(0, -1)) expect(s.markers.mid).toBeLessThan(s.markers.hi)
+  })
+
+  it('reports not found when lo stops on another value or past the end', () => {
+    for (const target of [4, 9]) {
+      const last = binarySearchSteps([1, 3, 5], target).at(-1)!
+      expect(last).toMatchObject({ done: true })
+      expect(last.caption).toContain('not in the array')
+    }
+    expect(binarySearchSteps([], 1).at(-1)!.caption).toContain('not in the array')
   })
 })
 

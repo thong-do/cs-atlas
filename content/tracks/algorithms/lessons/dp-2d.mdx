@@ -19,7 +19,7 @@ Picture filling a spreadsheet: each cell is computed from cells above it and to 
 Common table shapes:
 
 - **Grid paths**: `dp[r][c]` comes from `dp[r-1][c]` and `dp[r][c-1]` (Unique Paths, Minimum Path Sum).
-- **Two sequences**: `dp[i][j]` is the answer for prefixes `a[:i]` and `b[:j]`. If the last characters match, step diagonally; otherwise take the best of dropping one character (LCS, Edit Distance, Regex Matching).
+- **Two sequences**: `dp[i][j]` is the answer for prefixes `a[:i]` and `b[:j]`. If the last characters match, step diagonally; otherwise take the best of dropping one character (LCS). Edit Distance adds a replace option (diagonal + 1; see its template), and Regex Matching has its own rules for `*`.
 - **Item × capacity (knapsack)**: `dp[i][a]` uses the first i items to reach amount a (Coin Change II, Target Sum). It often shrinks to a single row.
 - **Index × state**: a small state machine per day, like "holding a stock / sold / cooling down".
 

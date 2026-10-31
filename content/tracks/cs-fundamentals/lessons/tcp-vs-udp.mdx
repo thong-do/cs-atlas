@@ -27,6 +27,8 @@ TCP builds a **reliable, ordered byte stream** on top of IP, which only tries to
 
 **Congestion control.** The sender also limits itself to a *congestion window*, to avoid swamping the network. It starts small and roughly doubles each round trip (*slow start*), then adds about one segment per round trip and cuts the window sharply on loss: additive increase, multiplicative decrease (**AIMD**). Loss is the classic signal. CUBIC and BBR are common algorithms; the default varies by OS and version.
 
+**Window ÷ RTT caps throughput.** The sender may have at most one window of unacknowledged bytes in flight (the smaller of the receive and congestion windows), then must wait for ACKs. Each round trip moves at most one window, so **throughput ≤ window ÷ RTT**, however fast the link is. Take a 64 KiB window (65,536 B) on a 100 Mbit/s link (12.5 MB/s) with a 40 ms RTT: 65,536 ÷ 0.04 ≈ 1.6 MB/s, far below the link. To fill a link, the window must reach the **bandwidth-delay product**: 12.5 MB/s × 0.04 s = 500 KB in flight, about 7.6 times that window. Long paths need big windows, and so big socket buffers.
+
 **Head-of-line blocking.** The receiver hands bytes to the application only in order. If one segment is lost, later segments that did arrive wait in the kernel until the gap is filled, so the application sees a stall, then a burst.
 
 **Closing.** Each direction closes with its own `FIN` and ACK: up to four segments (often three if the peer combines its ACK and FIN). The side that closed first ends in **TIME_WAIT** (fixed 60 s on Linux), keeping the 5-tuple (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)) reserved so stray old segments cannot be mistaken for a new connection and a lost final ACK can be answered again.
@@ -136,6 +138,8 @@ The two messages may share one segment, yet `read_msg` returns them separately. 
 - **Blocking forever on a silent peer.** An idle connection can look healthy long after the peer vanished. Fix: set timeouts and send heartbeats.
 - **Assuming UDP delivers.** A datagram can be lost, duplicated or reordered, and a returning `sendto` says nothing about arrival. Fix: add sequence numbers, ACKs or retries where needed, and tolerate duplicates.
 - **Opening a connection per request.** Each pays the handshake, restarts congestion control from a small window and leaves a socket in TIME_WAIT. Fix: reuse connections with keep-alive or a pool.
+- **Small writes delayed by Nagle's algorithm.** To avoid many tiny packets, Nagle's algorithm holds a small write while earlier data is unacknowledged, and the receiver may delay its ACK, so a small message can wait tens of milliseconds. Fix: for latency-sensitive traffic, set `TCP_NODELAY`, which sends small writes at once at the price of more packets.
+- **Sockets piling up in CLOSE_WAIT.** The peer sent its `FIN`, the kernel acknowledged it, and the socket waits for your program to call `close`. Many of them mean the application is leaking sockets, not a network fault. Fix: close on every path, including when `recv` returns `b""`; `with` blocks help. Find them with `ss -tan state close-wait`.
 - **Sending big UDP datagrams.** Past the MTU (see [The TCP/IP stack](/cs-fundamentals/tcp-ip-stack/)), IPv4 may fragment them, and one lost fragment loses the whole datagram. Fix: keep payloads small, about 1,200 bytes or less unless you have measured.
 
 ## Tips & tricks

@@ -22,22 +22,24 @@ rubric:
   - id: arithmetic
     point: "Computes the usable MTU, 1,500 - 50 = 1,450, and the matching IPv4 TCP MSS, 1,450 - 20 - 20 = 1,410, versus the 1,460 the hosts assume."
   - id: pmtud
-    point: "Explains path MTU discovery: packets are sent with the don't-fragment bit set, and a device that cannot forward one sends back an ICMP 'fragmentation needed' message with the next-hop MTU; the firewall drops those, so the sender never learns, keeps retransmitting the same size, and the connection black-holes."
+    point: "Explains why path MTU discovery does not save the hosts: normally a device that cannot forward a don't-fragment packet sends an ICMP 'fragmentation needed' message with the next-hop MTU to that packet's source. Here the oversized packet is the outer VXLAN packet, whose source is the tunnel endpoint, so the inner TCP sender is never told, keeps retransmitting the same size, and the connection black-holes. Notes that the firewall is not the root cause: the failure also happens on the same rack, where no firewall is in the path."
   - id: confirm
-    point: "Shows how to confirm it: `ping -M do -s <size>` on Linux (don't fragment; size is payload plus 28 bytes of IP and ping headers) to a peer on the same rack over the overlay, so the firewall is not in the path, where 1,422 + 28 = 1,450 passes and 1,423 fails; a packet capture showing retransmitted full-size segments is a second check."
+    point: "Shows how to confirm it: `ping -M do -s <size>` on Linux (don't fragment; size is payload plus 28 bytes of IP and ping headers) to a peer on the same rack over the overlay, so the firewall is not in the path, where 1,422 + 28 = 1,450 passes and 1,423 fails, which also rules out the firewall; a packet capture showing retransmitted full-size segments is a second check."
   - id: fixes
-    point: "Gives fixes with trade-offs: allow ICMP type 3 code 4 (the real fix, narrow), lower the interface MTU to 1,450 (simple, must reach every host), clamp the MSS to 1,410 at the edge (fixes TCP only, not UDP), or raise the physical MTU to at least 1,550 (needs every device on the path to agree)."
+    point: "Gives the primary fixes with trade-offs: lower the interface MTU on the overlay to 1,450 (simple, must reach every host) or raise the physical MTU to at least 1,550 (keeps 1,500-byte packets, but every device on the path must agree). Treats clamping the MSS to 1,410 as a stopgap (TCP only, not UDP), and says that allowing ICMP type 3 code 4 through the firewall is good practice but does not fix this."
 reference: |
   **Why only large packets fail.** Hosts send up to 1,500 bytes, but the overlay adds 50, so a full-size packet becomes 1,550 bytes and exceeds the physical 1,500 MTU. Small packets fit: handshakes, health checks, short JSON and SSH keystrokes. A large response is sent in full-size segments, and every one is dropped.
 
   **Arithmetic.** Usable MTU = 1,500 - 50 = 1,450. IPv4 TCP MSS = 1,450 - 20 (IP) - 20 (TCP) = 1,410, not the 1,460 that a 1,500 MTU gives. That is why responses beyond about 1.4 KB hang.
 
-  **Path MTU discovery.** On most OSes TCP sends with the don't-fragment bit set by default. A device that cannot forward the packet drops it and returns an ICMP type 3 code 4 "fragmentation needed" message carrying the next-hop MTU, and the sender lowers its packet size. The firewall drops that ICMP, so the sender hears nothing, retransmits the same size until the 30 s timeout, and the path is a black hole.
+  **Why the hosts never adapt.** On most OSes TCP sends with the don't-fragment bit set by default. A device that cannot forward such a packet drops it and returns an ICMP type 3 code 4 "fragmentation needed" message carrying the next-hop MTU to the packet's source, and that source lowers its packet size. But the packet that is too big here is the outer VXLAN packet, created by the encapsulating tunnel endpoint. Any such ICMP is addressed to the endpoint's outer address, not to the TCP sender inside the tunnel. Some tunnel implementations signal a smaller MTU locally, but these hosts evidently do not get one. The sender hears nothing, retransmits the same size until the 30 s timeout, and the path is a black hole.
 
-  **Confirm.** Ping a peer on the same rack over the overlay, where the firewall is not in the path: `ping -M do -s 1422 <peer>` passes (1,422 + 28 = 1,450) and `-s 1423` fails (1,451). A capture shows full-size segments retransmitted with no replies.
+  **The firewall is a red herring here.** Dropping all ICMP is a real risk in general: it breaks path MTU discovery whenever a router on the path has a smaller MTU. But it is not the cause of this failure, since the same-rack test below fails with no firewall in the path, and opening it would not tell the inner sender anything.
+
+  **Confirm.** Ping a peer on the same rack over the overlay, where the firewall is not in the path: `ping -M do -s 1422 <peer>` passes (1,422 + 28 = 1,450) and `-s 1423` fails (1,451). A failure there rules out the firewall. A capture shows full-size segments retransmitted with no replies.
 
   **Fixes.**
-  - Allow ICMP type 3 code 4: fixes the root cause and keeps full discovery; costs a firewall rule.
-  - Set the interface MTU to 1,450: hosts then use MSS 1,410. Simple, but must be applied everywhere.
-  - Clamp the MSS to 1,410 at the edge: rewrites the TCP handshake, so it covers TCP only, not UDP.
+  - Set the overlay's interface MTU to 1,450: hosts then use MSS 1,410. Simple and covers all traffic, but must be applied everywhere.
   - Raise the physical MTU to at least 1,500 + 50 = 1,550: keeps 1,500-byte packets but every switch and router must agree.
+  - Clamp the MSS to 1,410 at the edge: a stopgap that rewrites the TCP handshake, so it covers TCP only, not UDP.
+  - Allow ICMP type 3 code 4 through the firewall: worth doing to avoid other black holes, but it does not fix this one.

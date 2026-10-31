@@ -41,7 +41,10 @@ flashcards:
     back: "READ UNCOMMITTED allows dirty reads. READ COMMITTED forbids them. REPEATABLE READ also forbids non-repeatable reads. SERIALIZABLE also forbids phantoms."
   - id: postgres-levels
     front: "Postgres isolation defaults"
-    back: "READ COMMITTED by default; READ UNCOMMITTED behaves as READ COMMITTED; REPEATABLE READ is snapshot isolation, so no phantoms. SERIALIZABLE can fail with 40001."
+    back: "READ COMMITTED by default; READ UNCOMMITTED acts as it. REPEATABLE READ is snapshot isolation: no phantoms, but write skew is possible. SERIALIZABLE prevents it. Both can fail with 40001."
+  - id: write-skew
+    front: "Write skew"
+    back: "Two transactions read the same data, then each writes a different row, breaking a rule both checked. Snapshot isolation allows it, since no row is written twice; SERIALIZABLE prevents it."
   - id: mvcc-snapshot
     front: "MVCC snapshot"
     back: "An update creates a new row version. Each transaction reads the versions its snapshot allows, so plain reads do not block writers. Old versions need cleanup."

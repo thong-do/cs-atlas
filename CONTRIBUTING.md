@@ -82,6 +82,7 @@ content/
 1. Copy a template to `content/exercises/<slug>.yaml`: `templates/exercise.yaml` for a LeetCode problem (the slug must match the LeetCode URL), `templates/quiz.yaml` for a quiz with flashcards, or `templates/design-prompt.yaml` for a design prompt, or see [Estimation drills](#estimation-drills) for an estimation drill.
 2. Set `ladderOrder` to the next free number in the primary lesson's ladder.
 3. Write the text **in your own words** (for a LeetCode problem: `recognitionPrompt` and `hint`). Never paste a problem statement or a solution.
+4. For a quiz, don't let length give the answer away: across a file the right answer should sometimes be the longest or shortest choice, reached by honest wording rather than padding, and V16 checks this.
 
 ## The quality bar (checked by the build)
 
@@ -110,6 +111,7 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V13 | Design prompt: unique rubric ids |
 | V14 | Placement files: the track exists and the file name equals it; each module has 2–3 questions (none for `comingSoon`-only or exempt modules); 4 distinct choices and an `answer` that is one of them; no repeat of a lesson-quiz prompt or of an earlier placement prompt; no lesson takes the reserved slug `placement` |
 | V15 | Estimation drills: 2–4 steps with unique ids; a known `unit` (bytes, bytes/s, bits/s, requests/s, count, seconds); `answer` > 0 in base units; `tolerance`, if set, 1.5–10 (default 2); each step's `work` shows its answer as the app formats it (e.g. "10 TB"); non-empty `scenario` and `takeaway` |
+| V16 | Lesson quizzes and placement files, per file, counting only questions whose choices differ in length (skipped below 4 such questions): (a) in at least 1 in 5 of them the right answer is the longest or shortest choice; (b) no more than 60% of them have the same number of choices longer than the right answer |
 
 ## Estimation drills
 

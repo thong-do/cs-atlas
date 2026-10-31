@@ -21,7 +21,7 @@ questions:
     explanation: "Over one cycle of 12 residues, k % 4 equals k % 6 only for 0, 1, 2 and 3, so 8 of 12 keys move. The other choices assume an ideal rebalancer that moves only the new servers' share, require k to be a multiple of 12, or treat equal parity as equal server numbers."
   - id: negative-remainder
     prompt: "In Java, `int` division truncates toward zero, and `a == (a / b) * b + a % b` always holds. What does `-17 % 5` evaluate to?"
-    choices: ["3: the remainder is the distance above the next lower multiple of 5, since −20 + 3 = −17, as on a clock", "2: the operator works on magnitudes, so it computes 17 % 5 and drops the sign", "-2: −17 / 5 truncates to −3, so the remainder is −17 − (−3 × 5) = −17 + 15 = −2", "-3: the distance from −17 down to −20 is 3, and the result keeps the dividend's sign"]
+    choices: ["3: the remainder is the distance above the next lower multiple of 5, since −20 + 3 = −17, as on a clock", "2: the operator works on magnitudes, so it computes 17 % 5 and drops the sign", "-2: −17 / 5 truncates to −3, so the remainder is −17 − (−15) = −2", "-3: the distance from −17 down to −20 is 3, and the result keeps the dividend's sign"]
     answer: 2
     explanation: "With a quotient of −3, the identity leaves −17 − (−15) = −2. The other choices apply a clock wrap (3), discard the sign (2), or measure the gap to the lower multiple but keep the sign (−3)."
   - id: at-least-one-digit

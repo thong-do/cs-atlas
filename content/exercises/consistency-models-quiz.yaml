@@ -21,7 +21,7 @@ questions:
     explanation: "The session went backwards in time, which is a monotonic-reads violation; the user wrote nothing, so read-your-writes is not the issue. A version floor (or pinning to one replica) stops the regression."
   - id: quorum-tuning
     prompt: "A leaderless store has N = 5 replicas with strict quorums and W = 3, R = 3. To speed up writes, an operator lowers W to 2 and leaves R = 3. What is the consequence?"
-    choices: ["Reads stay overlapping, since R = 3 is still a majority of the 5 replicas", "A read can miss the latest acknowledged write, since 2 + 3 is not greater than 5", "Writes stay safe, since the lower W is compensated by hinted handoff to stand-in nodes", "Overlap holds only for reads served by the node that coordinated the write"]
+    choices: ["Reads stay overlapping, since R = 3 is still a majority of the 5 replicas", "A read can miss the latest acknowledged write, since 2 + 3 is not greater than 5", "Writes stay safe, since hinted handoff to stand-in nodes covers the lower W", "Overlap holds only for reads served by the node that coordinated the write"]
     answer: 1
     explanation: "Overlap needs W + R > N, and 2 + 3 = 5 is not enough, so a read set can avoid every replica in a write set. A read majority alone does not help when the write set is smaller than a majority."
   - id: orphan-reply

@@ -21,7 +21,7 @@ questions:
     explanation: "A hybrid design pays for a celebrity post once, at read time, and keeps push for ordinary authors. More partitions or retries still perform 30 M writes, and all-pull makes every read expensive."
   - id: idempotent-workers
     prompt: "The fan-out queue delivers at-least-once, so a worker may process a post event twice after a crash. Which design keeps feeds correct?"
-    choices: ["Delete the event from the queue before inserting it, so that it can never be delivered to a worker twice", "Give each worker its own consumer group, so that every event is processed by exactly one worker", "Key the feed insert by post id, so replaying the same event leaves a single entry in the feed", "Run only one worker per author, because duplicates can only come from concurrent consumers"]
+    choices: ["Delete the event from the queue before inserting it, so that it can never be delivered to a worker twice", "Give each worker its own consumer group, so that every event is processed by exactly one worker", "Key the feed insert by post id, so replaying the same event leaves a single entry", "Run only one worker per author, because duplicates can only come from concurrent consumers"]
     answer: 2
     explanation: "With at-least-once delivery, duplicates are expected, so the write must be idempotent: adding the same post id to a sorted feed twice leaves one entry. Deleting first risks losing the post if the worker crashes."
   - id: deletes-unfollow

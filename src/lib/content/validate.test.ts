@@ -309,4 +309,15 @@ describe('validateContent', () => {
       '[V15] content/exercises/e1.yaml: step "both" work must show its answer "3 GB"',
     ])
   })
+
+  it('V16: flags a quiz whose right answers give away their length', () => {
+    const c = valid()
+    const middle = (id: string) => ({ id, prompt: 'p', choices: ['a', 'aa', 'aaa', 'aaaa'], answer: 1, explanation: 'e' })
+    c.exercises.push(quiz('cue-quiz', ['aaa'], { ladderOrder: 90, questions: ['q1', 'q2', 'q3', 'q4', 'q5'].map(middle) }))
+    const errors = validateContent(c).filter((e) => e.startsWith('[V16]'))
+    expect(errors).toHaveLength(2)
+    expect(errors[0]).toContain('content/exercises/cue-quiz.yaml')
+    expect(errors[0]).toContain('rule (a)')
+    expect(errors[1]).toContain('rule (b)')
+  })
 })

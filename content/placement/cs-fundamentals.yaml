@@ -4,7 +4,7 @@ questions:
     prompt: "A function loops over n incoming timestamps and, for each one, runs a binary search over a sorted array of n bucket boundaries. Nothing else in the loop depends on n. How does its running time grow?"
     choices:
       - "O(n): a binary search is so cheap that it counts as constant work for each timestamp"
-      - "O(n log n): n iterations, each doing about log₂ n halving steps over the sorted array"
+      - "O(n log n): n iterations, each doing about log₂ n halving steps"
       - "O(n²): a search over n boundaries is nested inside a loop over n timestamps"
       - "O(log n): each search halves the array, and that halving dominates the whole loop's cost"
     answer: 1
@@ -21,7 +21,7 @@ questions:
   - module: operating-systems
     prompt: "One program runs as two threads in a single process; another runs as two separate processes. What do the two threads share that the two processes do not share by default?"
     choices:
-      - "The address space: heap objects and globals written by one thread are visible to the other thread"
+      - "The address space: heap objects and globals written by one thread are visible to the other"
       - "The call stack: every function call made by either thread is pushed onto one stack they share"
       - "The register set: the CPU keeps one program counter per process, and its threads take turns with it"
       - "Nothing extra: threads also get private memory and must pass data to each other through pipes"
@@ -94,7 +94,7 @@ questions:
     prompt: "In IEEE 754 double precision (a Python float or a JavaScript number), `0.1 + 0.2 == 0.3` is false. What is the root cause?"
     choices:
       - "Floating-point addition is not commutative, so 0.1 + 0.2 and 0.2 + 0.1 produce different sums"
-      - "Comparing doubles with `==` applies a built-in tolerance, and that tolerance is tighter than the error in the sum"
+      - "Comparing doubles with `==` applies a built-in tolerance that is tighter than the error in the sum"
       - "A double holds only about 7 significant decimal digits, too few to tell the sum apart from 0.3"
       - "None of 0.1, 0.2 and 0.3 is exact in binary, so each is rounded and the sum lands on another double than 0.3"
     answer: 3

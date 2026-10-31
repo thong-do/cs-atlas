@@ -1,4 +1,5 @@
 import type { PlacementQuestion } from '@/lib/types'
+import { answerLengthViolations } from './answer-length'
 import type { ContentInput } from './validate'
 
 /** Modules nobody places out of: they apply the whole track. They must have no placement questions. */
@@ -12,7 +13,7 @@ export interface PlacementInput { track: string; path: string; questions: Placem
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
 const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
-/** V14. Every message is "[V14] file: problem", like validateContent. */
+/** V14 and V16. Every message is "[rule] file: problem", like validateContent. */
 export function validatePlacements(placements: PlacementInput[], { tracks, lessons, exercises }: ContentInput): string[] {
   const errors: string[] = []
   const err = (file: string, message: string) => errors.push(`[V14] ${file}: ${message}`)
@@ -59,6 +60,7 @@ export function validatePlacements(placements: PlacementInput[], { tracks, lesso
         err(file, `module "${m.slug}" has ${count} question(s); it needs 2–3`)
       }
     }
+    for (const v of answerLengthViolations(p.questions)) errors.push(`[V16] ${file}: ${v}`)
   }
   return errors
 }

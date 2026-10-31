@@ -21,7 +21,7 @@ questions:
     explanation: "The budget is 0.1% of requests; failing at 0.5% burns it 5 times faster than the sustainable rate, so it lasts a fifth of the window: 30 ÷ 5 = 6 days. Reading the burn rate of 5 as 5 days confuses a rate with a duration. The 15-day choice invents a 1% allowance that the SLO does not set. Dividing by 10 uses a burn rate of 10, but 0.5% ÷ 0.1% is 5."
   - id: label-choice
     prompt: "A team wants per-endpoint request metrics for an API with routes like /orders/8841 and /orders/9027. Which label choice keeps the number of series bounded?"
-    choices: ["Label by the raw request path, and let the metrics store drop the oldest series when it fills", "Label by the route template /orders/{id}, plus method and status class, with ids in logs", "Label by a hash of the full path, so each label value stays a short fixed-length string", "Label by the raw path, but only for requests slower than the SLO threshold"]
+    choices: ["Label by the raw request path, and let the metrics store drop the oldest series when it fills", "Label by the route template /orders/{id}, plus method and status class", "Label by a hash of the full path, so each label value stays a short fixed-length string", "Label by the raw path, but only for requests slower than the SLO threshold"]
     answer: 1
     explanation: "A template has one value per route, so series stay a small product of a few labels. Hashing shortens a value but keeps one value per id, and filtering to slow requests still lets ids pile up."
   - id: keep-error-traces

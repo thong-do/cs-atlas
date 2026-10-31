@@ -42,7 +42,7 @@ questions:
       - "About 12, since a binary search tree over 4,096 keys has height log₂ 4,096 = 12"
       - "About 64, since sorted keys fill the tree level by level to a depth of √4,096 = 64"
       - "All 4,096, since each key becomes the right child of the one before it, forming a chain"
-      - "About 2,048, since the sorted keys alternate between the left and the right branches of the root"
+      - "About 2,048, since sorted keys alternate between the root's left and right branches"
     answer: 2
     explanation: "Each new key is larger than every key already stored, so it goes right at every node and ends up as the right child of the previous key. The tree is a chain of height 4,096, and finding 4,096 visits every node, against about log₂ 4,096 = 12 in a balanced tree."
   - module: search-greedy
@@ -95,7 +95,7 @@ questions:
     choices:
       - "When x is odd, since x − 1 then differs from x only in its last bit"
       - "When x is even, since x and x − 1 then have opposite last bits"
-      - "When x is a power of two, since x then has a single 1 bit"
+      - "When x is a power of two, which has a single 1 bit"
       - "When x is one less than a power of two, such as 7 or 15"
     answer: 2
     explanation: "A power of two has a single 1 bit, and subtracting 1 turns that bit off and every bit below it on, so the AND is 0; any other positive x keeps its highest 1 bit through the subtraction, so the AND is non-zero. Powers of two include x = 1 = 2⁰, since 1 & 0 = 0."

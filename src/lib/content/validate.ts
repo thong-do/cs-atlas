@@ -1,6 +1,7 @@
 import type { EstimateStep, Flashcard, LessonMeta, ProblemExercise, QuizQuestion, RubricPoint } from '@/lib/types'
 import { ESTIMATE_UNITS, formatAmount } from '@/lib/logic/estimate'
 import { VISUALIZER_KINDS } from '@/lib/visualizers/kinds'
+import { answerLengthViolations } from './answer-length'
 
 /** Track slugs become top-level routes, so they must not shadow a page or a redirected v1 path. */
 export const RESERVED_TRACK_SLUGS = ['tracks', 'exercises', 'roadmap', 'train', 'stats', 'settings', 'patterns', 'problems', 'static', '404']
@@ -124,7 +125,7 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
     }
   }
 
-  // V5/V7/V11/V12/V13/V15 — exercises
+  // V5/V7/V11/V12/V13/V15/V16 — exercises
   const exerciseSlugs = new Set<string>()
   const ids = new Set<number>()
   const ladderKeys = new Set<string>()
@@ -152,6 +153,7 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
         if (fids.has(f.id)) err('V12', file, `duplicate flashcard id "${f.id}"`)
         fids.add(f.id)
       }
+      for (const v of answerLengthViolations(e.questions)) err('V16', file, v)
     } else if (e.type === 'design-prompt') {
       const rids = new Set<string>()
       for (const r of e.rubric) {

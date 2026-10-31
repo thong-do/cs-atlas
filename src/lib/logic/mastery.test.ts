@@ -21,7 +21,7 @@ const attempt = (i: number, pattern: string, correct: boolean): TrainAttempt => 
 })
 
 const L = (slug: string, track = 'algorithms'): LessonMeta => ({
-  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith: [], triggers: [],
+  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], background: [], confusedWith: [], triggers: [],
 })
 const base = { exercises: [problem('p1', ['tp'])], lessons: [L('tp'), L('other')], progress: [], cards: [], attempts: [], now }
 
@@ -44,17 +44,27 @@ describe('lessonMastery', () => {
     expect(lessonMastery(L('tp'), base)).toBe(0)
   })
 
-  it('gives 70 for the whole ladder solved alone and fresh, with no recognition data', () => {
-    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] })).toBe(70)
+  it('gives 100 for the whole ladder solved alone and fresh, with no recognition data', () => {
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')], cards: [freshCard('p1')] })).toBe(100)
   })
 
   it('weights hint and solution solves', () => {
-    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'hint')], cards: [freshCard('p1')] })).toBe(49)
-    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'solution')], cards: [freshCard('p1')] })).toBe(28)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'hint')], cards: [freshCard('p1')] })).toBe(70)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'solution')], cards: [freshCard('p1')] })).toBe(40)
   })
 
   it('treats a solved problem without a card as fully retrievable', () => {
-    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')] })).toBe(70)
+    expect(lessonMastery(L('tp'), { ...base, progress: [solved('p1', 'alone')] })).toBe(100)
+  })
+
+  it('lets good recognition raise a partly solved lesson', () => {
+    const input = { ...base, progress: [solved('p1', 'solution')], attempts: [attempt(1, 'tp', true)] }
+    expect(lessonMastery(L('tp'), input)).toBe(58) // 0.7 × 0.4 + 0.3 × 1
+  })
+
+  it('never lets poor recognition lower the exercise score', () => {
+    const input = { ...base, progress: [solved('p1', 'alone')], attempts: [attempt(1, 'tp', false)] }
+    expect(lessonMastery(L('tp'), input)).toBe(100)
   })
 
   it('does not count a second lesson in the same track', () => {
@@ -71,7 +81,7 @@ describe('lessonMastery', () => {
       cards: [freshCard('p1')],
     }
     expect(lessonMastery(L('cache', 'system-design'), input)).toBe(0)
-    expect(lessonMastery(L('tp'), input)).toBe(70)
+    expect(lessonMastery(L('tp'), input)).toBe(100)
   })
 
   it('reaches 100 with full problems and perfect recognition', () => {

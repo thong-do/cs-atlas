@@ -99,12 +99,12 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V2 | Lesson slugs are unique across all tracks, and the file name equals the slug |
 | V3 | Every lesson is listed exactly once in a module of its own track |
 | V4 | Each module has a lesson or a `comingSoon` title |
-| V5 | Prerequisites, `confusedWith` and exercise `lessons` point to real lessons |
+| V5 | Prerequisites, `background`, `confusedWith` and exercise `lessons` point to real lessons; `background` lessons are in another track |
 | V6 | Prerequisites have no cycles |
 | V7 | `ladderOrder` is unique within a primary lesson |
 | V8 | Algorithms lessons have `triggers` and `complexity` |
 | V9 | Required sections are present (Template for Algorithms, Example for other lessons, the case-study sections for lessons in a `case-studies` module); every `<Visualizer kind>` is a known kind |
-| V10 | Every lesson has at least one exercise |
+| V10 | Every lesson is the first entry in at least one exercise's `lessons`, since only those count for mastery |
 | V11 | LeetCode exercises: unique slugs, LeetCode ids and leetcode.com URLs (every exercise's file name equals its slug) |
 | V12 | Quiz: unique question and flashcard ids; each answer is one of its choices |
 | V13 | Design prompt: unique rubric ids |

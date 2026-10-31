@@ -3,7 +3,7 @@ import type { LessonMeta } from '@/lib/types'
 import { recommendedLesson } from './recommend'
 
 const p = (slug: string, prerequisites: string[] = [], track = 'algorithms'): LessonMeta => ({
-  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, confusedWith: [], triggers: ['t'], complexity: 'O(n)',
+  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, background: [], confusedWith: [], triggers: ['t'], complexity: 'O(n)',
 })
 const lessons = [p('a'), p('b', ['a']), p('c', ['a']), p('d', ['b', 'c']), p('sd1', ['a'], 'system-design')]
 const algo = new Set(['algorithms'])
@@ -30,6 +30,11 @@ describe('recommendedLesson', () => {
     const ls = [p('b', ['a']), p('a', [], 'system-design')]
     expect(recommendedLesson(ls, new Map(), new Set(['algorithms']))).toBe('b')
   })
+  it('never lets background hold a lesson back', () => {
+    const lesson = { ...p('a'), background: ['elsewhere'] }
+    expect(recommendedLesson([lesson], new Map(), new Set(['algorithms']))).toBe('a')
+  })
+
   it('skips placed-out lessons and treats their prerequisites as satisfied', () => {
     // a is placed out, so b (needs a) is ready even though a has 0 mastery.
     expect(recommendedLesson(lessons, new Map(), algo, new Set(['a']))).toBe('b')

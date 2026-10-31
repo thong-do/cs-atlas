@@ -48,3 +48,20 @@ test('a finished track says so on its home and on Today, without pointing at oth
   await expect(page.getByRole('region', { name: 'Continue' })).toHaveCount(0)
   await expect(page.getByText('You’ve solved every exercise here. Keep reviewing!')).toBeVisible()
 })
+
+test('a lesson links its helpful background in another track', async ({ page }) => {
+  await page.goto('/algorithms/arrays-hashing/')
+  const background = page.getByText('Helpful background:')
+  await expect(background.getByRole('link', { name: 'Complexity' })).toHaveAttribute('href', '/cs-fundamentals/complexity/')
+})
+
+test('Algorithms can be finished without ever using the trainer', async ({ page }) => {
+  await page.goto('/settings/')
+  await page.getByLabel('Import backup').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backupSolving('algorithms')) })
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Replace all data' }).click()
+  await expect(page.getByText('Backup restored')).toBeVisible()
+
+  await page.goto('/algorithms/')
+  await expect(page.getByRole('status').filter({ hasText: 'Track complete' })).toBeVisible()
+})

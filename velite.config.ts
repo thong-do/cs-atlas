@@ -39,6 +39,7 @@ const lessons = defineCollection({
       level: s.enum(['beginner', 'intermediate', 'advanced']),
       authors: s.array(s.string()).default([]),
       prerequisites: s.array(s.string()).default([]),
+      background: s.array(s.string()).default([]),
       confusedWith: s.array(s.string()).default([]),
       triggers: s.array(s.string()).default([]),
       complexity: s.string().optional(),

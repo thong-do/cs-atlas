@@ -118,19 +118,19 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'observability')).toMatchObject({ track: 'system-design', prerequisites: ['load-balancing'] })
     expect(getLessonDoc('observability')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('observability')).map((e) => e.slug).sort()).toEqual(['design-checkout-slos', 'estimate-log-volume', 'observability-quiz'])
-    expect(lessons.find((l) => l.slug === 'url-shortener')).toMatchObject({ track: 'system-design', prerequisites: ['caching', 'sql-vs-nosql'] })
+    expect(lessons.find((l) => l.slug === 'url-shortener')).toMatchObject({ track: 'system-design', prerequisites: ['caching', 'sql-vs-nosql', 'estimation'] })
     expect(getLessonDoc('url-shortener')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('url-shortener')).map((e) => e.slug).sort()).toEqual(['design-pastebin', 'url-shortener-quiz'])
-    expect(lessons.find((l) => l.slug === 'news-feed')).toMatchObject({ track: 'system-design', prerequisites: ['caching', 'queues-streams'] })
+    expect(lessons.find((l) => l.slug === 'news-feed')).toMatchObject({ track: 'system-design', prerequisites: ['caching', 'queues-streams', 'estimation'] })
     expect(getLessonDoc('news-feed')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('news-feed')).map((e) => e.slug).sort()).toEqual(['design-notification-inbox', 'news-feed-quiz'])
-    expect(lessons.find((l) => l.slug === 'chat')).toMatchObject({ track: 'system-design', prerequisites: ['queues-streams', 'load-balancing'] })
+    expect(lessons.find((l) => l.slug === 'chat')).toMatchObject({ track: 'system-design', prerequisites: ['queues-streams', 'load-balancing', 'estimation'] })
     expect(getLessonDoc('chat')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('chat')).map((e) => e.slug).sort()).toEqual(['chat-quiz', 'design-live-comments'])
-    expect(lessons.find((l) => l.slug === 'video-streaming')).toMatchObject({ track: 'system-design', prerequisites: ['dns-cdn', 'queues-streams'] })
+    expect(lessons.find((l) => l.slug === 'video-streaming')).toMatchObject({ track: 'system-design', prerequisites: ['dns-cdn', 'queues-streams', 'estimation'] })
     expect(getLessonDoc('video-streaming')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('video-streaming')).map((e) => e.slug).sort()).toEqual(['design-podcast-hosting', 'video-streaming-quiz'])
-    expect(lessons.find((l) => l.slug === 'payment-system')).toMatchObject({ track: 'system-design', prerequisites: ['distributed-transactions', 'queues-streams'] })
+    expect(lessons.find((l) => l.slug === 'payment-system')).toMatchObject({ track: 'system-design', prerequisites: ['distributed-transactions', 'queues-streams', 'estimation'] })
     expect(getLessonDoc('payment-system')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('payment-system')).map((e) => e.slug).sort()).toEqual(['design-subscription-billing', 'payment-system-quiz'])
   })
@@ -146,6 +146,16 @@ describe('content inventory', () => {
     expect(tracks.map((t) => t.slug)).toEqual(['algorithms', 'system-design', 'cs-fundamentals'])
     const csf = tracks[2]
     // Append one entry per new lesson, in track order.
+    const { lessons: all } = getCatalog()
+    const prereqs = (slug: string) => all.find((l) => l.slug === slug)!.prerequisites
+    expect(prereqs('bit-manipulation')).toEqual(['arrays-hashing'])
+    expect(prereqs('math-geometry')).toEqual(['arrays-hashing'])
+    expect(prereqs('greedy')).toEqual(['arrays-hashing'])
+    expect(prereqs('intervals')).toEqual(['arrays-hashing'])
+    expect(prereqs('dp-2d')).toEqual(['dp-1d'])
+    expect(all.find((l) => l.slug === 'arrays-hashing')!.background).toEqual(['complexity', 'data-in-memory'])
+    expect(all.find((l) => l.slug === 'caching')!.background).toEqual(['memory-hierarchy'])
+    expect(all.find((l) => l.slug === 'replication-sharding')!.background).toEqual(['transactions-isolation'])
     const CSF: Record<string, { prerequisites: string[]; exercises: string[] }> = {
       complexity: { prerequisites: [], exercises: ['complexity-quiz', 'diagnose-slow-growth'] },
       'data-in-memory': { prerequisites: ['complexity'], exercises: ['data-in-memory-quiz', 'diagnose-shared-mutation'] },

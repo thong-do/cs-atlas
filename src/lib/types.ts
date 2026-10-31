@@ -7,7 +7,7 @@ export interface ModuleMeta { slug: string; title: string; lessons: string[]; co
 export interface TrackMeta { slug: string; title: string; summary: string; order: number; modules: ModuleMeta[] }
 export interface LessonMeta {
   slug: string; track: string; title: string; summary: string; level: Level; authors: string[]
-  prerequisites: string[]; confusedWith: string[]; triggers: string[]; complexity?: string
+  prerequisites: string[]; background: string[]; confusedWith: string[]; triggers: string[]; complexity?: string
 }
 export type ExerciseType = 'external-problem' | 'quiz' | 'design-prompt' | 'estimate'
 interface ExerciseBase {

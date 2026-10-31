@@ -5,7 +5,7 @@ const ALGO_SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfall
 const OTHER_SECTIONS = ['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks']
 
 const lesson = (slug: string, track = 'algorithms', o: Partial<LessonInput> = {}): LessonInput => ({
-  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith: [],
+  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], background: [], confusedWith: [],
   triggers: track === 'algorithms' ? ['t'] : [], complexity: track === 'algorithms' ? 'O(n)' : undefined,
   headings: track === 'algorithms' ? ALGO_SECTIONS : OTHER_SECTIONS,
   path: `tracks/${track}/lessons/${slug}`, raw: '', ...o,
@@ -51,6 +51,7 @@ const valid = (): ContentInput => ({
   exercises: [
     exercise('p1', ['aaa']),
     exercise('p2', ['bbb', 'ccc'], { leetcodeId: 2 }),
+    exercise('p9', ['ccc'], { leetcodeId: 9 }),
   ],
 })
 
@@ -107,7 +108,7 @@ describe('validateContent', () => {
     expect(validateContent(c)).toContain('[V4] content/tracks/system-design/track.yaml: module "m2" needs at least one lesson or comingSoon title')
   })
 
-  it('V5: prerequisites, confusedWith and exercise lessons must exist', () => {
+  it('V5: prerequisites, background: [], confusedWith and exercise lessons must exist', () => {
     const c = valid()
     c.lessons[1] = lesson('bbb', 'algorithms', { prerequisites: ['zzz'], confusedWith: ['yyy'] })
     c.exercises[0] = exercise('p1', ['aaa', 'nope'])
@@ -184,8 +185,8 @@ describe('validateContent', () => {
     const c = valid()
     c.exercises = [exercise('p1', ['aaa'])]
     const errors = validateContent(c)
-    expect(errors).toContain('[V10] content/tracks/algorithms/lessons/bbb.mdx: no exercise lists this lesson')
-    expect(errors).toContain('[V10] content/tracks/system-design/lessons/ccc.mdx: no exercise lists this lesson')
+    expect(errors).toContain('[V10] content/tracks/algorithms/lessons/bbb.mdx: no exercise has this lesson first')
+    expect(errors).toContain('[V10] content/tracks/system-design/lessons/ccc.mdx: no exercise has this lesson first')
   })
 
   it('V11: exercise slugs and LeetCode ids are unique and URLs are on leetcode.com', () => {
@@ -233,6 +234,21 @@ describe('validateContent', () => {
       rubric: [{ id: 'r', point: 'x' }, { id: 'r', point: 'y' }, { id: 's', point: 'z' }],
     }))
     expect(validateContent(c)).toContain('[V13] content/exercises/d1.yaml: duplicate rubric id "r"')
+  })
+
+  it('V10: a lesson listed only as a secondary lesson cannot be mastered', () => {
+    const c = valid()
+    c.exercises = [exercise('p1', ['aaa', 'bbb'])]
+    expect(validateContent(c)).toContain('[V10] content/tracks/algorithms/lessons/bbb.mdx: no exercise has this lesson first')
+  })
+
+  it('V5: background must be a real lesson in another track', () => {
+    const c = valid()
+    c.lessons[0] = lesson('aaa', 'algorithms', { background: ['zzz', 'bbb', 'ccc'] })
+    const errors = validateContent(c)
+    expect(errors).toContain('[V5] content/tracks/algorithms/lessons/aaa.mdx: unknown background "zzz"')
+    expect(errors).toContain('[V5] content/tracks/algorithms/lessons/aaa.mdx: background "bbb" is in the same track; use prerequisites')
+    expect(errors.filter((e) => e.includes('"ccc"'))).toEqual([])
   })
 
   it('V10 is satisfied by a quiz', () => {

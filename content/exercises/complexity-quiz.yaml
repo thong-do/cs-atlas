@@ -20,7 +20,7 @@ questions:
     answer: 0
     explanation: "Resizes at sizes 2, 6 and 18 copy 26 elements for 50 appends, and the same geometric argument holds for any growth factor above 1. Three resizes is the right count but not the cost per append; the 19th append is expensive, yet amortized cost averages over the whole sequence; and the geometric sum quoted for tripling is not how copies are counted."
   - id: log-base
-    prompt: "A capacity plan assumes a lookup in a sorted array of 1,000,000 ids costs about 20 probes (binary search). A colleague proposes a 4-way search structure with about 10 levels, where each level may take up to 3 comparisons. How should the plan treat it?"
+    prompt: "A capacity plan assumes a lookup in a sorted array of 1,000,000 ids costs about 20 probes (binary search). A colleague proposes a 4-way search structure with about 10 levels, where each level may take up to 3 comparisons. Is this a new complexity class, and how should the plan treat it?"
     choices: ["Yes, a new class: log₄ n grows more slowly than log₂ n, so it wins at every input size", "No new class, and it is certainly faster, since depth halves from 20 levels to 10 levels", "Both are O(1) in practice, since 20 and 10 are tiny constants, so the plan needs no change at all", "Same O(log n) class: up to 30 comparisons against 20, so measure before assuming it is faster"]
     answer: 3
     explanation: "log₄ n is log₂ n halved, a constant factor, so the class does not change, and 10 levels with up to 3 comparisons each can cost more than 20 single probes. Depth alone does not decide speed, and calling both O(1) mislabels a cost that still grows with n."

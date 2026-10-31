@@ -22,6 +22,8 @@ Sorted arrays are the obvious case. The bigger idea is **binary search on the an
 
 <Visualizer kind="binary-search" />
 
+This traces the `search` template below on `ok(i) = nums[i] >= 9`. The range is half-open, `[lo, hi)`, so `hi` starts one past the last index (the `end` cell) and is never tested. A `True` at `mid` doesn't stop the search: `hi = mid` keeps looking for an earlier one, until `lo` meets `hi` at the first `True`.
+
 ## Template
 
 ```python

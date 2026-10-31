@@ -23,6 +23,8 @@ A process is a rented flat; threads are the people living in it. The flat has it
 
 **CPython's GIL.** In the default CPython build, a global interpreter lock lets only one thread run Python bytecode at a time. So threads do not speed up CPU-bound pure-Python work, but they do help I/O-bound work, because a thread waiting on a socket releases the lock. Free-threaded builds exist since Python 3.13 but are experimental there; check your version. For CPU-bound Python, use processes.
 
+**Little's law: how many at once?** In a stable system, the average number of things in progress equals the arrival rate times the average time each one stays: **L = λ × W**. It sizes any pool of workers or connections. A service sends 400 queries/s, and each holds a database connection for 5 ms: 400 × 0.005 = 2 connections busy on average. Turned around, a pool of 10 can finish at most 10 ÷ 0.005 = 2,000 queries/s. Arrivals above that rate cannot be served as they come, so they wait in a queue. Averages hide bursts, so leave headroom.
+
 ## Visual
 
 ```text

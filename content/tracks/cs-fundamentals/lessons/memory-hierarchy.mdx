@@ -43,6 +43,8 @@ Scaling 1 ns to 1 s, 100 ns becomes 100 s, and 100 ÷ 60 ≈ 1.7 minutes: a DRAM
 
 **Writes.** Most CPU caches are **write-back**: a store marks the cached line dirty, and it goes to the next level only on eviction. A store to an uncached line usually loads it first.
 
+**Coherence and false sharing.** Several cores can hold a copy of a line for reading, but a core must own the line alone to write any byte in it, so its write invalidates the other copies (protocols such as MESI do this). The next core to touch the line must get it back, a transfer of tens of nanoseconds (illustrative) against about 1 ns for an L1 hit. **False sharing** is paying that price for data that is not shared. A queue object with `head`, written by the consumer, next to `tail`, written by the producer, shares no variable, yet the line bounces between the two cores on every update. On Linux, `perf c2c` finds this: it reports HITM events (a load that hit a line modified in another core's cache) per line.
+
 **Same Big-O, different speed.** [Complexity & Big-O](/cs-fundamentals/complexity/) drops constants; the hierarchy is where they live.
 
 - **Array vs linked list.** Summing 1,000,000 4-byte ints in an array reads 4,000,000 B ÷ 64 B = 62,500 lines, in order. A linked list of 1,000,000 nodes has the same O(n) loop, but its nodes may be scattered and each address comes from the previous node, so loads cannot overlap. At an illustrative ~100 ns per DRAM trip, if each node misses to DRAM, that is 1,000,000 × 100 ns = 100 ms, far more than the array's streaming read.

@@ -15,7 +15,7 @@ prompt: |
 hint: "Ask which certificates the server actually sends in the handshake, and what a client needs in hand to link the server's certificate to a root it already trusts."
 rubric:
   - id: cause
-    point: "Identifies the cause and quantifies it: the job installed `cert.pem` (the leaf only) instead of `fullchain.pem`, so the server sends no intermediate certificate; 35% of 40,000 requests per minute is 14,000 failures per minute."
+    point: "Identifies the cause and quantifies it: the job installed the leaf certificate without its intermediates (for example `cert.pem` instead of `fullchain.pem`), so the server sends no intermediate certificate; 35% of 40,000 requests per minute is 14,000 failures per minute."
   - id: chain
     point: "Explains chain building: the client verifies leaf, intermediate, root up to a root in its trust store, and the trust store holds roots, not intermediates, so the server must send the intermediates for the client to link its leaf to a root."
   - id: browsers
@@ -23,9 +23,9 @@ rubric:
   - id: confirm
     point: "Shows how to confirm it: `openssl s_client -connect host:443 -servername host -showcerts` lists only the certificate at depth 0 and ends with a verify error, where a correct server shows the intermediate at depth 1 too."
   - id: fixes
-    point: "Gives fixes and rejects the trust-store workaround: serve `fullchain.pem`, add a deploy-time check that the chain verifies, monitor from a non-browser client; installing the intermediate in every client's trust store is wrong because it touches every client, partners included, and breaks again at the next intermediate change."
+    point: "Gives fixes and rejects the trust-store workaround: serve the full chain (for example `fullchain.pem`), add a deploy-time check that the chain verifies, monitor from a non-browser client; installing the intermediate in every client's trust store is wrong because it touches every client, partners included, and breaks again at the next intermediate change."
 reference: |
-  **Cause.** The renewal job installed `cert.pem`, the leaf alone, instead of `fullchain.pem`. The server now sends only its own certificate. Impact: 35% x 40,000 = 14,000 failing requests per minute, while the remaining 26,000 (65%) succeed.
+  **Cause.** The renewal job installed the leaf alone (for example `cert.pem` instead of `fullchain.pem`). The server now sends only its own certificate. Impact: 35% x 40,000 = 14,000 failing requests per minute, while the remaining 26,000 (65%) succeed.
 
   **Chain building.** A client trusts roots in its trust store. It must link the leaf to one of them through a chain: leaf, signed by an intermediate, signed by a root. Trust stores hold roots, not intermediates, so the server must send the intermediates. With none, the client cannot connect the leaf to any root and rejects it ("unable to get local issuer certificate", "PKIX path building failed").
 
@@ -34,7 +34,7 @@ reference: |
   **Confirm.** Run `openssl s_client -connect host:443 -servername host -showcerts`. It prints only the depth 0 certificate and a verify error; a correct chain also lists depth 1.
 
   **Fixes.**
-  - Serve `fullchain.pem` (leaf plus intermediates) and reload the server. This fixes the cause for every client.
+  - Serve the full chain, leaf plus intermediates (for example `fullchain.pem`), and reload the server. This fixes the cause for every client.
   - Add a deploy-time check that fetches the served chain and verifies it against a roots-only trust store.
   - Monitor from a non-browser client, so a browser's tolerance cannot hide the fault.
 

@@ -93,7 +93,7 @@ def gas_station(gas: list[int], cost: list[int]) -> int:
 
 ## Pitfalls
 
-- Using greedy without a reason it's safe. Coin Change with arbitrary coins, 0/1 knapsack and Longest Increasing Subsequence look greedy but need **DP**.
+- Using greedy without a reason it's safe. Coin Change with arbitrary coins and 0/1 knapsack look greedy but need **DP**. Longest Increasing Subsequence also defeats "take the next larger element"; its O(n log n) method pairs a greedy update with binary search ([1-D DP](/algorithms/dp-1d/)).
 - Kadane with `best = 0` as the start — an all-negative array then returns 0 instead of its largest element.
 - Jump Game II: looping to the last index and counting one jump too many — stop at `len(nums) - 1`.
 - Gas Station: forgetting the total-fuel check, which is what makes "restart after the failure point" correct.

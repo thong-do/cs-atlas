@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const PAGES = [
   { path: '/algorithms/heap/', final: 'Done: popped 1, 3 — heap is [4, 5, 8]' },
+  { path: '/algorithms/binary-search/', final: 'lo = hi = 4: the first value >= 9 is nums[4] = 9 — found it!' },
   { path: '/algorithms/dp-2d/', final: 'LCS length = 3' },
   { path: '/algorithms/dp-1d/', final: 'Best total = 12' },
   { path: '/algorithms/backtracking/', final: 'All 8 subsets found' },

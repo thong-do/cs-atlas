@@ -25,6 +25,8 @@ Two kinds:
 
 <Visualizer kind="sliding-window" />
 
+The visualizer jumps `left` straight past the repeated character, a shortcut that works for this problem. The template below shrinks one step at a time with a count map, which works for any rule. Both end up with the same windows.
+
 ## Template
 
 ```python
@@ -63,7 +65,7 @@ def max_sum_of_size_k(nums: list[int], k: int) -> int:
 
 ## Tips & tricks
 
-- **Longest** window: shrink while invalid, record after the loop body.
+- **Longest** window: shrink while invalid, record after the shrink loop.
 - **Shortest** window: shrink while still valid, record inside the shrink loop.
 - Character Replacement: a window is valid while `length - max_freq <= k`; `max_freq` never needs to decrease.
 - Sliding Window Maximum: keep a **monotonic deque** of indices with decreasing values.

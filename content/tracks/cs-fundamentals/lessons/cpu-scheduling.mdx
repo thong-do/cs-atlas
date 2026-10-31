@@ -29,6 +29,8 @@ A scheduler is a receptionist at a clinic with one doctor. Patients arrive, wait
 
 **Context-switch overhead.** Each switch (see [Processes & threads](/cs-fundamentals/processes-threads/)) is pure overhead: no useful work happens during it, and the next thread often starts with cold caches. Direct cost is often a few microseconds, varying widely by hardware and OS.
 
+**CPU quotas (cgroups).** Containers usually get a CPU limit through a Linux cgroup: a **quota** of CPU time per **period**, often 100 ms, summed across all the group's threads on all cores. A limit of 0.5 CPU is 50 ms of quota per 100 ms period. It is a budget, not a share of one core: 5 busy threads spend it in 10 ms of wall time, and then none of them runs for the other 90 ms, even if the host has idle cores. That wait is **throttling**. The group's `cpu.stat` file counts it: `nr_periods`, `nr_throttled` and the time throttled (`throttled_usec` on cgroup v2, `throttled_time` on v1).
+
 **Load average.** The three numbers from `uptime` are averages over 1, 5 and 15 minutes. On Linux they count threads that are runnable *plus* threads in uninterruptible sleep, usually waiting on disk or network storage; other Unix systems count only runnable ones.
 
 **Priority inversion.** If a low-priority thread holds a lock that a high-priority thread needs, the high-priority one must wait. If a medium-priority thread then keeps the core busy, the low one never runs to release the lock, so the high-priority thread is effectively blocked behind the medium one. Priority inheritance (the lock holder temporarily borrows the waiter's priority) is one fix (see [Concurrency primitives](/cs-fundamentals/concurrency-primitives/)).

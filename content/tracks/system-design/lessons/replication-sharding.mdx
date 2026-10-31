@@ -73,7 +73,7 @@ CREATE TABLE comments (
 **The viral post.** One post draws thousands of reads and writes per second, and all of them hit its single shard. Mitigations:
 - Cache the first page of comments (the usual fix for reads).
 - **Salt** the key for writes: give each new comment `salt = hash(comment_id) mod 8`. Routing hashes `(post_id, salt)`, so the post's 8 sub-keys land in up to 8 routing buckets and so on several servers (sub-keys can collide, and 4 servers can split the load at most 4 ways). The cost is that "most recent 20" now **fans out** to 8 sub-keys, merges and sorts. Salt only posts flagged as hot.
-- **Keep the flag until the old sub-keys are drained.** Comments already written under salts 1–7 stay there, so a reader that stopped fanning out would lose them. A post stays salted, or you first migrate its rows back to salt 0 and only then clear the flag. When flagging a post, tell readers before writers, so no reader misses a salted write. Older comments at salt 0 need no move: salt 0 is one of the 8 sub-keys.
+- **Keep the flag until the old sub-keys are drained.** Comments already written under salts 1–7 stay there, so a reader that stopped fanning out would lose them. A post stays salted, or you stop salting new writes, migrate its rows back to salt 0, and only then let readers stop fanning out. When flagging a post, tell readers before writers, so no reader misses a salted write. Older comments at salt 0 need no move: salt 0 is one of the 8 sub-keys.
 
 ```python
 SALTS = 8

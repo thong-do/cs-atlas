@@ -33,14 +33,14 @@ Two clerks share one paper ledger. Each copies a line's balance onto scrap paper
 The standard's table says nothing about lost updates or write skew, and engines differ from it:
 
 - **PostgreSQL** defaults to READ COMMITTED. It treats READ UNCOMMITTED as READ COMMITTED, so it never shows dirty reads. Its REPEATABLE READ is **snapshot isolation**: one snapshot for the whole transaction, which also prevents phantoms and turns a lost update into an error, but **still allows write skew**. Its SERIALIZABLE uses a technique called SSI and may abort a transaction with a **serialization failure** (SQLSTATE `40001`) that the application must retry.
-- **MySQL InnoDB** defaults to REPEATABLE READ. It also keeps a snapshot for plain reads, but `UPDATE` and locking reads act on the latest committed row, so do not assume Postgres behaviour. A plain read followed by a write of the computed value **silently loses an update**, with no error. Locking reads take next-key (gap) locks, which stop other transactions inserting phantoms into the range they cover.
+- **MySQL InnoDB** defaults to REPEATABLE READ. It also keeps a snapshot for plain reads, but `UPDATE` and locking reads act on the latest committed row, so do not assume Postgres behaviour. So a plain read followed by a write of the computed value **can lose an update**: the read comes from the snapshot, while the write acts on the latest row. Use a locking read when the value matters. Locking reads over a range take gap or next-key locks, which stop other sessions inserting into the range they scan. Its SERIALIZABLE turns plain `SELECT`s into `FOR SHARE` locking reads when autocommit is off.
 
 | Engine and level | Phantom read | Lost update (read, then write) | Write skew |
 |---|---|---|---|
 | Postgres READ COMMITTED | allowed | allowed | allowed |
 | Postgres REPEATABLE READ | no | no: aborts with `40001` | **allowed** |
 | Postgres SERIALIZABLE | no | no | no |
-| InnoDB REPEATABLE READ | no within plain reads or within locking reads | **allowed, silently** | allowed |
+| InnoDB REPEATABLE READ | no within plain reads or within locking reads | **possible with plain reads** | possible with plain reads |
 | InnoDB SERIALIZABLE | no | no | no |
 
 SERIALIZABLE means the outcome equals some one-at-a-time order of the transactions. It prevents every anomaly of concurrent execution, at the cost of aborts and retries. So REPEATABLE READ and SERIALIZABLE are not equally safe, even in Postgres. SERIALIZABLE is not linearizability: see [Consistency models](/system-design/consistency-models/). Spanning several databases is a different problem: [Distributed transactions](/system-design/distributed-transactions/).
@@ -125,13 +125,13 @@ final: nobody is on call, and no error was raised
 
 Snapshot isolation only looks for two transactions writing the **same row**. These two wrote different rows, each from a snapshot where the rule still held, so nothing conflicts. No one-at-a-time order gives this result: whoever ran second would have counted 1 and refused.
 
-At SERIALIZABLE, Postgres also tracks reads. Session A read a row that B wrote, and B read a row that A wrote. SSI watches for that pattern, so it aborts one with `40001`. The retry counts 1 and refuses. The cost: retries, including some aborts that were not strictly needed. Another fix is to lock what the decision reads (`SELECT … WHERE on_call FOR UPDATE`, counting the rows in the application), but every code path must do it.
+At SERIALIZABLE, Postgres also tracks reads. Session A read a row that B wrote, and B read a row that A wrote. SSI watches for that pattern, so it aborts one with `40001`. The retry counts 1 and refuses. The cost: retries, including some aborts that were not strictly needed. Another fix, at READ COMMITTED, is to lock what the decision reads (`SELECT … WHERE on_call FOR UPDATE`, counting the rows in the application), so the second session waits and then counts 1. At REPEATABLE READ it gets `40001` instead and must retry. Every code path must do it, and it only works if the rows exist: a check that finds no rows locks nothing, so lock a parent row instead.
 
 ## Pitfalls
 
 - **Read in the application, then write an absolute value.** Two requests overwrite each other. Fix: use `SET x = x - 1` with a condition, or lock the row with `FOR UPDATE`.
 - **Assuming one engine's level behaves like another's.** Postgres and InnoDB differ at REPEATABLE READ, and the standard's table is not either engine. Fix: read your engine's documentation and test the interleaving with two sessions.
-- **Treating REPEATABLE READ as safe for every check-then-write.** It stops two writes to one row, but not write skew. Fix: use SERIALIZABLE with retries, lock what the decision reads, or put the rule in a constraint.
+- **Treating REPEATABLE READ as safe for every check-then-write.** It stops two writes to one row, but not write skew. Fix: use SERIALIZABLE with retries, lock the rows or a parent row the decision depends on, or put the rule in a constraint.
 - **A transaction open across a network call.** Row locks and the snapshot are held for the whole round trip, so waiters queue and cleanup stalls. Fix: do slow work before `BEGIN` or after `COMMIT`.
 - **Locking rows in different orders.** Two jobs that touch the same rows in opposite order deadlock, and one is aborted. Fix: lock in a consistent order, such as by id, and retry the aborted transaction.
 - **Using a stronger level without retries.** `40001` is a normal signal. Fix: wrap the transaction in a loop that re-runs it from the start.

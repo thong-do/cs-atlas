@@ -11,7 +11,7 @@ questions:
     explanation: "The counter resets at the window edge, so each side of the edge gets a full allowance. A fixed window can therefore pass up to 2× the limit across a boundary."
   - id: token-bucket-burst
     prompt: "A token bucket has capacity 10 and refills 2 tokens/s. It has been idle for a long time, then 30 requests arrive at the same instant. About how many pass?"
-    choices: ["30, because 2 tokens/s accumulate over the idle period without a cap", "10, the full bucket; the other 20 are rejected until more tokens refill", "2, because the refill rate is the most that can pass at one moment", "15, because a burst may use half of the capacity plus one second of refill"]
+    choices: ["30, because 2 tokens/s accumulate over the idle period without a cap", "10, the full bucket; the other 20 are rejected until more tokens refill", "2, because the refill rate is the most that can pass at one moment", "7, because a burst may use half of the capacity plus one second of refill"]
     answer: 1
     explanation: "Tokens stop accumulating at the capacity, so the largest instant burst equals the capacity. After that, only the refill rate lets requests through."
   - id: redis-race

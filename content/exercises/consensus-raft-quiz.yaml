@@ -6,7 +6,7 @@ ladderOrder: 1
 questions:
   - id: vote-decision
     prompt: "A candidate asks for a vote in term 7. Its last log entry is from term 4 at index 6. The voter has not yet voted in term 7, and its own last entry is from term 3 at index 11. What does the voter do?"
-    choices: ["Rejects it, because its own log is longer and so holds more committed entries", "Rejects it, because a vote is only granted to the node with the highest index", "Grants the vote, because the candidate's last log term is higher, which outranks length", "Grants the vote, because it has not voted in term 7 and the candidate's term is newer"]
+    choices: ["Rejects it, because its own log is longer and so holds more committed entries", "Rejects it, because a vote is only granted to the node with the highest index", "Grants the vote, because the candidate's last log term is higher, which outranks length", "Grants the vote, because it has not voted in term 7 and any newer-term candidate wins"]
     answer: 2
     explanation: "A voter compares the term of the last entry first and the length only on a tie, so the term-4 log is more up to date. The two rejections rank by length alone, and a free vote is not enough, since the log check still applies."
   - id: six-nodes

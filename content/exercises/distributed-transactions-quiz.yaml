@@ -26,7 +26,7 @@ questions:
     explanation: "Each step commits and is visible at once, so a saga has no isolation across steps; a pending status tells readers the booking is provisional. Local isolation covers one step only, and the outbox and the choice of orchestration or choreography do not hide committed intermediate states."
   - id: restart-with-decision
     prompt: "A 2PC coordinator collects YES from both participants and writes COMMIT to its log. It crashes after telling the first participant to commit, before telling the second. What happens on restart?"
-    choices: ["It sends ABORT, because a participant may not have received COMMIT and presumed abort is the safe default", "It starts a new prepare round, since the old votes expired when the coordinator went down", "It waits for the second participant to time out and abort itself, then rolls back to match", "It re-sends COMMIT, because the logged decision is the commit point and one participant has committed"]
+    choices: ["It sends ABORT, because a participant may have missed COMMIT and presumed abort is the safe default", "It starts a new prepare round, since the old votes expired when the coordinator went down", "It waits for the second participant to time out and abort itself, then rolls back to match", "It re-sends COMMIT, because the logged decision is the commit point and one participant has committed"]
     answer: 3
     explanation: "The logged decision fixed the outcome; presumed abort applies only when no decision is logged. Aborting or re-voting would contradict the participant that already committed, and the second participant is prepared and cannot abort on its own."
 flashcards:

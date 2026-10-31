@@ -26,7 +26,7 @@ questions:
     explanation: "NAT means the server sees one address for many people, so a per-IP limit is shared unfairly; an API key separates them. A /64 prefix is for IPv6, not NAT."
   - id: retry-after-backoff
     prompt: "A client receives 429 Too Many Requests with Retry-After: 7. What should a well-behaved client do?"
-    choices: ["Retry at once, because a 429 only means the server was briefly busy for a moment", "Wait at least 7 seconds, then retry, adding random jitter to later waits", "Retry every 7 seconds forever, because the header sets a fixed retry interval", "Switch to another API key, since the current key is now banned for good"]
+    choices: ["Retry at once, because a 429 only means the server was briefly busy for a moment", "Wait at least 7 seconds, then retry, adding jitter to later waits", "Retry every 7 seconds forever, because the header sets a fixed retry interval", "Switch to another API key, since the current key is now banned for good"]
     answer: 1
     explanation: "Retry-After says when the server expects to accept requests again, as seconds or an HTTP-date. Adding jitter keeps many clients from retrying in lockstep."
 flashcards:

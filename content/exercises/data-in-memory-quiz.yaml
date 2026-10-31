@@ -16,7 +16,7 @@ questions:
     explanation: "The cap counts encoded bytes, so cut the bytes and drop any partly cut trailing character. `body[:100]` can still produce up to 400 bytes, `sys.getsizeof` includes the string object's own header, and a plain decode raises an error when the cut lands inside a multi-byte character."
   - id: array-address
     prompt: "A game stores 16-byte entities in one contiguous array whose first entity starts at address 0x8000. How does the engine locate entity 300?"
-    choices: ["Directly: 0x8000 + 300 × 16 = 0x92C0, one multiply and one add whatever the index", "At 0x8000 + 300 = 0x812C, because an index is a byte offset into the array", "By walking from the first entity, since the array records only where entity 0 starts and each entity has to be stepped over in turn", "Through a lookup table kept beside the array, because each entity is its own allocation and sits wherever the allocator found room"]
+    choices: ["Directly: 0x8000 + 300 × 16 = 0x92C0, one multiply and one add", "At 0x8000 + 300 = 0x812C, because an index is a byte offset into the array", "By walking from the first entity, since the array records only where entity 0 starts and each entity has to be stepped over in turn", "Through a lookup table kept beside the array, because each entity is its own allocation and sits wherever the allocator found room"]
     answer: 0
     explanation: "In a contiguous array every entity is the same size, so its address is base + index × size: 0x8000 + 4,800 = 0x92C0. An index counts items, not bytes; a walk or a lookup table describes linked or separately allocated nodes, not an array."
   - id: wire-byte-order

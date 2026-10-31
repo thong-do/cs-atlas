@@ -77,7 +77,7 @@ questions:
     choices:
       - "The slow 2% lift the mean only to about 49 ms, yet about 40% of page views include a 500 ms call"
       - "p99 leaves out the slow 2% of requests as outliers, so it stays steadier than the mean"
-      - "The mean cannot be combined across servers, while p99 values from several servers can be averaged"
+      - "The mean cannot be combined across servers, while p99 values from several can be averaged"
       - "p99 is cheaper to compute, since each server only has to keep its slowest 1% of timings"
     answer: 0
     explanation: "The mean is 0.98 × 40 + 0.02 × 500 = 39.2 + 10 ≈ 49 ms, which looks healthy, while p99 is 500 ms because more than 1% of calls are slow. A page with 25 calls avoids every slow one only 0.98²⁵ ≈ 0.60 of the time, so about 40% of page views wait on a 500 ms call."

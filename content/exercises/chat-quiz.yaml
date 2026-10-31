@@ -6,7 +6,7 @@ ladderOrder: 1
 questions:
   - id: gateway-sizing
     prompt: "A messenger expects 4 M concurrent connections at peak. Load tests suggest one gateway holds about 80,000 connections comfortably, and the team wants gateways to run at about 70% of that. Roughly how many gateways?"
-    choices: ["About 35, from 4 M ÷ 80,000 = 50 gateways, then × 0.7 to leave headroom", "About 72, from 4 M ÷ 80,000 = 50 gateways, then ÷ 0.7 to run at 70% load", "About 50, from 4 M ÷ 80,000, because the load balancer already absorbs headroom", "About 500, from 4 M ÷ 80,000 = 50 gateways, then × 10 for the peak message rate"]
+    choices: ["About 35, from 4 M ÷ 80,000 = 50 gateways, then × 0.7 to leave headroom", "About 72, from 4 M ÷ 80,000 = 50 gateways, then ÷ 0.7 for 70% load", "About 50, from 4 M ÷ 80,000, because the load balancer already absorbs headroom", "About 500, from 4 M ÷ 80,000 = 50 gateways, then × 10 for the peak message rate"]
     answer: 1
     explanation: "Connection count sizes the fleet: 4 M ÷ 80,000 = 50 at full load, and running each at 70% needs 50 ÷ 0.7 ≈ 71.4, so 72. Multiplying by 0.7 shrinks the fleet, and the balancer cannot add socket capacity."
   - id: group-ordering

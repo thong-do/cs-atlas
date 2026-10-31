@@ -16,7 +16,7 @@ questions:
     explanation: "8 × 10⁸ ÷ 10⁷ = 80 s. Four workers would still need about 20 s, and counting cycles ignores that each interpreted comparison costs many of them; 0.8 s comes from misplacing a factor of 100."
   - id: array-append-cost
     prompt: "A dynamic array starts with capacity 2 and triples its capacity whenever it is full, copying the old elements across. You append 50 items. What does the cost look like?"
-    choices: ["2 + 6 + 18 = 26 element copies in total, so the per-append average stays constant as n grows", "Resizes happen at 2, 6 and 18 items, so there are only 3 of them and each append costs O(log n) amortized", "The 19th append copies 18 items, so one costly append means append cannot be called O(1) in any sense", "Tripling means about 50 + 50/3 + 50/9 + … ≈ 75 copies, so it costs more than doubling would"]
+    choices: ["2 + 6 + 18 = 26 copies in total, so the per-append average stays constant as n grows", "Resizes happen at 2, 6 and 18 items, so there are only 3 of them and each append costs O(log n) amortized", "The 19th append copies 18 items, so one costly append means append cannot be called O(1) in any sense", "Tripling means about 50 + 50/3 + 50/9 + … ≈ 75 copies, so it costs more than doubling would"]
     answer: 0
     explanation: "Resizes at sizes 2, 6 and 18 copy 26 elements for 50 appends, and the same geometric argument holds for any growth factor above 1. Three resizes is the right count but not the cost per append; the 19th append is expensive, yet amortized cost averages over the whole sequence; and the geometric sum quoted for tripling is not how copies are counted."
   - id: log-base

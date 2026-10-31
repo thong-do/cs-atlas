@@ -73,4 +73,12 @@ describe('validatePlacements', () => {
     c.lessons = [{ slug: 'placement', path: 'tracks/cs/lessons/placement' } as ContentInput['lessons'][number]]
     expect(validatePlacements([], c)).toEqual(['[V14] content/tracks/cs/lessons/placement.mdx: the slug "placement" is reserved for the placement quiz route'])
   })
+
+  it('V16: flags a placement file whose right answers give away their length', () => {
+    const cue = (module: string) => q(module, { choices: ['a', 'aa', 'aaa', 'aaaa'], answer: 1 })
+    const errors = validatePlacements([file('cs', [cue('m1'), cue('m1'), cue('m2'), cue('m2'), cue('m2')])], content())
+    expect(errors).toHaveLength(2)
+    expect(errors[0]).toContain('[V16] content/placement/cs.yaml: rule (a)')
+    expect(errors[1]).toContain('[V16] content/placement/cs.yaml: rule (b)')
+  })
 })

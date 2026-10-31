@@ -3,7 +3,7 @@ import type { LessonMeta, TrackMeta } from '@/lib/types'
 import { layoutBands, layoutRoadmap } from './roadmap-layout'
 
 const p = (slug: string, prerequisites: string[] = []): LessonMeta => ({
-  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, confusedWith: [], triggers: ['t'], complexity: 'O(n)',
+  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, background: [], confusedWith: [], triggers: ['t'], complexity: 'O(n)',
 })
 
 describe('layoutRoadmap', () => {
@@ -28,7 +28,7 @@ describe('layoutRoadmap', () => {
 
 describe('layoutBands', () => {
   const L = (slug: string, track: string, prerequisites: string[] = []): LessonMeta => ({
-    slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, confusedWith: [], triggers: [],
+    slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, background: [], confusedWith: [], triggers: [],
   })
   const T = (slug: string, order: number, lessons: string[]): TrackMeta => ({
     slug, title: slug.toUpperCase(), summary: 's', order, modules: [{ slug: 'm', title: 'M', lessons, comingSoon: [] }],

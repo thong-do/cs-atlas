@@ -44,8 +44,9 @@ export function lessonMastery(lesson: LessonMeta, input: MasteryInput): number {
 
   // Only the trainer's track has recognition data; elsewhere mastery is the exercise score alone.
   if (lesson.track !== TRAINER_TRACK) return Math.round(100 * exerciseScore)
+  // The trainer can only help: a learner who never uses it can still master the lesson.
   const recognitionScore = recognitionAccuracy(input.attempts, lesson.slug) ?? 0
-  return Math.round(100 * (0.7 * exerciseScore + 0.3 * recognitionScore))
+  return Math.round(100 * Math.max(exerciseScore, 0.7 * exerciseScore + 0.3 * recognitionScore))
 }
 
 export function computeMasteries(lessons: LessonMeta[], input: MasteryInput): Map<string, number> {

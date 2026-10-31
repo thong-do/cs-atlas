@@ -54,6 +54,11 @@ export default async function LessonPage({ params }: { params: Promise<{ track: 
               Builds on: <LessonLinks slugs={doc.prerequisites} lessonOf={lessonOf} />
             </p>
           )}
+          {doc.background.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Helpful background: <LessonLinks slugs={doc.background} lessonOf={lessonOf} />
+            </p>
+          )}
           <MasteryBadge slug={slug} />
         </header>
 

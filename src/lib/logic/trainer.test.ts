@@ -4,7 +4,7 @@ import { mulberry32, shuffle } from './rng'
 import { buildQuestion, buildRound, pickDistractors, pickTrainExercises } from './trainer'
 
 const p = (slug: string, confusedWith: string[] = []): LessonMeta => ({
-  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith, triggers: ['t'], complexity: 'O(n)',
+  slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], background: [], confusedWith, triggers: ['t'], complexity: 'O(n)',
 })
 const prob = (slug: string, pattern: string, prompt = 'a prompt'): ProblemExercise => ({
   slug, type: 'external-problem', title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/', difficulty: 'easy',

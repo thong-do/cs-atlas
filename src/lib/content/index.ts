@@ -29,6 +29,7 @@ function toLessonMeta(l: LessonMeta): LessonMeta {
     level: l.level,
     authors: l.authors,
     prerequisites: l.prerequisites,
+    background: l.background,
     confusedWith: l.confusedWith,
     triggers: l.triggers,
     ...(l.complexity ? { complexity: l.complexity } : {}),

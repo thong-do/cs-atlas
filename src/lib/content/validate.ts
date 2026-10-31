@@ -94,6 +94,10 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
   for (const l of lessons) {
     for (const ref of l.prerequisites) if (!known(ref)) err('V5', lessonFile(l), `unknown prerequisite "${ref}"`)
     for (const ref of l.confusedWith) if (!known(ref)) err('V5', lessonFile(l), `unknown confusedWith "${ref}"`)
+    for (const ref of l.background) {
+      if (!known(ref)) err('V5', lessonFile(l), `unknown background "${ref}"`)
+      else if (bySlug.get(ref)?.track === l.track) err('V5', lessonFile(l), `background "${ref}" is in the same track; use prerequisites`)
+    }
   }
 
   // V6 — no prerequisite cycles
@@ -180,16 +184,16 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
       continue
     }
     for (const ref of e.lessons) {
-      if (known(ref)) practised.add(ref)
-      else err('V5', file, `unknown lesson "${ref}"`)
+      if (!known(ref)) err('V5', file, `unknown lesson "${ref}"`)
     }
+    practised.add(e.lessons[0])
     const key = `${e.lessons[0]}#${e.ladderOrder}`
     if (ladderKeys.has(key)) err('V7', file, `ladderOrder ${e.ladderOrder} is already used in "${e.lessons[0]}"`)
     ladderKeys.add(key)
   }
 
-  // V10 — every lesson is practised
-  for (const l of bySlug.values()) if (!practised.has(l.slug)) err('V10', lessonFile(l), 'no exercise lists this lesson')
+  // V10 — every lesson has an exercise that counts for its mastery
+  for (const l of bySlug.values()) if (!practised.has(l.slug)) err('V10', lessonFile(l), 'no exercise has this lesson first')
 
   return errors
 }

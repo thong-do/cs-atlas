@@ -3,7 +3,7 @@ import type { ExerciseMeta, LessonMeta, TrackMeta } from '@/lib/types'
 import { continueLesson, exercisesInTracks, lessonExercises, relatedExercises, startedTracks, trackComplete, trackLessons, trackLookup, trackMastery } from './lessons'
 
 const lesson = (slug: string, track: string): LessonMeta => ({
-  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], confusedWith: [], triggers: [],
+  slug, track, title: slug, summary: 's', level: 'beginner', authors: [], prerequisites: [], background: [], confusedWith: [], triggers: [],
 })
 const ex = (slug: string, lessons: string[]): ExerciseMeta => ({
   slug, type: 'external-problem', title: slug, leetcodeId: slug.length, url: 'https://leetcode.com/problems/x/',

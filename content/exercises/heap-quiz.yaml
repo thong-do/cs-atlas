@@ -32,7 +32,7 @@ questions:
 flashcards:
   - id: when-to-use
     front: "When does a heap fit?"
-    back: "When you repeatedly need the current smallest or largest item while items keep arriving, but never need the rest in order."
+    back: "When you repeatedly need the smallest or largest of a set that changes as you work, whether items arrive, get evicted or get replaced."
   - id: top-k-direction
     front: "Which heap keeps the k largest?"
     back: "A min-heap of size k. Its top is the smallest of the k, the one to throw out when a better item arrives."

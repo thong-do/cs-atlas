@@ -25,9 +25,9 @@ Shapes that cover the ladder:
 
 **Items that change or expire.** A heap can't find an arbitrary item quickly, since it's only partly ordered, so you can't reach in and change a value. The usual way round this is **lazy deletion**. Leave the old entry where it is, push a new one, and keep a note of what's current. When an out-of-date entry reaches the top, pop it and move on. Each entry is pushed once and popped at most once, so the cost stays O(log n) per entry, spread across the operations. It's the same idea as discarding ended ranges in Minimum Interval to Include Each Query.
 
-**When not to use it.** If you need everything in order once and nothing else arrives, sort. If you need the smallest item once, `min(nums)` is O(n) and needs no extra memory. If you need to look up or remove items by value often, a heap scans O(n) for each lookup, so pair it with a hash map or use a sorted structure.
+**When not to use it.** If you need everything in order once and nothing else arrives, sort, unless the input is already k sorted lists, where a k-way merge costs O(N log k). If you need the smallest item once, `min(nums)` is O(n) and needs no extra memory. If you need to look up or remove items by value often, a heap scans O(n) for each lookup, so pair it with a hash map or use a sorted structure.
 
-**Telling it from its neighbours.** [Binary Search](/algorithms/binary-search/) works on data that's already in order, or on an answer whose test flips once. A heap is for when the data keeps changing and you only ever need the extreme. [Greedy](/algorithms/greedy/) is a decision rule, and a heap is a tool. Many greedy algorithms need "the best option left", and that's when you reach for a heap. Whether the rule is correct is a separate question that the heap can't answer for you.
+**Telling it from its neighbours.** [Binary Search](/algorithms/binary-search/) works on data that's already in order, or on an answer whose test flips once. A heap is for when you repeatedly need the extreme of a set that changes as you work, even if that set is only a size-k window over a fixed list. [Greedy](/algorithms/greedy/) is a decision rule, and a heap is a tool. Many greedy algorithms need "the best option left", and that's when you reach for a heap. Whether the rule is correct is a separate question that the heap can't answer for you.
 
 ## Visual
 
@@ -133,7 +133,7 @@ def all_done_at(repair_hours: list[int], k: int) -> int:
 | 1 | 5 | 6 | [6, 9] |
 | 2 | 6 | 8 | [8, 9] |
 
-The answer is 9. The answer is the **largest** value left in the heap, not the top: the top only tells you which stand comes free first. The final `max` costs O(k), once, so the total is O(n log k + k) time and O(k) space.
+The answer is 9, the **largest** value left in the heap, not the top: the top only tells you which stand comes free first. The final `max` costs O(k), once, so the total is O(n log k + k) time and O(k) space.
 
 ## Complexity
 

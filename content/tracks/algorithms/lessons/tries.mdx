@@ -12,7 +12,7 @@ summary: "A tree of characters that answers prefix questions fast."
 
 ## Intuition
 
-A hash set answers "is this exact word here?" in O(1). It can't answer "which words **start with** `car`?" without checking every word. A **trie** (prefix tree) can: each edge is one character, so every path from the root spells a prefix, and words that share a prefix share the same path.
+A hash set answers "is this exact word here?" in time that doesn't depend on how many words are stored. It can't answer "which words **start with** `car`?" without checking every word. A **trie** (prefix tree) can: each edge is one character, so every path from the root spells a prefix, and words that share a prefix share the same path.
 
 Think of a phone's contact search. As you type `T`, `To`, `Tom`, the list narrows. A trie stores that narrowing directly: walking one letter deeper discards everything that doesn't match.
 
@@ -21,7 +21,7 @@ Two ideas cover the ladder:
 - **Walk the word**: insert, search and prefix-check all follow the characters one node at a time. Mark the node where a word *ends* (`is_word`), because `car` and `cart` share nodes.
 - **Walk the trie alongside something else**: a wildcard `.` tries every child; Word Search II walks the grid *and* the trie together, stopping as soon as a path isn't a prefix of any word.
 
-**When not to use it.** If you only ever ask "is this exact word here?", a hash set is simpler. A trie also costs memory: every node holds its own dictionary, so it pays off only when prefix questions are the point. If the word list never changes and you only need to find the words under a prefix, sorting it also works, because words sharing a prefix sit next to each other and binary search finds where they start.
+**When not to use it.** If you only ever ask "is this exact word here?", a hash set is simpler. A trie also costs memory: every node holds its own dictionary, so it pays off only when prefix or wildcard questions are the point. If the word list never changes and you only need to find the words under a prefix, sorting it also works, because words sharing a prefix sit next to each other and binary search finds where they start.
 
 **Telling it from its neighbours.** [Arrays & Hashing](/algorithms/arrays-hashing/) can fake prefix checks by storing every prefix in a set. That answers "does this prefix exist?", but a word of L letters then adds L keys holding about L²/2 characters, and the set still can't list the words under a prefix. A trie shares those prefixes as one path. [Backtracking](/algorithms/backtracking/) is a way of searching, and a trie is a way of storing. They meet in Word Search II: backtracking walks the grid, and the trie says when to give up on a path.
 
@@ -165,7 +165,7 @@ The bill is 77 cents. `4712` shows why the `4` node's missing rate matters: it's
 - Treating "prefix exists" and "word exists" as the same check — they differ by that one flag.
 - Word Search II: not marking grid cells as visited during the walk, so a cell is reused within one word.
 - Word Search II: returning the same word twice — clear `is_word` (or the stored word) after you find it.
-- Using a trie when a hash set is enough. If you never ask about prefixes, a set is simpler and just as fast.
+- Using a trie when a hash set is enough. If you never ask about prefixes or wildcards, a set is simpler and just as fast.
 
 ## Tips & tricks
 

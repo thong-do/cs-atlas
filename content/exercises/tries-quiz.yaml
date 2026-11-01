@@ -32,7 +32,7 @@ questions:
 flashcards:
   - id: when-to-use
     front: "When does a trie beat a hash set?"
-    back: "When the questions are about prefixes: what starts with this, or the longest stored prefix of this string. For exact lookups, a set is simpler."
+    back: "When the questions are about prefixes or wildcards: what starts with this, the longest stored prefix of this string, or a pattern like `b.d`. For exact lookups, a set is simpler."
   - id: is-word
     front: "Why does a trie need `is_word`?"
     back: "A path exists for every prefix of a stored word. The flag separates \"this word was stored\" from \"some word passes through here\"."

@@ -21,7 +21,7 @@ questions:
     explanation: "The total gas of 11 covers the total cost of 10, so it goes on. The tank goes to −2 at index 0, which resets `start` to 1. From there it runs 3, 1, 3 and never drops below 0, so `start` stays at 1."
   - id: which-rule-safe
     prompt: "Which of these greedy rules gives a best answer on every input of its kind?"
-    choices: ["Whole crates in a van, taken by best value per kilo", "Making change from coins of 1, 7 and 10, taking the largest that fits", "Rising subsequences, taking each next value that's larger than the last", "Bulk spices by the gram in a jar, taken by best price per gram"]
+    choices: ["Whole crates in a van, taken by best value per kilo", "Making change from coins of 1, 7 and 10, taking the largest that fits", "Rising subsequences, taking each next value that's larger than the last", "Bulk spices by the gram in a jar, taken by best value per gram"]
     answer: 3
     explanation: "Spices can be cut, so any gram of a worse spice can be traded for a gram of a better one without loss. Whole crates can fail to fit, as a heavy crate can block two better ones. 14 cents needs 7 + 7, not 10 + 1 + 1 + 1 + 1. On 1, 5, 2, 3, the next-larger rule stops at length 2 while 1, 2, 3 has length 3."
   - id: three-rules
@@ -50,7 +50,7 @@ flashcards:
     back: "When the sum so far is negative, since `max(x, cur + x)` then picks `x`. A negative prefix can only lower what follows."
   - id: gas-total
     front: "Gas Station: what makes the restart rule correct?"
-    back: "If the total fuel covers the total cost, a start exists. Each failure rules out every start up to that point, so the next index is the last one left."
+    back: "If total fuel covers total cost, a start exists. A failure rules out every start up to that point. The run after the last failure never goes negative, and its surplus covers earlier shortfalls."
   - id: vs-dp
     front: "Greedy vs DP"
     back: "Greedy commits to one option and never compares again. DP keeps the best answer for each state and compares options, so it can handle a rule that fails."

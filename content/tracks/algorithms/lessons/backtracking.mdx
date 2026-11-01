@@ -28,7 +28,7 @@ What changes between problems is only *what the choices are* and *when a path is
 - **Permutations**: any unused element can come next, so track `used`.
 - **Constraint puzzles**: only make choices that keep the board valid — that **pruning** is what makes them fast enough.
 
-**Two shapes, one search.** The template loops over the next choice, so every node of its tree is an answer. You'll also see "take it or skip it", as in the ladder hint for Subsets, where each level decides one element and the answers are the leaves. For subsets, both list the same 2ⁿ answers, so pick whichever you find clearer.
+**Two shapes, one search.** The template loops over the next choice, so every node of its tree is an answer. You'll also see "take it or skip it", as in the ladder hint for Subsets and Combination Sum, where each level decides one element and the answers are the leaves. For subsets, both list the same 2ⁿ answers, so pick whichever you find clearer.
 
 **When pruning helps.** Pruning means giving up on a partial answer as soon as you can prove no completion works. It pays when both of these are true:
 

@@ -35,7 +35,7 @@ Some answers don't pass through the root (diameter, max path sum). Then the recu
 **Lowest common ancestor (LCA).** The LCA of two nodes is the deepest node that has both in its subtree, and a node counts as being in its own subtree. Think of two employees and the most junior manager they share.
 
 - **In a BST**, values tell you the way. Walk down from the root: if both values are smaller go left, if both are larger go right, and otherwise the two split here, so this is the LCA. That's O(h).
-- **In any binary tree**, work bottom-up in O(n). Each call returns `p` or `q` if it's standing on one, and otherwise whatever its subtrees found. The first node where both sides report something is the LCA. This version assumes both nodes are in the tree. If only one is, it returns that one, and the result looks like a real answer.
+- **In any binary tree**, work bottom-up in O(n). Each call returns `p` or `q` if it's standing on one, and otherwise whatever its subtrees found. The first node where both sides report something is the LCA. If one node is above the other, no such node exists: the call standing on the upper one returns straight away, and that's the LCA. This version assumes both nodes are in the tree. If only one is, it returns that one, and the result looks like a real answer.
 
 **When not to use it.** If nodes can have several parents or there are cycles, tree recursion can loop or count things twice, so use [Graphs](/algorithms/graphs/). If your keys don't change and you only look them up, a sorted array with [Binary Search](/algorithms/binary-search/) is simpler than a BST. And if a tree can be a very deep chain, recursion may hit Python's limit, so use an explicit stack.
 

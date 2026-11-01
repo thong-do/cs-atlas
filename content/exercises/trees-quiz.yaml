@@ -18,7 +18,7 @@ questions:
     prompt: "In an org chart stored as a binary tree, you want every employee whose rating beats everyone in their chain of managers. Which recursion fits, and why?"
     choices: ["Bottom-up: return the highest rating in each subtree, since parents combine what children report", "BFS by level: compare each employee with the highest rating on the level above them", "Inorder: the walk visits ratings in sorted order, so each new highest rating marks an employee", "Top-down: pass the highest rating so far to each child, since the test depends on what's above"]
     answer: 3
-    explanation: "The test depends only on a node's ancestors, so that information has to flow down. A subtree knows nothing about the managers above it. The level above holds people who aren't this employee's managers, and inorder is only sorted for a BST, which an org chart's ratings aren't."
+    explanation: "The test depends only on a node's ancestors, so that information has to flow down. A subtree knows nothing about the managers above it. The level above includes people outside this employee's chain and misses the higher managers, and inorder is only sorted for a BST, which an org chart's ratings aren't."
   - id: balanced-naive-cost
     prompt: "A check calls `max_depth` on the left and right child of every node, to compare them. It runs on a chain of 2,000 nodes where each node has one child on the left. Counting all calls that land on a real node, not on `None`, in the `max_depth` runs, about how many are there?"
     choices: ["About 2,000", "About 2 million", "About 22,000", "About 4 million"]

@@ -28,7 +28,7 @@ Common shapes:
 - **Running balance that resets**: Gas Station — when the tank goes negative, no start up to here can work, so restart after it.
 - **Sort, then take**: Hand of Straights (always start groups from the smallest card), plus the "sort by end" interval trick.
 
-**What greedy needs to be correct.** Two things must hold. After you make the choice, what's left must be a smaller problem of the same kind. And the choice must be **safe**: some best answer includes it. The second is the hard part, and the exchange argument is how you prove it. Here's that argument on a real rule, from the Example below: to minimise the worst delay, do the job due soonest first.
+**What greedy needs to be correct.** Two things must hold. After you make the choice, what's left must be a smaller problem of the same kind. And the choice must be **safe**: some best answer includes it. The second is the hard part, and an exchange argument is the usual proof. Here's that argument on a real rule, from the Example below: to minimise the worst delay, do the job due soonest first.
 
 Take any schedule that isn't in due-date order. Somewhere in it, a job `a` runs directly before a job `b`, though `b` is due sooner. Swap the two. Both together still end at the same time T, and every other job is untouched. Job `b` now finishes earlier, which can't hurt. Job `a` now finishes at T, so it's late by T − due(a). That's less than b's old lateness, T − due(b), because `a` is due later. So the worst delay doesn't go up. Repeat until no such pair is left, and you've turned any schedule, including the best one, into due-date order at no cost.
 

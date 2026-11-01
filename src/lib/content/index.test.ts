@@ -8,7 +8,9 @@ import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, pl
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
 const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
 const FOUNDATIONS = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list']
-const FOUNDATIONS_SECTIONS = ['Intuition', 'Visual', 'Template', 'Example', 'Complexity', 'Pitfalls', 'Tips & tricks']
+const TREES_AND_SEARCH = ['trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy']
+const AT_THE_BAR = [...FOUNDATIONS, ...TREES_AND_SEARCH]
+const BAR_SECTIONS = ['Intuition', 'Visual', 'Template', 'Example', 'Complexity', 'Pitfalls', 'Tips & tricks']
 
 describe('content accessors', () => {
   it('sorts tracks by order and lessons by track, module and position', () => {
@@ -194,12 +196,12 @@ describe('content inventory', () => {
   it('has 18 algorithms lessons with the six standard sections in order', () => {
     expect(algorithms).toHaveLength(18)
     for (const l of algorithms) {
-      expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(FOUNDATIONS.includes(l.slug) ? FOUNDATIONS_SECTIONS : SECTIONS)
+      expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(AT_THE_BAR.includes(l.slug) ? BAR_SECTIONS : SECTIONS)
     }
   })
 
-  it('opens each Foundations ladder with its quiz of 5 questions and 8 flashcards', () => {
-    for (const slug of FOUNDATIONS) {
+  it('opens each ladder at the bar with its quiz of 5 questions and 8 flashcards', () => {
+    for (const slug of AT_THE_BAR) {
       const quizSlug = `${slug}-quiz`
       const ladder = allExercises.filter((e) => e.lessons[0] === slug)
       expect(ladder[0], slug).toMatchObject({ slug: quizSlug, type: 'quiz', lessons: [slug], ladderOrder: 0, questionCount: 5 })

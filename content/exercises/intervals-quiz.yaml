@@ -1,0 +1,56 @@
+slug: intervals-quiz
+type: quiz
+title: "Intervals — quiz"
+lessons: [intervals]
+ladderOrder: 0
+questions:
+  - id: merge-without-max
+    prompt: "A teammate writes `merged[-1][1] = end` in `merge`, with no `max`. What does it return for `[[1, 10], [2, 3], [4, 6], [12, 13]]`?"
+    choices: ["[[1, 10], [12, 13]]", "[[1, 6], [12, 13]]", "[[1, 3], [12, 13]]", "[[1, 3], [4, 6], [12, 13]]"]
+    answer: 3
+    explanation: "`[2, 3]` overlaps and shrinks the last range to `[1, 3]`. Now `[4, 6]` starts after 3, so it looks like a gap and starts a new range, though the original `[1, 10]` covered it. The shrink causes a false split later on."
+  - id: touching-rooms
+    prompt: "Bookings `[[1, 4], [4, 7], [7, 9]]` are half-open, so one can start in a room at the hour another ends. You run `min_groups` as written. What's the result?"
+    choices: ["It returns 2, but 1 is right, so change `ends[0] < start` to `<=`", "It returns 1, which is right, so nothing needs changing", "It returns 3, but 1 is right, so sort by end instead of start", "It returns 2, which is right, as two bookings share the hour 4"]
+    answer: 0
+    explanation: "With `<`, the `[4, 7]` booking finds `4 < 4` false and opens a second group. `[7, 9]` then reuses the group ending at 4. For half-open bookings none of them clash, so one room is enough, and `<=` makes the 4 reusable at hour 4."
+  - id: keep-first-removal
+    prompt: "To remove the fewest ranges, a teammate sorts by start, keeps the current range, and removes each later one that clashes with it. On half-open ranges `[[2, 20], [3, 6], [7, 9], [10, 12], [13, 15]]`, how many does that remove, and what's the fewest possible?"
+    choices: ["Removes 1; fewest is 1", "Removes 3; fewest is 1", "Removes 4; fewest is 1", "Removes 4; fewest is 3"]
+    answer: 2
+    explanation: "`[2, 20]` comes first and clashes with all four others, so all four go. Removing only `[2, 20]` leaves four ranges with no clash, so 1 is possible. Keeping the range that ends sooner on each clash, or sorting by end, finds that."
+  - id: intersection-steps
+    prompt: "Two sorted lists of disjoint ranges have 3,000 ranges each. The two-pointer intersection advances whichever range ends first, once per loop, and stops when a list runs out. What's the most loops it can take?"
+    choices: ["3,000", "5,999", "6,000", "9,000,000"]
+    answer: 1
+    explanation: "Each loop moves one pointer forward. It stops when one pointer passes the end of its list, and at that point the other has moved at most 2,999 times. So the most is 3,000 + 2,999 = 5,999, against 9,000,000 for comparing all pairs."
+  - id: sweep-tie-order
+    prompt: "A sweep finds the peak number of half-open bookings. It sorts `(time, +1)` and `(time, -1)` events so that at equal times, starts come before ends. What peak does it give for `[[1, 3], [3, 5], [5, 7]]`, and what's the true peak?"
+    choices: ["Gives 1; true peak 1", "Gives 3; true peak 1", "Gives 2; true peak 2", "Gives 2; true peak 1"]
+    answer: 3
+    explanation: "At time 3 the new start is counted before the old end, so the running sum reaches 2 for a moment, and again at time 5. Half-open bookings never share a moment here, so the true peak is 1. Ends have to come first at a tie."
+flashcards:
+  - id: when-to-use
+    front: "When do interval techniques fit?"
+    back: "When the input is ranges and the question is about merging, overlap, or how many are open at once. Sorting makes one pass enough."
+  - id: overlap-test
+    front: "Overlap test, with `s1 ≤ s2`"
+    back: "Inclusive ranges overlap when `s2 <= e1`. For half-open ranges, use `s2 < e1`."
+  - id: intersection
+    front: "The intersection of two ranges"
+    back: "From `max` of the starts to `min` of the ends, and it exists only if that start isn't past that end."
+  - id: which-sort
+    front: "Sort by start or by end?"
+    back: "By start to merge or to count open ranges. By end to keep as many ranges as possible, since finishing first leaves the most room."
+  - id: merge-max
+    front: "Why `max` when merging?"
+    back: "A short range can sit inside a long one. Without `max`, it would shrink the merged range."
+  - id: rooms
+    front: "How many rooms are needed?"
+    back: "Sort by start, keep a min-heap of end times, and reuse the earliest room if it's free. The heap's final size is the answer."
+  - id: sweep-events
+    front: "Sweep line in one line"
+    back: "The active count changes only at starts and ends, so turn ranges into `+1` and `−1` events, sort them, and track the running sum."
+  - id: tie-order
+    front: "Sweep ties at equal times"
+    back: "For a peak, process ends first if ranges are half-open and starts first if they're inclusive."

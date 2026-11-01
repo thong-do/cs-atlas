@@ -23,6 +23,12 @@ Shapes that cover the ladder:
 - **K-way merge**: push the head of each sorted list; pop the smallest, then push that list's next item.
 - **Two heaps for a median**: a max-heap for the lower half and a min-heap for the upper half, kept balanced.
 
+**Items that change or expire.** A heap can't find an arbitrary item quickly, since it's only partly ordered, so you can't reach in and change a value. The usual way round this is **lazy deletion**. Leave the old entry where it is, push a new one, and keep a note of what's current. When an out-of-date entry reaches the top, pop it and move on. Each entry is pushed once and popped at most once, so the cost stays O(log n) per entry, spread across the operations. It's the same idea as discarding ended ranges in Minimum Interval to Include Each Query.
+
+**When not to use it.** If you need everything in order once and nothing else arrives, sort, unless the input is already k sorted lists, where a k-way merge costs O(N log k). If you need the smallest item once, `min(nums)` is O(n) and needs no extra memory. If you need to look up or remove items by value often, a heap scans O(n) for each lookup, so pair it with a hash map or use a sorted structure.
+
+**Telling it from its neighbours.** [Binary Search](/algorithms/binary-search/) works on data that's already in order, or on an answer whose test flips once. A heap is for when you repeatedly need the extreme of a set that changes as you work, even if that set is only a size-k window over a fixed list. [Greedy](/algorithms/greedy/) is a decision rule, and a heap is a tool. Many greedy algorithms need "the best option left", and that's when you reach for a heap. Whether the rule is correct is a separate question that the heap can't answer for you.
+
 ## Visual
 
 <Visualizer kind="heap" />
@@ -96,6 +102,38 @@ def merge_sorted(lists: list[list[int]]) -> list[int]:
             heapq.heappush(heap, (lists[i][j + 1], i, j + 1))
     return out
 ```
+
+## Example
+
+**The problem.** A bike workshop has `k` repair stands, all free at hour 0. Bikes wait in a fixed queue, each with a known repair time in hours. Whenever a stand comes free, the next bike in the queue goes on it. Return the hour when the last bike is done.
+
+**Spotting the pattern.** The trigger is "repeatedly take the min": each bike needs the stand that comes free soonest, and every assignment changes that stand's free time.
+
+**Why brute force is slow.** You could scan all stands for the smallest free time before each bike. With 200,000 bikes and 5,000 stands, that's a billion checks: O(n·k). Sorting doesn't help either, because each assignment changes one value and you'd have to sort again.
+
+**The key insight.** Only the smallest free time matters at any moment, and one value changes per bike. Keep the free times in a min-heap. Pop the soonest, add the repair time, push it back. That's O(log k) per bike, a few million steps in all.
+
+```python
+def all_done_at(repair_hours: list[int], k: int) -> int:
+    free_at = [0] * k                     # a list of equal values is a valid heap
+    for hours in repair_hours:
+        soonest = heapq.heappop(free_at)
+        heapq.heappush(free_at, soonest + hours)
+    return max(free_at)
+```
+
+**Traced run** with 2 stands and repair times `[4, 2, 3, 5, 1, 2]`:
+
+| Repair hours | Popped: stand free at | Bike done at | Heap after |
+|---|---|---|---|
+| 4 | 0 | 4 | [0, 4] |
+| 2 | 0 | 2 | [2, 4] |
+| 3 | 2 | 5 | [4, 5] |
+| 5 | 4 | 9 | [5, 9] |
+| 1 | 5 | 6 | [6, 9] |
+| 2 | 6 | 8 | [8, 9] |
+
+The answer is 9, the **largest** value left in the heap, not the top: the top only tells you which stand comes free first. The final `max` costs O(k), once, so the total is O(n log k + k) time and O(k) space.
 
 ## Complexity
 

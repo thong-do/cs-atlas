@@ -24,6 +24,23 @@ Three shapes cover almost everything:
 
 Some answers don't pass through the root (diameter, max path sum). Then the recursion **returns** one thing (the best single downward path) while updating a **global best** with another (the path that bends at this node).
 
+**How to read recursion.** A recursive function needs two things: a **base case** that answers without calling itself (`None` here), and a call on something strictly smaller (a child). Python keeps every unfinished call on the **call stack**, which is why space is O(h). Then comes the habit that makes it easy: **trust the call**. When you write the combine step, assume `max_depth(root.left)` already returns the right number. Don't trace it in your head. You check one level only: is the base case right, and is this node's answer right if the children's answers are?
+
+**Binary search trees.** A BST adds one rule: everything in a node's left subtree is smaller than it, and everything in its right subtree is larger. So every node is a binary search decision, and search, insert and delete each walk one path, costing O(h). That's about 20 levels for a million keys if the tree is balanced. A plain BST doesn't balance itself, though, so insertion order decides its shape, and h can reach n.
+
+- **Search**: go left or right by comparing, and stop at the key or at `None`.
+- **Insert**: search for the key. The `None` where the search ends is where it belongs.
+- **Delete** has three cases. A leaf just goes. A node with one child is replaced by that child. A node with two children is the interesting one: copy in its **inorder successor**, the smallest value in its right subtree, then delete that value from the right subtree. The successor is larger than everything on the left and smaller than everything else on the right, so the rule holds. It has no left child, so its own deletion is one of the easy cases.
+
+**Lowest common ancestor (LCA).** The LCA of two nodes is the deepest node that has both in its subtree, and a node counts as being in its own subtree. Think of two employees and the most junior manager they share.
+
+- **In a BST**, values tell you the way. Walk down from the root: if both values are smaller go left, if both are larger go right, and otherwise the two split here, so this is the LCA. That's O(h).
+- **In any binary tree**, work bottom-up in O(n). Each call returns `p` or `q` if it's standing on one, and otherwise whatever its subtrees found. The first node where both sides report something is the LCA. If one node is above the other, no such node exists: the call standing on the upper one returns straight away, and that's the LCA. This version assumes both nodes are in the tree. If only one is, it returns that one, and the result looks like a real answer.
+
+**When not to use it.** If nodes can have several parents or there are cycles, tree recursion can loop or count things twice, so use [Graphs](/algorithms/graphs/). If your keys don't change and you only look them up, a sorted array with [Binary Search](/algorithms/binary-search/) is simpler than a BST. And if a tree can be a very deep chain, recursion may hit Python's limit, so use an explicit stack.
+
+**Telling it from its neighbours.** **Graphs** need a `visited` set, because the same node can be reached twice. A tree doesn't, since each node has one parent. **Backtracking** also recurses over a tree, but that tree is made of choices and doesn't exist until you explore it, and it can be exponentially large. Tree recursion visits nodes that are already in memory, once each. Ask: "is the tree my input, or is it the space of options I'm trying?"
+
 ## Visual
 
 ```text
@@ -99,11 +116,122 @@ def diameter(root) -> int:
     return best
 ```
 
+BST operations and LCA, from the sections above:
+
+```python
+def bst_search(root, key):
+    while root and root.val != key:
+        root = root.left if key < root.val else root.right
+    return root
+
+
+def bst_insert(root, key):
+    if not root:
+        return TreeNode(key)
+    if key < root.val:
+        root.left = bst_insert(root.left, key)
+    elif key > root.val:
+        root.right = bst_insert(root.right, key)
+    return root                           # a key already present is left alone
+
+
+def bst_delete(root, key):
+    if not root:
+        return None
+    if key < root.val:
+        root.left = bst_delete(root.left, key)
+    elif key > root.val:
+        root.right = bst_delete(root.right, key)
+    elif not root.left:                   # no left child: the right one takes over
+        return root.right
+    elif not root.right:
+        return root.left
+    else:                                 # two children: copy in the successor
+        succ = root.right
+        while succ.left:
+            succ = succ.left
+        root.val = succ.val
+        root.right = bst_delete(root.right, succ.val)
+    return root
+
+
+def bst_lca(root, a: int, b: int):
+    """a and b are values that are both in the BST."""
+    while True:
+        if a < root.val and b < root.val:
+            root = root.left
+        elif a > root.val and b > root.val:
+            root = root.right
+        else:
+            return root
+
+
+def lca(root, p, q):
+    """p and q are nodes that are both in the tree."""
+    if not root or root is p or root is q:
+        return root
+    left, right = lca(root.left, p, q), lca(root.right, p, q)
+    if left and right:
+        return root                       # one on each side: they split here
+    return left or right
+```
+
+## Example
+
+**The problem.** A farm's water network is a binary tree of junctions. Each junction has a demand in litres per minute, and the pipe feeding a junction must carry that demand plus everything further down. The main pipe into the root counts too. Given the root and a pipe capacity, count the pipes that carry more than their capacity.
+
+**Spotting the pattern.** Two triggers fit: "input is a TreeNode / root", and "answer for a node depends on its subtrees", because a pipe's load is its junction's demand plus the loads of the two pipes below it. It's the bottom-up shape.
+
+**Why brute force is slow.** For each junction, you could walk its whole subtree and add it up. On a chain of 10,000 junctions the walks cover 10,000, then 9,999, and so on down to 1 junctions: about 50 million visits, which is O(n²). Most of them recompute totals that a child has already worked out.
+
+**The key insight.** The parent needs one number from each child: the load on its pipe. So return the load, and keep the count outside, the same "return one thing, track another" split as `diameter`. Each junction is then handled once.
+
+```python
+def overloaded_pipes(root, capacity: int) -> int:
+    count = 0
+
+    def carried(node) -> int:
+        nonlocal count
+        if not node:
+            return 0
+        total = node.val + carried(node.left) + carried(node.right)
+        if total > capacity:
+            count += 1
+        return total                      # what the pipe above must also carry
+
+    carried(root)
+    return count
+```
+
+**Traced run** with capacity 8:
+
+```text
+        6
+       / \
+      4   3
+     / \   \
+    2   5   1
+```
+
+Rows appear in the order calls finish, children before parents:
+
+| Junction | From left | From right | Pipe carries | Over 8? | count |
+|---|---|---|---|---|---|
+| 2 | 0 | 0 | 2 | no | 0 |
+| 5 | 0 | 0 | 5 | no | 0 |
+| 4 | 2 | 5 | 11 | yes | 1 |
+| 1 | 0 | 0 | 1 | no | 1 |
+| 3 | 0 | 1 | 4 | no | 1 |
+| 6 | 11 | 4 | 21 | yes | 2 |
+
+The answer is 2: the pipe into junction 4 and the main pipe. Every junction is visited once, so it's O(n) time and O(h) stack.
+
 ## Complexity
 
 - Time: **O(n)** — every node is visited once.
 - Space: **O(h)** for recursion, where h is the height: O(log n) when balanced, **O(n)** for a skewed "linked list" tree.
 - BFS queue: **O(w)**, the widest level — up to n/2 for a full tree.
+- BST search, insert, delete and `bst_lca`: **O(h)**. `lca` on any binary tree: **O(n)**.
 
 ## Pitfalls
 
@@ -119,5 +247,6 @@ def diameter(root) -> int:
 - Traversal orders: **preorder** (node, left, right) copies or serializes a tree; **inorder** of a BST is sorted; **postorder** (left, right, node) is bottom-up.
 - Right Side View is level order keeping the **last** node of each level.
 - Construct from preorder + inorder: the first preorder value is the root; a hash map of inorder positions splits left and right in O(1).
+- Kth smallest in a BST: run an inorder walk and stop at the k-th value, so you never touch the rest.
 - Max Path Sum: clamp negative child contributions to 0 with `max(0, gain(child))`.
 - A tree is just a graph with no cycles and one parent per node — when nodes can have several parents or loops, switch to **Graphs** and track `visited`.

@@ -12,7 +12,7 @@ summary: "A tree of characters that answers prefix questions fast."
 
 ## Intuition
 
-A hash set answers "is this exact word here?" in O(1). It can't answer "which words **start with** `car`?" without checking every word. A **trie** (prefix tree) can: each edge is one character, so every path from the root spells a prefix, and words that share a prefix share the same path.
+A hash set answers "is this exact word here?" in time that doesn't depend on how many words are stored. It can't answer "which words **start with** `car`?" without checking every word. A **trie** (prefix tree) can: each edge is one character, so every path from the root spells a prefix, and words that share a prefix share the same path.
 
 Think of a phone's contact search. As you type `T`, `To`, `Tom`, the list narrows. A trie stores that narrowing directly: walking one letter deeper discards everything that doesn't match.
 
@@ -20,6 +20,10 @@ Two ideas cover the ladder:
 
 - **Walk the word**: insert, search and prefix-check all follow the characters one node at a time. Mark the node where a word *ends* (`is_word`), because `car` and `cart` share nodes.
 - **Walk the trie alongside something else**: a wildcard `.` tries every child; Word Search II walks the grid *and* the trie together, stopping as soon as a path isn't a prefix of any word.
+
+**When not to use it.** If you only ever ask "is this exact word here?", a hash set is simpler. A trie also costs memory: every node holds its own dictionary, so it pays off only when prefix or wildcard questions are the point. If the word list never changes and you only need to find the words under a prefix, sorting it also works, because words sharing a prefix sit next to each other and binary search finds where they start.
+
+**Telling it from its neighbours.** [Arrays & Hashing](/algorithms/arrays-hashing/) can fake prefix checks by storing every prefix in a set. That answers "does this prefix exist?", but a word of L letters then adds L keys holding about L²/2 characters, and the set still can't list the words under a prefix. A trie shares those prefixes as one path. [Backtracking](/algorithms/backtracking/) is a way of searching, and a trie is a way of storing. They meet in Word Search II: backtracking walks the grid, and the trie says when to give up on a path.
 
 ## Visual
 
@@ -86,6 +90,69 @@ def search_with_dots(node: TrieNode, word: str, i: int = 0) -> bool:
     return child is not None and search_with_dots(child, word, i + 1)
 ```
 
+## Example
+
+**The problem.** A phone carrier prices calls by dial prefix. A rate table maps prefixes to cents per minute, and a call is billed at the rate of the **longest** prefix that its number starts with. A number that matches no prefix isn't billed. Given the rate table and a list of `(number, minutes)` calls, return the total bill in cents.
+
+**Spotting the pattern.** The trigger is "many prefix queries": every call asks which stored prefixes its number starts with.
+
+**Why brute force is slow.** You could compare each number with every prefix and keep the longest match. With 50,000 prefixes and 10,000 calls, that's 500 million prefix comparisons, and the bill for one call means reading the whole table.
+
+**The key insight.** Prefixes that a number starts with all lie on one path from the root, the path that spells the number. So walk the number down the trie and remember the last rate you passed. The walk stops as soon as a digit has no child, because no longer prefix can match. Compare Replace Words on the ladder, which wants the **first** marked node. Here you keep going, because a later mark beats an earlier one.
+
+```python
+class RateNode:
+    def __init__(self):
+        self.children: dict[str, "RateNode"] = {}
+        self.rate: int | None = None
+
+
+def total_bill(rates: dict[str, int], calls: list[tuple[str, int]]) -> int:
+    root = RateNode()
+    for prefix, rate in rates.items():
+        node = root
+        for digit in prefix:
+            node = node.children.setdefault(digit, RateNode())
+        node.rate = rate
+
+    bill = 0
+    for number, minutes in calls:
+        node, best = root, None
+        for digit in number:
+            node = node.children.get(digit)
+            if node is None:
+                break
+            if node.rate is not None:     # a rate of 0 still counts
+                best = node.rate
+        if best is not None:
+            bill += best * minutes
+    return bill
+```
+
+**Traced run** with rates `1` → 10, `12` → 7, `125` → 4, `44` → 9, and calls `1258` for 3 minutes, `1390` for 2, `4412` for 5 and `4712` for 1:
+
+| Number | Digit | At this node | Best rate | Bill |
+|---|---|---|---|---|
+| 1258 | 1 | rate 10 | 10 | 0 |
+| 1258 | 2 | rate 7 | 7 | 0 |
+| 1258 | 5 | rate 4 | 4 | 0 |
+| 1258 | 8 | no such child, stop | 4 | 0 |
+| 1258 | end of walk | 3 min × 4 | 4 | 12 |
+| 1390 | 1 | rate 10 | 10 | 12 |
+| 1390 | 3 | no such child, stop | 10 | 12 |
+| 1390 | end of walk | 2 min × 10 | 10 | 32 |
+| 4412 | 4 | no rate here | none | 32 |
+| 4412 | 4 | rate 9 | 9 | 32 |
+| 4412 | 1 | no such child, stop | 9 | 32 |
+| 4412 | end of walk | 5 min × 9 | 9 | 77 |
+| 4712 | 4 | no rate here | none | 77 |
+| 4712 | 7 | no such child, stop | none | 77 |
+| 4712 | end of walk | no rate, not billed | none | 77 |
+
+The bill is 77 cents. `4712` shows why the `4` node's missing rate matters: it's on the path of a real prefix, `44`, but the number leaves that path before reaching a rate.
+
+**Would a hash map do?** For this problem, nearly. Put the prefixes in a dictionary and try each prefix of the number from longest to shortest. Hashing each one reads its characters, so that's O(L²) character work per number against the trie's O(L), and at 15 digits the difference is small. The trie earns its place as strings get longer, or when you also need what lies under a prefix, such as every rate starting `12`.
+
 ## Complexity
 
 - Insert / search / prefix check: **O(L)** for a word of length L — independent of how many words are stored.
@@ -98,7 +165,7 @@ def search_with_dots(node: TrieNode, word: str, i: int = 0) -> bool:
 - Treating "prefix exists" and "word exists" as the same check — they differ by that one flag.
 - Word Search II: not marking grid cells as visited during the walk, so a cell is reused within one word.
 - Word Search II: returning the same word twice — clear `is_word` (or the stored word) after you find it.
-- Using a trie when a hash set is enough. If you never ask about prefixes, a set is simpler and just as fast.
+- Using a trie when a hash set is enough. If you never ask about prefixes or wildcards, a set is simpler and just as fast.
 
 ## Tips & tricks
 

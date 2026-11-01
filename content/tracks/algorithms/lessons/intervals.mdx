@@ -12,9 +12,9 @@ summary: "Sort by start (or end), then sweep once."
 
 ## Intuition
 
-Interval problems look messy until you **sort**. Once ranges are ordered by start, any range can only overlap the ones right next to it in the sweep, so a single pass with a little state is enough.
+Interval problems look messy until you **sort**. Once ranges are ordered by start, each new range only needs comparing with a little state from the ranges before it, so a single pass is enough.
 
-Think of a day planner. If you list meetings by start time, you can tell at a glance which ones clash: a meeting clashes with the previous one exactly when it starts before the previous one ends.
+Think of a day planner. If you list meetings by start time, you can tell at a glance which ones clash: a meeting clashes with an earlier one exactly when it starts before the latest finish so far. That's the latest finish, not the previous meeting's: a long meeting can outlast several short ones.
 
 The two overlap tests to memorise, for `a = [s1, e1]` and `b = [s2, e2]` with `s1 ≤ s2`:
 
@@ -25,7 +25,11 @@ Which key to sort by depends on the question:
 
 - **Merge / insert**: sort by **start**, extend the last merged range or start a new one.
 - **Keep as many as possible / remove the fewest**: sort by **end** and greedily keep the range that finishes first. It leaves the most room for everything after it.
-- **How many overlap at once** (rooms, groups): sort by start and keep a min-heap of end times. The heap size is the number of rooms in use.
+- **How many overlap at once** (rooms, groups): sort by start and keep a min-heap of end times. Reuse a room when its end has passed, and the heap's final size is the number of rooms needed.
+
+**When not to use it.** Sorting is the cost of entry, so if ranges arrive one at a time and you must answer after each, re-sorting every time is wasteful. A sorted list with one `insert` per arrival costs O(n) each, and heavy traffic calls for a balanced tree. If the question is about single points in a fixed, merged set of ranges, you don't need a sweep per query: merge once, then use [Binary Search](/algorithms/binary-search/) on the starts.
+
+**Telling it from its neighbours.** [Greedy](/algorithms/greedy/) is a way of choosing, and "keep the range that ends first" is one greedy rule, with its own proof. Merging isn't greedy at all, since no range is given up, so nothing needs proving beyond the sort. A [Heap](/algorithms/heap/) comes in when you must track what's still open: if the answer depends on the earliest end among many open ranges, keep those ends in a heap. If one running value is enough, such as the last merged end, you don't need one.
 
 ## Visual
 
@@ -100,6 +104,51 @@ def min_groups(intervals: list[list[int]]) -> int:
     return len(ends)
 ```
 
+## Example
+
+**The problem.** A museum's insurer counts a gallery as safe only while **at least two** cameras are recording. Each camera has one recording window `[start, end)` in minutes, and a window ending at minute 5 doesn't cover minute 5. Given the windows, return the total minutes that count as safe.
+
+**Spotting the pattern.** Two triggers fit: "ranges given as [start, end]" and "how many ranges overlap at once". Merging won't do it, because merging forgets how many ranges were on top of each other.
+
+**Why brute force is slow.** You could walk through every minute and count the cameras recording. With 1,000 cameras over a year (525,600 minutes), that's about 526 million checks. Comparing pairs of windows is cheaper, but three cameras recording together produce three overlapping pairs, so the same minutes get counted more than once.
+
+**The key insight.** The number of active cameras changes only at a start or an end. Between two neighbouring events it's constant, so turn each window into a `+1` and a `−1` event, sort them, and at each event add the gap since the last one if at least two cameras were on. A single pass over 2n events covers any span of time.
+
+```python
+def safe_minutes(windows: list[list[int]]) -> int:
+    events = []
+    for start, end in windows:
+        events.append((start, 1))
+        events.append((end, -1))
+    events.sort()
+
+    active = total = 0
+    previous = 0
+    for time, change in events:
+        if active >= 2:
+            total += time - previous      # the gap had this many cameras on
+        active += change
+        previous = time
+    return total
+```
+
+**Traced run** on `[[1, 5], [3, 9], [4, 6], [10, 12], [11, 15]]`:
+
+| Time | Event | Active before | Minutes added | Total | Active after |
+|---|---|---|---|---|---|
+| 1 | +1 | 0 | 0 | 0 | 1 |
+| 3 | +1 | 1 | 0 | 0 | 2 |
+| 4 | +1 | 2 | 1 | 1 | 3 |
+| 5 | −1 | 3 | 1 | 2 | 2 |
+| 6 | −1 | 2 | 1 | 3 | 1 |
+| 9 | −1 | 1 | 0 | 3 | 0 |
+| 10 | +1 | 0 | 0 | 3 | 1 |
+| 11 | +1 | 1 | 0 | 3 | 2 |
+| 12 | −1 | 2 | 1 | 4 | 1 |
+| 15 | −1 | 1 | 0 | 4 | 0 |
+
+The answer is 4: minutes 3 to 6, and minute 11 to 12. Events at the same time would be a gap of 0, so their order can't change this total. It does change a **peak**, as the sweep-line tip below explains. Sorting costs O(n log n), and the pass is O(n).
+
 ## Complexity
 
 - Sorting dominates: **O(n log n)** time. The sweep itself is O(n).
@@ -111,7 +160,7 @@ def min_groups(intervals: list[list[int]]) -> int:
 - Forgetting to sort — the one-pass logic only works on ordered ranges.
 - Getting the touching case wrong. `[1,5]` and `[5,6]` overlap when ranges are **inclusive** (Divide Intervals) but not when they're **half-open** like meetings that end at 5 and start at 5. Flip `<` vs `<=` accordingly.
 - Merging with `merged[-1][1] = end` instead of `max(...)` — a short range inside a long one would shrink it.
-- Sorting by start for "remove the fewest" — sort by **end** instead, or the greedy choice isn't safe.
+- "Remove the fewest": sorting by start and keeping whichever range came first. On `[1,10]`, `[2,3]`, `[4,5]` that keeps one range instead of two. Sort by **end**, or if you sort by start, keep the range that ends sooner on each clash.
 - Mutating the input with `.sort()` when the caller still needs the original order; use `sorted(...)` if so.
 
 ## Tips & tricks
@@ -119,5 +168,5 @@ def min_groups(intervals: list[list[int]]) -> int:
 - Summary Ranges is the warm-up: walk the sorted numbers and close a range whenever the next number isn't `current + 1`.
 - Interval List Intersections: two pointers, one per list. Record the intersection if it's valid, then advance whichever range **ends first**.
 - Minimum Interval to Include Each Query: sort the queries too, push every interval that has started into a min-heap keyed by size, and pop those that already ended.
-- A sweep line also works for "max overlap": turn each range into `(start, +1)` and `(end, −1)` events, sort, and track the running sum.
+- A sweep line also works for "max overlap": turn each range into `(start, +1)` and `(end, −1)` events, sort, and track the running sum. Ties matter here: process ends first for half-open ranges and starts first for inclusive ones.
 - Intervals plus "choose greedily" is the bridge to **Greedy**; intervals plus "track what's still open" is the bridge to **Heap**.

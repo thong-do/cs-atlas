@@ -1,0 +1,56 @@
+slug: greedy-quiz
+type: quiz
+title: "Greedy — quiz"
+lessons: [greedy]
+ladderOrder: 0
+questions:
+  - id: density-fails
+    prompt: "A van carries 10 kg, and crates go in whole: 6 kg worth 30, 5 kg worth 20, and another 5 kg worth 20. Loading the best value per kilo first gives what total, and what's the best possible?"
+    choices: ["Greedy 40; best 40", "Greedy 30; best 40", "Greedy 30; best 30", "Greedy 50; best 50"]
+    answer: 1
+    explanation: "The 6 kg crate has the best value per kilo, 5 against 4. Once it's in, 4 kg remain and neither other crate fits, so the total is 30. Taking both 5 kg crates fills the van and gives 40, so one swap can't repair the first choice."
+  - id: exchange-shortest-first
+    prompt: "Three jobs of 8, 2 and 5 minutes share one worker, and you want the smallest **sum of finishing times**. Swapping two neighbouring jobs moves their finishes and no others. Which order is best, and what's its sum?"
+    choices: ["8, 5, 2 with sum 36", "5, 2, 8 with sum 27", "2, 5, 8 with sum 24", "Any order, with sum 15"]
+    answer: 2
+    explanation: "The finishes for 2, 5, 8 are 2, 7, 15, which sum to 24. If a longer job runs just before a shorter one, swapping them lowers the first finish and leaves the second unchanged, so shortest first is best. Each order's last finish is 15, but the earlier finishes differ."
+  - id: gas-trace
+    prompt: "What does `gas_station` return for `gas = [1, 5, 2, 3]` and `cost = [3, 2, 4, 1]`?"
+    choices: ["1", "0", "-1", "2"]
+    answer: 0
+    explanation: "The total gas of 11 covers the total cost of 10, so it goes on. The tank goes to −2 at index 0, which resets `start` to 1. From there it runs 3, 1, 3 and never drops below 0, so `start` stays at 1."
+  - id: which-rule-safe
+    prompt: "Which of these greedy rules gives a best answer on every input of its kind?"
+    choices: ["Whole crates in a van, taken by best value per kilo", "Making change from coins of 1, 7 and 10, taking the largest that fits", "Rising subsequences, taking each next value that's larger than the last", "Bulk spices by the gram in a jar, taken by best value per gram"]
+    answer: 3
+    explanation: "Spices can be cut, so any gram of a worse spice can be traded for a gram of a better one without loss. Whole crates can fail to fit, as a heavy crate can block two better ones. 14 cents needs 7 + 7, not 10 + 1 + 1 + 1 + 1. On 1, 5, 2, 3, the next-larger rule stops at length 2 while 1, 2, 3 has length 3."
+  - id: three-rules
+    prompt: "From half-open talks `[[3, 11], [5, 6], [6, 10], [9, 12], [10, 15]]` you pick as many as possible with no clash, using one sort key and taking each talk that still fits. How many does each key give?"
+    choices: ["Earliest end 3; earliest start 1; shortest 2", "Earliest end 3; earliest start 3; shortest 3", "Earliest end 2; earliest start 1; shortest 3", "Earliest end 3; earliest start 2; shortest 1"]
+    answer: 0
+    explanation: "Earliest end takes `[5, 6]`, `[6, 10]`, `[10, 15]`. Earliest start takes `[3, 11]`, which blocks all the others. Shortest takes `[5, 6]` and then `[9, 12]`, which blocks the remaining three. Only one of the three keys reaches the true best of 3."
+flashcards:
+  - id: when-to-use
+    front: "When does greedy fit?"
+    back: "When you can show that some best answer includes the locally best choice, and what's left is a smaller problem of the same kind."
+  - id: exchange
+    front: "The exchange argument"
+    back: "Take a best answer that differs from yours. Swap your choice in and show the result is no worse. Repeat until it matches yours."
+  - id: why-due-date
+    front: "Why does due-soonest-first minimise the worst delay?"
+    back: "Swapping neighbouring jobs that are out of due-date order doesn't raise the worst delay of the pair, and it doesn't affect any other job."
+  - id: fractional-vs-whole
+    front: "Best value per kilo: when is it safe?"
+    back: "When items can be cut. With whole items, a heavy item can block two others worth more together, so it needs DP."
+  - id: test-the-rule
+    front: "How do you test a greedy rule quickly?"
+    back: "Write a brute force for tiny inputs and compare. One counterexample is enough to reject the rule, and passing tests doesn't prove it."
+  - id: kadane-reset
+    front: "Kadane: when does the run restart?"
+    back: "When the sum so far is negative, since `max(x, cur + x)` then picks `x`. A negative prefix can only lower what follows."
+  - id: gas-total
+    front: "Gas Station: what makes the restart rule correct?"
+    back: "If total fuel covers total cost, a start exists. A failure rules out every start up to that point. The run after the last failure never goes negative, and its surplus covers earlier shortfalls."
+  - id: vs-dp
+    front: "Greedy vs DP"
+    back: "Greedy commits to one option and never compares again. DP keeps the best answer for each state and compares options, so it can handle a rule that fails."

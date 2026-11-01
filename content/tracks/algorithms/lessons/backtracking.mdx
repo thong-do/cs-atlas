@@ -28,6 +28,21 @@ What changes between problems is only *what the choices are* and *when a path is
 - **Permutations**: any unused element can come next, so track `used`.
 - **Constraint puzzles**: only make choices that keep the board valid — that **pruning** is what makes them fast enough.
 
+**Two shapes, one search.** The template loops over the next choice, so every node of its tree is an answer. You'll also see "take it or skip it", as in the ladder hint for Subsets and Combination Sum, where each level decides one element and the answers are the leaves. For subsets, both list the same 2ⁿ answers, so pick whichever you find clearer.
+
+**When pruning helps.** Pruning means giving up on a partial answer as soon as you can prove no completion works. It pays when both of these are true:
+
+- **It fires early.** Skipping a choice near the root removes a whole subtree. A check that can only fail when the path is complete removes nothing.
+- **It's cheap next to what it saves.** N-Queens checks three sets in O(1) before placing a queen. For 8 queens with one per row, that takes about 16.8 million full boards (8⁸) down to about 2,000 calls.
+
+It does nothing when the constraint never bites. If every candidate is valid, you still visit every candidate, and the check only adds cost. It can't beat the output either: if a list has a million valid answers, you take at least a million steps.
+
+A prune also needs a reason that holds on your input. The `break` in `combination_sum` is correct because candidates are positive, so a choice can only use up what remains. With negative candidates it loses answers: for `[-3, -1]` and target `-4`, `-3 > -4` breaks at once, though `-3 + -1` works.
+
+**When not to use it.** If you need only a count or the best value, and different paths reach the same state with the same future, backtracking repeats itself. Store each state's answer with [1-D DP](/algorithms/dp-1d/) instead. Counting isn't enough on its own to make that switch work, though. N-Queens counts have no small state that two paths share, so they're usually still backtracked.
+
+**Telling it from its neighbours.** **DP** asks "what's the answer from this state?", so it needs states that repeat. Backtracking asks "what are all the ways?", and it keeps the path because the path is the answer. [Graphs](/algorithms/graphs/) DFS marks a node visited for good, so each node is entered once: O(V + E). Backtracking un-marks on the way out, because the same cell can sit on many different paths, and that's what makes Word Search exponential.
+
 ## Visual
 
 <Visualizer kind="subsets-tree" />
@@ -103,12 +118,72 @@ def combination_sum(candidates: list[int], target: int) -> list[list[int]]:
     return result
 ```
 
+## Example
+
+**The problem.** A wedding planner has one long row of chairs, a list of guests, and a list of pairs who are feuding. Feuding guests can't sit side by side. List every order that seats all the guests.
+
+**Spotting the pattern.** Two triggers fit: "return every valid solution, not just a count" and "constraint puzzles". The seating is built one chair at a time, and each chair is one choice.
+
+**Why brute force is slow.** You could generate all orders and test each one. For 12 guests that's 12! = 479,001,600 full orders, each needing 11 neighbour checks, around 5 billion checks. Most of the work is wasted: if the first two guests are feuding, every one of the 10! = 3,628,800 orders starting with them fails for the same reason.
+
+**The key insight.** The constraint only involves neighbours, so you can test it as soon as a guest sits down. It's the `permutations` template plus one check before choosing, and that check cuts off everything under a bad pair.
+
+```python
+def seatings(guests: list[str], feuds: list[tuple[str, str]]) -> list[list[str]]:
+    bad = {frozenset(pair) for pair in feuds}
+    result, path, used = [], [], set()
+
+    def backtrack() -> None:
+        if len(path) == len(guests):
+            result.append(path[:])
+            return
+        for g in guests:
+            if g in used:
+                continue
+            if path and frozenset((path[-1], g)) in bad:
+                continue                  # prune: nothing under this chair can work
+            used.add(g)
+            path.append(g)                # choose
+            backtrack()                   # explore
+            path.pop()                    # un-choose
+            used.remove(g)
+
+    backtrack()
+    return result
+```
+
+**Traced run** with guests `A, B, C, D` and feuds A–B, B–C, C–D. Each row is one call to `backtrack`, in the order they happen:
+
+| Row so far | Next guests tried, in order | Outcome |
+|---|---|---|
+| (empty) | A (seat), B (seat), C (seat), D (seat) | go deeper |
+| A | B (feud, skip), C (seat), D (seat) | go deeper |
+| A C | B (feud, skip), D (feud, skip) | dead end, step back |
+| A D | B (seat), C (feud, skip) | go deeper |
+| A D B | C (feud, skip) | dead end, step back |
+| B | A (feud, skip), C (feud, skip), D (seat) | go deeper |
+| B D | A (seat), C (feud, skip) | go deeper |
+| B D A | C (seat) | go deeper |
+| B D A C | everyone is seated | record it, step back |
+| C | A (seat), B (feud, skip), D (feud, skip) | go deeper |
+| C A | B (feud, skip), D (seat) | go deeper |
+| C A D | B (seat) | go deeper |
+| C A D B | everyone is seated | record it, step back |
+| D | A (seat), B (seat), C (feud, skip) | go deeper |
+| D A | B (feud, skip), C (seat) | go deeper |
+| D A C | B (feud, skip) | dead end, step back |
+| D B | A (feud, skip), C (feud, skip) | dead end, step back |
+
+The answer is `B D A C` and `C A D B`. That took 17 calls, against 65 for the plain `permutations` search on 4 guests.
+
+**How much did it save?** It depends on the feuds, which is the honest answer on pruning. For 8 guests, the plain search makes 109,601 calls. With 7 feuds in a chain it makes 19,185, and with no feuds at all the check never fires, so it's 109,601 again.
+
 ## Complexity
 
 - Subsets: **O(n · 2ⁿ)** — 2ⁿ subsets, each copied in O(n).
 - Permutations: **O(n · n!)**.
 - Constraint puzzles: exponential in the worst case; good pruning cuts the real work dramatically.
-- Space: **O(n)** for the recursion depth and current path, plus the output.
+- Space: **O(d)** for the recursion depth and current path, plus the output, where d is the longest path: n for subsets and permutations, and up to target ÷ smallest candidate for Combination Sum, where values can repeat.
 
 ## Pitfalls
 

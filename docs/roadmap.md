@@ -1,16 +1,16 @@
 # Product Roadmap
 
-*Owner: PO · Last updated: 2026-10-06 · Status: approved*
+*Owner: PO · Last updated: 2026-11-01 · Phases 0–2 shipped; the quality phase is in progress*
 
 ## 1. Vision
 
 **An open, community-built place where anyone, at any level, can learn computer science in a way that sticks.**
 
-LeetHub began as a personal LeetCode trainer. The next step is a learning platform with:
+CS Atlas began as LeetHub, a personal LeetCode trainer. It is now a learning platform with:
 
-- **Many tracks:** Algorithms, System Design, CS Fundamentals and Technologies.
-- **All levels:** a beginner who has never written a loop and a senior engineer preparing for staff interviews should both find a path.
-- **Community content:** admins curate, and learners contribute docs, blog posts, exercises and fixes.
+- **Many tracks:** Algorithms, System Design and CS Fundamentals today, with Technologies to come.
+- **All levels:** a student who can write a loop but has never met a data structure and a senior engineer preparing for staff interviews should both find a path.
+- **Community content, later:** admins curate, and learners contribute fixes and lessons. All content so far is written by the owner.
 
 Our edge stays the same as v1: **learning that lasts.** Every track gets the parts that already work for algorithms:
 
@@ -24,7 +24,7 @@ Our edge stays the same as v1: **learning that lasts.** Every track gets the par
 
 | Persona | Need | Example |
 |---|---|---|
-| **Beginner** | A guided path from zero and no jargon walls | A student learning their first data structure |
+| **Beginner** (can already write basic code) | A guided path and no jargon walls | A student learning their first data structure |
 | **Interview prepper** | A focused plan with a deadline and pattern recognition | An engineer preparing for a FAANG loop in 8 weeks |
 | **Working engineer** | To close a gap fast | A backend developer learning how Kafka or consistent hashing works |
 | **Contributor** | To share knowledge and get credit | A senior engineer writing a case study on rate limiting |
@@ -33,27 +33,27 @@ Our edge stays the same as v1: **learning that lasts.** Every track gets the par
 ### Non-goals (for the next 12 months)
 
 - **Hosting LeetCode-style judges.** We link out to LeetCode and similar sites rather than run code against hidden tests.
-- **A native mobile app.** We ship a PWA instead.
+- **Teaching programming from zero.** Learners need to be able to read and write basic code; variables and loops are not taught here.
+- **A native mobile app.** A PWA comes later, in Phase 5.
 - **Video courses.** We embed videos, but we don't produce them.
 - **Paid tiers.** We'll revisit this once there's an audience.
 
-## 2. Where we are today (v1, live)
+## 2. Where we are today
 
 - **Content:**
-  - 18 algorithm patterns with full theory.
-  - 138 free LeetCode problems in ladders.
-  - 8 step-through visualizers.
-- **Learning loop:** roadmap graph, solve + insight notes, an FSRS review queue (Today), a pattern-recognition trainer, stats, a ⌘K palette and dark mode.
+  - 3 tracks and 52 lessons: Algorithms (18), System Design (18) and CS Fundamentals (16).
+  - 210 exercises: 138 linked LeetCode problems, 34 quizzes with 273 flashcards, 32 design prompts (16 of them diagnose scenarios) and 6 estimation drills.
+  - 21 step-through visualizers and a placement quiz for each track.
+- **Learning loop:** roadmap graph, solve + insight notes, a mixed FSRS review queue (Today), a pattern-recognition trainer, mastery per lesson, stats, a ⌘K palette and dark mode.
+- **Accounts:** optional GitHub or Google sign-in with cloud sync. Guests keep working offline, and export and account deletion are built in.
 - **Architecture:**
-  - A static Next.js export on Vercel.
-  - Content is MDX/YAML in the repo.
-  - Progress lives only in the browser (IndexedDB) with JSON backup, behind a `Store` interface that was designed for a later cloud store.
-- **Gaps for the new vision:**
-  - The content model is algorithm-specific (`pattern`, `problem`).
-  - There are no accounts or sync.
-  - There is no way to contribute.
-  - The repo is private.
-  - The name "LeetHub" ties us to LeetCode and is already used by a well-known browser extension.
+  - A static Next.js export on Vercel, with Supabase called from the browser under row-level security.
+  - Content is MDX/YAML in a public repo, validated in CI.
+- **Audience:** one signed-in learner with synced activity, and no outside contributions yet.
+- **Known gaps** (from the audit of 2026-10-31):
+  - Algorithms has no quizzes, flashcards or worked examples, and its lessons run 400–950 words against about 1,400 in the other tracks.
+  - Beginners land on Arrays & Hashing, which assumes Big-O, and recursion and sorting aren't taught anywhere.
+  - Only 4-week retention can be measured, and only for signed-in learners.
 
 ## 3. Guiding principles
 
@@ -65,30 +65,21 @@ Our edge stays the same as v1: **learning that lasts.** Every track gets the par
 
 ## 4. Roadmap at a glance
 
-The estimates assume one developer working with AI agents, using the same spec → plan → subagent workflow as v1.
+Phases 0–2 took about 3.5 weeks with one developer and AI agents, against 11–15 weeks planned, so the original calendar has been dropped. Later sizes are rough, and order matters more than dates.
 
-| Phase | Theme | Outcome | Rough size |
+| Phase | Theme | Outcome | Status |
 |---|---|---|---|
-| **0** | Foundations | A multi-track content model, a new name, a public repo and Git-based contributions | 2–3 weeks |
-| **1** | Accounts & sync | Sign in, cloud progress and profiles; guests keep working offline | 3–4 weeks |
-| **2** | New tracks (MVP) | System Design and CS Fundamentals tracks, levels and new exercise types | 6–8 weeks, then ongoing |
-| **3** | In-app contributions | An editor, suggested edits, a review queue, roles and blog posts | 5–6 weeks |
-| **4** | Community & engagement | Discussions, study plans, streaks and notifications | 4–5 weeks |
-| **5** | Scale & reach | Technologies track, i18n, PWA/offline, SEO and accessibility | Ongoing |
-
-```text
-Oct      Nov      Dec      Jan      Feb      Mar      Apr      May
-|─ P0 ─|
-       |── P1 ──|
-                |──────── P2: new tracks ────────|········ ongoing content
-                                  |──── P3 ────|
-                                               |── P4 ──|
-                                                        |── P5 → ──
-```
+| **0** | Foundations | A multi-track content model, a new name, a public repo and Git-based contributions | Shipped 2026-10-07 |
+| **1** | Accounts & sync | Sign in, cloud progress and a private profile; guests keep working offline | Shipped 2026-10-13 |
+| **2** | New tracks (MVP) | System Design and CS Fundamentals tracks, levels and new exercise types | Shipped 2026-10-28 |
+| **Q** | Quality first | Every track meets the same bar, beginners have a way in, and real learners have tried it | **In progress** |
+| **3** | Contributions (small) | Invited contributors suggest an edit in the browser and get credit | Next after Q |
+| **4** | Community & engagement | Discussions, study plans, streaks and notifications | Waits for real learners |
+| **5** | Scale & reach | Technologies track, i18n, PWA/offline, SEO and accessibility | Ongoing, later |
 
 ## 5. Phases in detail
 
-### Phase 0 — Foundations (now)
+### Phase 0 — Foundations (shipped 2026-10-07)
 
 **Goal:** turn an algorithm site into a platform skeleton without breaking anything that works today.
 
@@ -111,12 +102,14 @@ Oct      Nov      Dec      Jan      Feb      Mar      Apr      May
    - Make CI content validation (already in Velite) the gate for every contribution PR.
 5. **Preview deploys for contributors.** Every content PR gets a Vercel preview link. This already works today.
 
+**Built differently:** cross-track prerequisites were dropped because they stalled recommendations. Optional `background` links between tracks replaced them (PR #33). Estimated time and tags on lessons were never built.
+
 **Exit criteria**
 
 - The algorithms track is unchanged for learners.
 - An outside contributor can add a lesson through a PR by following `CONTRIBUTING.md`.
 
-### Phase 1 — Accounts & sync
+### Phase 1 — Accounts & sync (shipped 2026-10-13)
 
 **Goal:** progress follows the learner across devices. This is the foundation for roles and contributions.
 
@@ -139,7 +132,7 @@ Oct      Nov      Dec      Jan      Feb      Mar      Apr      May
 - Guest mode still works fully offline.
 - Deleting an account removes every row that belongs to the user.
 
-### Phase 2 — New tracks (MVP content)
+### Phase 2 — New tracks (shipped 2026-10-28)
 
 **Goal:** prove the platform beyond algorithms with two new tracks that meet the v1 quality bar.
 
@@ -182,6 +175,14 @@ New pieces for this track:
 - Each new track has at least 12 lessons that meet the quality bar: intuition, a visual, an exercise and review items.
 - Learners can follow either track from the start to its case studies or capstone.
 
+**Built differently**
+
+- Consistent hashing is part of Replication & sharding rather than its own lesson.
+- HTTP and APIs is part of Client–server & HTTP, and covers REST only.
+- The rate limiter is a lesson plus a design prompt rather than a case study, so there are 5 case studies, not 6.
+- Computer architecture became the Machine & math module, which covers the memory hierarchy but not how a CPU runs a program.
+- CS Fundamentals has no capstone: it ends at its fifth module.
+
 **Close-out (2026-10-28)**
 
 - Both exit criteria were verified by walking each track on production as a fresh guest, using only Continue. The walk found that other tracks' exercises held a lesson back (Caching) and that a finished track had no end state; both were fixed (PR #29).
@@ -193,43 +194,55 @@ New pieces for this track:
   - First production run, 2026-10-28: no cohort was complete. Only one signed-in learner had synced activity, first active 2026-10-15; their cohort (week of 2026-10-12) completes on 2026-11-14.
   - The baseline is recorded once at least one complete cohort has 5 or more learners. Until then the figure would describe individuals, not a baseline.
 
-### Phase 3 — In-app contributions
+### Phase Q — Quality first (in progress)
 
-**Goal:** anyone can improve content without knowing Git, and admins can keep up with what comes in.
+**Goal:** before inviting anyone, make what's already here correct, even across tracks, and usable by the people the vision names. Principle 1 says fifty great lessons beat five hundred thin ones, and the audit of 2026-10-31 found the bar uneven.
 
-**Two content types, two workflows**
+**Work, in order, one PR or small batch each**
 
-| | **Docs (track lessons)** | **Blog posts** |
+| # | Work | Status |
 |---|---|---|
-| Who writes | Contributors, then a reviewer approves | Any signed-in user |
-| Stored in | The Git repo as MDX, which keeps versioning, review and CI | Postgres |
-| Review | Required before publish | Light moderation: first post reviewed, then trusted users publish directly |
-| Example | "Fix the B-tree split diagram" | "How I passed my system design interview" |
-
-**Epics**
-
-1. **Suggest an edit on any page.** It opens an in-browser MDX editor with a live preview, including visualizers. On submit, a GitHub App opens a PR on the user's behalf and credits them.
-2. **New-lesson wizard.** It starts from a track template, checks for missing sections (intuition, visual, exercise) before submit, and runs the same validation as CI.
-3. **Roles and permissions:**
-   - Learner
-   - Contributor (after one accepted edit)
-   - Reviewer (per track)
-   - Admin
-4. **Review queue.** An admin dashboard of pending edits and posts, with a diff view and approve, request changes or reject. It shows SLA indicators.
-5. **Blog.**
-   - Posts with tags that link to lessons, so a lesson can list related community posts.
-   - Drafts, publish, edit history, and reporting a post.
-6. **Credit.** Contributor profiles list accepted contributions, and each lesson shows its authors.
-7. **Safety.** Rate limits, spam filtering, reporting and a moderation log.
+| 1 | **Correctness fixes** across all three tracks | Done (PR #32) |
+| 2 | **Learning-loop fixes:** Algorithms mastery reachable without the trainer, real prerequisites, `background` links, stricter V10, quiz answer-length rule V16 | Done (PRs #33, #34) |
+| 3 | **This roadmap rewrite** | Done |
+| 4 | **Algorithms up to the bar:** a quiz and flashcards for all 18 lessons, worked examples, a deeper Foundations module | Next |
+| 5 | **Beginner on-ramp:** Big-O reachable from the first lesson, and new Recursion and Sorting lessons | Planned |
+| 6 | **Coverage gaps:** rate-limiter case study, consistent hashing lesson, how hash tables and trees work underneath, how a CPU runs a program | Planned |
+| 7 | **Minimum measurement:** cookieless page analytics, a weekly-active-learners query, the due date stored on review logs | Planned |
+| 8 | **Try it with people:** 5–10 real learners and 1–2 contributors, with an "Improve this page" link for reports | Planned |
 
 **Exit criteria**
 
-- A non-technical contributor can fix a typo in under 2 minutes, end to end.
-- The median time to review a submission is under 72 hours.
+- Every lesson in every track has a worked example, a quiz with flashcards and at least one exercise that counts for its mastery.
+- A learner who can write basic code but doesn't know Big-O can follow Algorithms from its first lesson without getting stuck.
+- At least 5 people outside the project have used it, and what they reported has been triaged.
+
+### Phase 3 — Contributions (small)
+
+**Goal:** the few people we invite can fix a page without knowing Git. Docs stay in Git as MDX, so every change is still a PR with CI and a review.
+
+The first plan for this phase also had roles, a review queue with SLAs, a blog and moderation tooling. Those assume a community we don't have, so they are deferred (see below).
+
+**Epics**
+
+1. **Suggest an edit on any page.** An in-browser editor with a live preview. On submit, a PR opens that credits the contributor, and they can see its status. Contributors are on an allowlist. How the PR gets created needs its own spec; the leading option is a GitHub App behind one Supabase Edge Function.
+2. **Credit.** Each lesson shows its contributors, built from merged PRs.
+
+**Exit criteria**
+
+- A contributor who doesn't know Git can fix a typo in under 2 minutes, end to end.
+
+**Deferred until outside contributions are more than one maintainer can handle on GitHub**
+
+- A new-lesson wizard, which would reuse the editor and PR path from epic 1.
+- Roles and permissions, and a review queue with SLA indicators.
+- Rate limits, spam filtering and a moderation log. An allowlist is enough until sign-up for contributing is open.
+
+**Blog:** blog posts would live in Postgres rather than Git, with light moderation. Not planned until there are writers asking for it.
 
 ### Phase 4 — Community & engagement
 
-**Goal:** make coming back fun, without dark patterns.
+**Goal:** make coming back fun, without dark patterns. This phase waits for real learners: discussions and streaks can't be judged with one user.
 
 **Epics**
 
@@ -244,7 +257,7 @@ New pieces for this track:
 
 **Exit criteria**
 
-- 4-week retention improves measurably over Phase 2's baseline.
+- 4-week retention improves measurably over the baseline, once a complete cohort of 5 or more learners exists to set one.
 - Each lesson's discussion area stays healthy, with a low report rate.
 
 ### Phase 5 — Scale & reach (ongoing)
@@ -266,22 +279,25 @@ New pieces for this track:
 
 ## 6. Success metrics
 
-| Metric | Why it matters | Target at the end of Phase 4 |
-|---|---|---|
-| **North Star: weekly active learners** who complete a lesson or a review session | Measures real learning, not page views | Set the baseline in Phase 1, then aim for +20% a quarter |
-| Review completion rate (due items reviewed within 48h) | Measures whether learning lasts | ≥ 60% |
-| 4-week retention of new sign-ups | Measures whether the product is fun | ≥ 25% |
-| Accepted contributions per month | Measures whether the community is healthy | ≥ 30 |
-| Median time to review a submission | Measures contributor experience | < 72h |
-| Lessons meeting the quality bar | Measures content depth | 100% of published lessons |
+Percentage targets are on hold until there are about 30 active learners, because below that they would describe individuals. Phase Q #7 adds what's missing.
 
-**Analytics:** privacy-friendly (e.g. Plausible or PostHog with no third-party cookies).
+| Metric | Why it matters | Measurable today? | Target once there's an audience |
+|---|---|---|---|
+| **North Star: weekly active learners** who complete a lesson or a review session | Measures real learning, not page views | No. Activity exists for signed-in learners but nothing queries it, "completes a lesson" isn't defined, and guests aren't visible | +20% a quarter |
+| Review completion rate (due items reviewed within 48h) | Measures whether learning lasts | No. Review logs don't store the due date | ≥ 60% |
+| 4-week retention of new sign-ups | Measures whether the product is fun | Yes, signed-in learners only: `report.retention_w4()` | ≥ 25% |
+| Accepted contributions per month | Measures whether the community is healthy | Yes, from GitHub. Currently no outside ones | Set after Phase 3 |
+| Median time to review a submission | Measures contributor experience | Yes, from GitHub. Nothing to measure yet | < 72h |
+| Lessons meeting the quality bar | Measures content depth | Partly. CI checks required sections, not whether each lesson has a quiz | 100% of published lessons |
+
+**Analytics:** privacy-friendly (e.g. Plausible or Umami with no third-party cookies), added in Phase Q.
 
 ## 7. Key risks
 
 | Risk | Mitigation |
 |---|---|
-| **Quality drops as content grows** | Enforce the quality bar in CI (required sections); review per track; let learners flag weak lessons |
+| **Quality drops as content grows** | Enforce the quality bar in CI; an independent accuracy review for every content change; let learners flag weak lessons |
+| **Building for a community that doesn't exist** | Test with real learners first; community features wait for evidence they're needed |
 | **The review load overwhelms one admin** | Promote trusted contributors to reviewers early; lighter review for blog posts; automated checks first |
 | **Spam and abuse** once accounts exist | Rate limits, first-post moderation, reporting, and blocking links for new accounts |
 | **Scope creep across tracks** | Ship two new tracks well before starting a third; Technologies waits for Phase 5 |
@@ -293,12 +309,18 @@ New pieces for this track:
 
 The PO's recommendations below were approved on 2026-10-06.
 
-1. **Rename the product before the repo goes public.** "LeetHub" is too narrow and clashes with an existing extension. The Phase 0 spec picks the new name.
+1. **Rename the product before the repo goes public.** "LeetHub" was too narrow and clashed with an existing extension. It is now CS Atlas.
 2. **Make the repo public** at the end of Phase 0, with MIT for code and CC BY-SA 4.0 for content. Git-based contribution is the cheapest way to get early contributors.
 3. **Backend: Supabase** (Postgres + auth + RLS), on the current Vercel hosting.
 4. **Split docs and blog posts** (the hybrid in Phase 3). Docs stay in Git, reviewed and versioned; blog posts go in the database.
 5. **First new track: System Design.** CS Fundamentals follows in the same phase.
 
+Added on 2026-11-01:
+
+6. **Quality before community.** Phase Q comes before Phase 3, and Phase 3 is cut to suggest-an-edit and credit.
+7. **Learners need basic programming.** We won't teach variables and loops; the on-ramp starts from Big-O.
+8. **Track links never block.** Links between tracks are optional `background`, not prerequisites.
+
 ## 9. Next step
 
-Brainstorm **Phase 0** into its own spec and implementation plan, following the same workflow as v1. Each later phase gets its own spec → plan → PR cycle.
+Phase Q #4: bring Algorithms up to the bar, batched by module like the CS Fundamentals track, starting with the 6 Foundations lessons. Each later phase gets its own spec → plan → PR cycle.

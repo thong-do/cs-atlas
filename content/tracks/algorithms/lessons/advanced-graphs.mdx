@@ -3,7 +3,7 @@ slug: advanced-graphs
 title: Advanced Graphs
 prerequisites: [graphs, heap]
 confusedWith: [graphs, greedy]
-triggers: ["weighted shortest path (Dijkstra)", "connect everything as cheaply as possible (minimum spanning tree)", "cheapest path with at most k steps", "minimise the worst edge on a path", "order things under dependency rules"]
+triggers: ["weighted shortest path (Dijkstra)", "connect everything as cheaply as possible (minimum spanning tree)", "cheapest path with at most k steps", "minimise the worst edge on a path", "order things under dependency rules", "groups that merge as links are added"]
 complexity: "O(E log V)"
 level: advanced
 authors: [cs-atlas]
@@ -12,7 +12,7 @@ summary: "Graph algorithms that need a heap or union-find."
 
 ## Intuition
 
-Plain BFS finds the shortest path when every edge costs the same. Once edges have **weights** (times, prices, effort), the path with the fewest edges is no longer the cheapest, so you need tools that respect costs.
+Plain BFS finds the shortest path when every edge costs the same. Once edges have **different weights** (times, prices, effort), the path with the fewest edges may not be the cheapest, so you need tools that respect costs.
 
 Picture water flowing from a source through pipes of different lengths. It reaches the nearest junctions first, and from each one it flows onward. **Dijkstra** simulates exactly that with a min-heap: always expand the closest unfinished node. Once a node comes off the heap, its distance is final.
 
@@ -22,6 +22,23 @@ The toolbox for this ladder:
 - **Minimum spanning tree**: connect all nodes with the least total weight. **Kruskal** sorts edges and adds each one unless it would form a cycle, which **union-find** detects in near O(1). **Prim** grows one tree with a heap instead.
 - **Bellman-Ford with k rounds**: when the path may use at most k edges (Cheapest Flights), relax every edge k+1 times from a snapshot of the previous round.
 - **Topological sort** from Graphs, applied twice when there are two independent sets of rules (Build a Matrix With Conditions).
+- **Union-find** on its own: keep track of which group each node is in while links are added.
+
+**Union-find, in plain terms.** Each group has one representative, and every member points towards it, like staff who can each name someone closer to the boss. `find` follows the pointers up to the representative, and two nodes are in the same group when their representatives match. `union` joins two groups by pointing one representative at the other. Two small habits keep the chains short: attach the smaller group under the larger, and shorten the path during each `find`. With both, each operation is nearly O(1) on average.
+
+`union` returning `False` carries the useful information: both ends were already connected. So in an undirected graph that edge closes a cycle, and the group count stays the same. When it returns `True`, there is one group fewer.
+
+Union-find has limits worth knowing:
+
+- It only merges, so it can't remove a link. If links only disappear and you know the order in advance, run time backwards so that they appear instead.
+- It ignores direction, so it can't detect a cycle in a directed graph. Edges a→b, a→c and c→b close no cycle, yet the third `union` returns `False`. Use topological sort there.
+- It tells you whether two nodes are connected, but not the route between them. For a route, use BFS or DFS.
+
+**When not to use these tools.** If every edge costs the same, BFS is simpler and drops the log factor. If a graph is fixed and you only need its components once, a BFS or DFS is O(V + E) and needs no extra structure. Union-find earns its place when the links arrive over time, or when you're adding edges in a chosen order, as in Kruskal.
+
+**Telling it from its neighbours.** [Graphs](/algorithms/graphs/) covers what you can answer when every edge is equal: reachability, fewest edges and ordering. This lesson begins when costs differ or groups merge. [Greedy](/algorithms/greedy/) is the idea underneath, since Dijkstra always settles the closest node and Kruskal always tries the cheapest edge. These two greedy rules come with proofs, and those proofs rely on conditions: Dijkstra's needs non-negative weights.
+
+A shortest-path tree and a minimum spanning tree can also differ. Dijkstra minimises the distance from one source to each node. An MST minimises the total length of all the edges kept.
 
 ## Visual
 
@@ -111,6 +128,45 @@ def cheapest_within_k(n: int, flights: list[list[int]], src: int, dst: int, k: i
     return prices[dst] if prices[dst] != math.inf else -1
 ```
 
+## Example
+
+**The problem.** A campus has `n` buildings joined by network cables, listed as pairs of buildings. A contractor will cut some of the cables, one at a time, in a known order given as indexes into that list. After each cut, how many separate groups of connected buildings are there?
+
+**Spotting the pattern.** The trigger is "groups that merge as links are added", though here the links go away. That's the twist: read backwards, each cut becomes a new cable.
+
+**Why brute force is slow.** You could count components with a BFS after every cut. With 100,000 buildings, 200,000 cables and 100,000 cuts, each BFS looks at around 300,000 nodes and edges, so that's about 30 billion steps: O(cuts × (V + E)).
+
+**The key insight.** Union-find can't undo a merge, but we know the whole plan in advance. So start from the campus as it is after the *last* cut, and put the cables back in reverse order. The count after cut number `s` is the count once cuts `s + 1` onward have been restored. Each cable costs one nearly constant `union`, so the total is close to O(V + E).
+
+```python
+def groups_after_cuts(n: int, cables: list[tuple[int, int]], cuts: list[int]) -> list[int]:
+    dsu, groups = DSU(n), n
+    cut = set(cuts)
+    for i, (a, b) in enumerate(cables):
+        if i not in cut and dsu.union(a, b):      # cables that survive every cut
+            groups -= 1
+    answers = [0] * len(cuts)
+    for step in range(len(cuts) - 1, -1, -1):
+        answers[step] = groups                    # the count just after this cut
+        a, b = cables[cuts[step]]
+        if dsu.union(a, b):                       # put the cable back
+            groups -= 1
+    return answers
+```
+
+**Traced run** with 5 buildings, cables `0: (0,1)`, `1: (1,2)`, `2: (2,0)`, `3: (3,4)`, `4: (2,3)`, and cuts `[2, 4, 0, 3]`.
+
+Only cable 1 survives every cut, so the starting groups are 0 · 1 2 · 3 · 4, which is 4 groups (a dot separates groups). Then we walk the cuts backwards, recording the count before putting each cable back:
+
+| Cut step | Record | Put back | `union` | Groups | Grouping |
+|---|---|---|---|---|---|
+| 3 | 4 | (3,4) | True | 3 | 0 · 1 2 · 3 4 |
+| 2 | 3 | (0,1) | True | 2 | 0 1 2 · 3 4 |
+| 1 | 2 | (2,3) | True | 1 | 0 1 2 3 4 |
+| 0 | 1 | (2,0) | False | 1 | 0 1 2 3 4 |
+
+The answer is `[1, 2, 3, 4]`. The first cut changes nothing, since (2,0) closed a loop: that's the `False` in the last row. Space is O(V) for the DSU, plus O(cuts) for the answers and the set.
+
 ## Complexity
 
 - Dijkstra with a binary heap: **O((V + E) log V)**.
@@ -120,7 +176,7 @@ def cheapest_within_k(n: int, flights: list[list[int]], src: int, dst: int, k: i
 
 ## Pitfalls
 
-- Using Dijkstra with **negative** edge weights — the "final once popped" guarantee breaks. Use Bellman-Ford instead.
+- Using Dijkstra with **negative** edge weights — the "final once popped" guarantee breaks. Use Bellman-Ford instead. This lesson's template re-pushes any node that improves, so it can still reach the right answer on a small graph. But it loses its time bound, and a negative cycle reachable from the source makes it run forever.
 - Skipping the stale-entry check (`if d > dist[u]: continue`). Results stay correct, but old heap entries do extra work.
 - Cheapest Flights with plain Dijkstra: the cheapest path may use too many stops. Either carry the stop count in the state or use k-round Bellman-Ford.
 - Updating `prices` in place during a Bellman-Ford round, which lets a single round chain several edges and breaks the stop limit.
@@ -132,4 +188,4 @@ def cheapest_within_k(n: int, flights: list[list[int]], src: int, dst: int, k: i
 - Path With Minimum Effort and Swim in Rising Water: the cost of a path is its **maximum** step, so push `max(d, step)` instead of `d + step`.
 - Reconstruct Itinerary: Hierholzer's algorithm — DFS, using each ticket once in lexical order, append the airport after its edges run out, then reverse the list.
 - Build a Matrix With Conditions: topologically sort the row rules and the column rules separately; a cycle in either means it's impossible.
-- Union-find is also the quickest way to count connected components or detect a cycle in an undirected graph.
+- Union-find is the simplest way to count connected components or detect a cycle in an undirected graph while edges arrive one at a time. Start with n groups and subtract one for each `union` that returns `True`.

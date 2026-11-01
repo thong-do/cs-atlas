@@ -14,7 +14,7 @@ summary: "Model the problem as nodes and edges, then BFS, DFS or topological sor
 
 Many problems are graphs in disguise. Once you name the **nodes** (cells, courses, words, states) and the **edges** (neighbouring cells, "must come before", "differs by one letter"), a handful of standard traversals solve them.
 
-The one rule that separates graphs from trees: **graphs can have cycles**, so you must remember where you've been (`visited`) or you'll loop forever.
+The one rule that separates graphs from trees: **a graph can have cycles, and several routes can reach the same node**. So a traversal must remember where it has been (`visited`), or it can loop forever or do the same work many times.
 
 Pick the traversal by the question:
 
@@ -23,6 +23,20 @@ Pick the traversal by the question:
 - **Topological sort** orders nodes so every edge points forward — "take the prerequisites first". If some nodes can never be ordered, there's a cycle.
 
 A grid is an *implicit* graph: each cell is a node, and its up/down/left/right neighbours are its edges. You never build an adjacency list for it.
+
+**A node can be a state, not a place.** If what you can do next depends on more than where you stand, put that extra fact in the node. In a maze with one key, standing at a door with the key is a different node from standing there without it, so `visited` holds `(cell, has_key)`.
+
+**Connected components.** A component is a group of nodes that can all reach each other. To count them in an undirected graph, loop over every node and start one traversal from each node not yet seen. Each start is one component, and the outer loop is what finds the pieces that one traversal can't reach. `num_islands` below does this on a grid. When the links arrive over time, [Advanced Graphs](/algorithms/advanced-graphs/) has union-find, which keeps the count up to date without traversing again.
+
+**Multi-source BFS.** To find how far each cell is from its nearest source, you don't need one BFS per source. Put every source in the queue at distance 0 and run a single BFS. The queue still releases nodes in order of distance, and now that means distance from the nearest source. Each cell is still visited once, so the cost is O(V + E) however many sources there are.
+
+**When not to use it.**
+
+- If edges have different weights, the fewest edges may not be the cheapest route. Use Dijkstra.
+- If you need the longest route, or every route, marking each node once is wrong, because a later route may need a node that an earlier one used. Those are backtracking problems.
+- If you only need one number per node on a graph with no cycles, and that number combines results from earlier nodes, DP in topological order may fit better than a plain traversal.
+
+**Telling it from its neighbours.** [Trees](/algorithms/trees/) are the special case with one route between any two nodes. Starting from the root, a tree traversal needs no `visited` set. Once a node can be reached twice, it does. [Backtracking](/algorithms/backtracking/) also goes deep and returns, but it undoes its marks on the way back so that other paths may reuse a node. It visits paths, which can be exponentially many. A graph traversal visits each node once, so it costs O(V + E).
 
 ## Visual
 
@@ -92,6 +106,56 @@ def topo_order(n: int, edges: list[tuple[int, int]]) -> list[int]:
     return order if len(order) == n else []
 ```
 
+## Example
+
+**The problem.** A town is a grid of blocks, where `#` is a building you can't walk through and `.` is a street block. Polling stations stand on some street blocks, given as a list, and a station's number is its place in that list. Each street block votes at the station nearest by walking, moving up, down, left or right. If two stations are equally near, the lower number wins. Return how many blocks each station serves, counting its own. Blocks that no station can reach aren't counted.
+
+**Spotting the pattern.** "Grid of cells" and "shortest path in an unweighted graph" are both triggers. Every step costs the same, so BFS gives walking distance. Asking for the *nearest of many* points to multi-source BFS.
+
+**Why brute force is slow.** You could run one BFS per station and keep the best for each block. With 2,000 stations on a 1,000 × 1,000 grid, that's 2,000 runs of a million cells each, about 2 billion cell visits: O(stations × cells).
+
+**The key insight.** Start all the stations together, in number order, and let each block belong to whichever station reaches it first. The queue releases blocks by distance, so the first arrival is a nearest station. Ties work out too. If the blocks at one distance sit in the queue in station order, the blocks they discover join the queue in station order as well. So the lowest-numbered station that's equally near arrives first. Each block is claimed once, which makes it O(rows × cols) in total.
+
+```python
+def catchments(grid: list[str], stations: list[tuple[int, int]]) -> list[int]:
+    rows, cols = len(grid), len(grid[0])
+    owner = {pos: i for i, pos in enumerate(stations)}   # block -> its station, doubles as visited
+    queue = deque(stations)
+    while queue:
+        r, c = queue.popleft()
+        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] != "#" and (nr, nc) not in owner:
+                owner[(nr, nc)] = owner[(r, c)]
+                queue.append((nr, nc))
+    served = [0] * len(stations)
+    for i in owner.values():
+        served[i] += 1
+    return served
+```
+
+**Traced run** with stations `[(0, 0), (2, 2)]`, written as (row, column), on this town:
+
+```text
+. . .
+. # .
+. . .
+```
+
+| Popped | Station | Claims | Queue after |
+|---|---|---|---|
+| start | | (0,0) for 0, (2,2) for 1 | (0,0) (2,2) |
+| (0,0) | 0 | (1,0), (0,1) | (2,2) (1,0) (0,1) |
+| (2,2) | 1 | (1,2), (2,1) | (1,0) (0,1) (1,2) (2,1) |
+| (1,0) | 0 | (2,0) | (0,1) (1,2) (2,1) (2,0) |
+| (0,1) | 0 | (0,2) | (1,2) (2,1) (2,0) (0,2) |
+| (1,2) | 1 | nothing | (2,1) (2,0) (0,2) |
+| (2,1) | 1 | nothing | (2,0) (0,2) |
+| (2,0) | 0 | nothing | (0,2) |
+| (0,2) | 0 | nothing | empty |
+
+The answer is `[5, 3]`. Blocks (2,0) and (0,2) are each 2 steps from both stations, and station 0 takes both because its blocks come first in the queue at every distance. Swap the two stations in the list and the other one wins those ties. Space is O(rows × cols) for `owner` and the queue.
+
 ## Complexity
 
 - Time: **O(V + E)** — each node is processed once and each edge is looked at once (twice for undirected graphs).
@@ -109,8 +173,8 @@ def topo_order(n: int, edges: list[tuple[int, int]]) -> list[int]:
 ## Tips & tricks
 
 - Grid neighbours: loop over `((1, 0), (-1, 0), (0, 1), (0, -1))` and bounds-check once.
-- **Multi-source BFS**: start with every source in the queue at distance 0 (all rotten oranges at once). Count the levels that spread to new cells: that is the answer, since the last level, with nothing left to spread to, adds no minute.
+- **Multi-source BFS**: start with every source in the queue at distance 0 (all rotten oranges at once). Count the levels that spread to new cells: that is the answer, since the last level, with nothing left to spread to, adds no minute. Then check whether any fresh cell was never reached.
 - Process BFS level by level with `for _ in range(len(queue))` — the same trick as tree level order — when you need "minutes" or "steps".
 - Word Ladder: generate neighbours by changing one letter at a time (or group words by wildcard patterns like `h*t`) instead of comparing every pair.
 - Cycle detection in a directed graph: Kahn's algorithm leaves nodes unprocessed, or DFS finds a node that is still "in progress".
-- When edges have **weights**, plain BFS is no longer shortest — move on to **Advanced Graphs** (Dijkstra).
+- When edges have **different weights**, plain BFS is no longer shortest — move on to **Advanced Graphs** (Dijkstra).

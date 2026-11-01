@@ -1,0 +1,56 @@
+slug: dp-2d-quiz
+type: quiz
+title: "2-D Dynamic Programming — quiz"
+lessons: [dp-2d]
+ladderOrder: 0
+questions:
+  - id: edit-trace
+    prompt: "You run `edit_distance(\"cart\", \"arts\")`. What does it return?"
+    choices: ["1", "4", "2", "3"]
+    answer: 2
+    explanation: "Delete the c and add an s at the end, leaving a, r and t matched. Lining up the letters by position without shifting them would change all four, which is why the table's delete and insert moves matter. One edit can't do it, as both ends of the word differ."
+  - id: forward-row
+    prompt: "A teammate fills a single row for 0/1 knapsack with `for a in range(w, cap + 1): row[a] = max(row[a], row[a - w] + v)`. Items are (weight 2, value 5) and (weight 3, value 6), each usable once, and `cap` is 6. What does `row[6]` end up as, and what's the right answer?"
+    choices: ["It ends up as 15, and the right answer is 11", "It ends up as 11, and that's right", "It ends up as 17, as each item is used twice, and the right answer is 11", "It ends up as 15, and that's right"]
+    answer: 0
+    explanation: "Going left to right, `row[a - w]` already includes this item, so an item can repeat. The first item alone reaches 15 with three copies at weight 6. Used once each, both items weigh 5 and are worth 11, which is the most possible."
+  - id: table-or-subsets
+    prompt: "A knapsack has 26 items and a capacity of 5,000,000,000. Compare filling the full `dp[i][a]` table with trying all subsets of items. Which does less work, and by roughly how much?"
+    choices: ["The table, by a lot: 26 × 26 cells against 2²⁶ subsets", "Trying subsets: about 67 million against 130 billion cells", "The table: 130 billion cells against 2⁵⁰ subsets", "They match: both come to about 130 billion steps, since each item doubles the work"]
+    answer: 1
+    explanation: "Cells number 26 × 5,000,000,000 = 130 billion, because the width is the capacity's value. Subsets number 2²⁶ ≈ 67 million. With a capacity this big and so few items, trying subsets costs far less, even though a table is usually the better choice."
+  - id: song-orders
+    prompt: "A playlist must fill exactly 7 minutes with 2-minute and 3-minute tracks, where a different order is a different playlist. Which loop setup counts these, and what's the count?"
+    choices: ["Tracks outer, minutes inner, which gives 1", "Minutes outer, tracks inner, which gives 1", "Tracks outer, minutes inner, which gives 3", "Minutes outer, tracks inner, which gives 3"]
+    answer: 3
+    explanation: "The only mix is two 2s and one 3, and that can go in 3 orders: 2+2+3, 2+3+2 and 3+2+2. Order counts here, so minutes go in the outer loop, letting every track end each total. With tracks outer, you'd get 1, the number of combinations."
+  - id: paint-row
+    prompt: "Three adjacent stalls are each painted red, green or blue, with no two neighbours the same colour. Costs are stall 1: 7, 3, 8; stall 2: 6, 9, 2; stall 3: 5, 4, 9, in that colour order. What's the cheapest total, and why does the state need the colour?"
+    choices: ["9, since the next stall's choices depend on the colour just used", "9, since a table needs two indexes to be filled row by row", "10, since the next stall's choices depend on the colour just used", "9, with no need for colour, since each stall takes its cheapest allowed"]
+    answer: 0
+    explanation: "Green, blue, green costs 3 + 2 + 4 = 9. In the table, the last row is 10, 9 and 18, so 9 is the smallest. Each stall's options rule out one colour, so `dp[i]` alone can't say what's allowed next. Here, picking the cheapest in turn also reaches 9, but it isn't a safe rule in general."
+flashcards:
+  - id: when-2d
+    front: "When do you need a 2-D state?"
+    back: "When finishing the problem needs two numbers, such as a position in each of two strings, or the current item and the capacity left."
+  - id: padded
+    front: "Why does the table have an extra row and column?"
+    back: "For the empty prefixes. So `dp[i][j]` compares `a[i - 1]` with `b[j - 1]`, and the base cases have a place to go."
+  - id: knapsack-choice
+    front: "The 0/1 knapsack transition"
+    back: "`dp[i][a]` is the better of skipping, `dp[i-1][a]`, and taking if it fits, `dp[i-1][a - w] + v`. Both read the row above, so each item goes once."
+  - id: direction
+    front: "One-row knapsack: which direction?"
+    back: "Right to left when each item is used at most once, since it reads old values. Left to right when items can repeat."
+  - id: loop-order
+    front: "Coins outer or amounts outer?"
+    back: "Coins outer counts combinations, because each coin is settled before the next. Amounts outer counts orderings, so 1+2 and 2+1 count separately."
+  - id: pseudo-poly
+    front: "When does a capacity table stop being affordable?"
+    back: "When the capacity is huge. The table's size follows the capacity's value, so with few items, trying the subsets can be cheaper."
+  - id: walk-back
+    front: "How do you recover which items a knapsack took?"
+    back: "Keep the full table and walk back. If `dp[i][a]` differs from `dp[i-1][a]`, item i was taken, so subtract its weight."
+  - id: exact-or-at-most
+    front: "Starting a knapsack for \"at most\" vs \"exactly\""
+    back: "At most: the whole first row is 0. Exactly: only amount 0 starts reachable, and every other amount starts impossible."

@@ -12,23 +12,62 @@ summary: "Spot the mathematical property or matrix index pattern."
 
 ## Intuition
 
-These problems don't share one algorithm. They share a habit: before writing loops, look for the **property** that makes the problem simple. A rotation is two easy flips. A power can be built by squaring. A sequence of numbers that never reaches 1 must be stuck in a cycle.
+These problems don't share one algorithm. They share a habit: before writing loops, look for the **property** that makes the problem simple. A rotation is two easy flips. A power can be built by squaring. In Happy Number, the digit-square sum soon drops to small values, so a sequence that never reaches 1 must be stuck in a cycle.
 
 Think of folding paper: rotating a sheet 90° is the same as flipping it along the diagonal and then left-to-right. You don't move each corner by hand — you compose two simple moves.
 
 Shapes in this ladder:
 
 - **Matrix index tricks**: rotate = transpose + reverse each row; spiral = four shrinking boundaries; Set Matrix Zeroes = use the first row and column as markers.
-- **Digit-by-digit arithmetic**: carry from the right (Plus One), or multiply digits into position `i + j` (Multiply Strings) — exactly what you'd do on paper.
+- **Digit-by-digit arithmetic**: carry from the right (Plus One), or multiply digits into positions `i + j` and `i + j + 1` (Multiply Strings) — exactly what you'd do on paper.
 - **Exponentiation by squaring**: `x¹³ = x⁸ · x⁴ · x¹`, read off the bits of the exponent (Pow(x, n)).
 - **Cycle detection on numbers**: apply a function repeatedly and use fast/slow pointers (Happy Number), like Linked List Cycle.
+- **Divisibility**: gcd, primes and remainders, below.
+
+**Greatest common divisor.** `gcd(a, b)` is the largest number dividing both. Anything that divides `a` and `b` also divides `a mod b`, and the reverse holds too, so `gcd(a, b) = gcd(b, a mod b)`. Repeat until the second number is 0, and the first is the answer. That's Euclid's algorithm:
+
+```python
+def gcd(a: int, b: int) -> int:
+    while b:
+        a, b = b, a % b
+    return a
+
+
+def lcm(a: int, b: int) -> int:
+    return a // gcd(a, b) * b                    # a positive pair; divide first to keep it small
+```
+
+Taking a remainder at least halves the larger number within two steps, so this takes O(log min(a, b)) steps. Python has it built in as `math.gcd`, which also handles zero and negatives.
+
+**Primes.** To test one number `n`, try divisors up to `√n`: if `n = p × q`, the smaller factor is at most `√n`. That's O(√n). To find all primes up to `n`, use the **sieve of Eratosthenes**, which crosses out the multiples of each prime:
+
+```python
+def primes_up_to(n: int) -> list[int]:
+    is_prime = [True] * (n + 1)
+    is_prime[:2] = [False] * min(2, n + 1)
+    p = 2
+    while p * p <= n:
+        if is_prime[p]:
+            for m in range(p * p, n + 1, p):     # smaller multiples have a smaller factor
+                is_prime[m] = False
+        p += 1
+    return [i for i in range(n + 1) if is_prime[i]]
+```
+
+The sieve costs O(n log log n) time and O(n) space. So one `√n` test is better when you have a few large numbers, and the sieve when you need many answers below a limit you can afford in memory.
+
+**Modular arithmetic.** "Return the answer modulo 1,000,000,007" exists to keep numbers small. Addition, subtraction and multiplication can be reduced at any step: `(a * b) % m == ((a % m) * (b % m)) % m`. Division can't. `(20 / 4) % 7` is 5, while `(20 % 7) / (4 % 7)` is 6 / 4. Python's `%` returns a value with the sign of `m`, so `-1 % 7` is 6, while C and Java give -1. For large powers, `pow(a, b, m)` uses squaring and stays O(log b).
+
+**When not to use it.** A formula is only as good as its proof. If you can't say why a property holds, check it against a brute force on small inputs before trusting it. When the input is small enough, a plain simulation is often clearer: the sieve is wasted on a single small number. Floats also limit what you can do. Comparing them exactly or using them for large whole numbers can give wrong results, so keep to integers where you can.
+
+**Telling it from its neighbours.** [Bit Manipulation](/algorithms/bit-manipulation/) works on binary digits, and this lesson works on the value of a number or the shape of a matrix. Powers of two sit in both. [Arrays & Hashing](/algorithms/arrays-hashing/) can often solve the same problem with a `seen` set, such as Happy Number. The math approach saves memory but needs an argument you have to trust.
 
 ## Visual
 
 ```text
 Rotate Image 90° clockwise = transpose, then reverse each row
 
-  1 2 3      transpose      1 4 7      reverse rows      7 4 1
+  1 2 3      transpose      1 4 7    reverse each row    7 4 1
   4 5 6     ───────────▶    2 5 8     ─────────────▶     8 5 2
   7 8 9    (swap [i][j]     3 6 9                         9 6 3
             and [j][i])
@@ -99,6 +138,40 @@ def is_happy(n: int) -> bool:
     return fast == 1
 ```
 
+## Example
+
+**The problem.** A greenhouse has `n` pots in a ring, numbered 0 to `n − 1`. A watering arm starts at pot 0 and hops `k` pots clockwise on each step, watering every pot it stops at, and it runs indefinitely. How many pots never get any water?
+
+**Spotting the pattern.** The triggers are "detect a number cycle" and modular arithmetic: each position is `(previous + k) mod n`, so the arm must eventually repeat. The habit from this lesson applies: look for a property of `n` and `k` before simulating.
+
+**Why brute force is slow.** You could simulate with a `seen` set until the arm returns to 0. That's up to `n` steps and `n` entries of memory. For a ring of 10¹² pots, it's a trillion steps for one question.
+
+**The key insight.** Let `g = gcd(n, k)`. Both `n` and `k` are multiples of `g`, so a hop never leaves the multiples of `g`. Exactly `n / g` of the pots are multiples of `g`, and the arm reaches all of them before repeating: it returns to 0 only after a whole number of laps, and the first time that happens is after `n / g` hops. So `n / g` pots are watered, and the rest are dry. Euclid takes a few dozen steps even for numbers near 10¹².
+
+```python
+def dry_pots(n: int, k: int) -> int:
+    return n - n // gcd(n, k)
+```
+
+**Traced run** with `n = 48` and `k = 18`.
+
+Euclid's steps:
+
+| a | b | a mod b |
+|---|---|---|
+| 48 | 18 | 12 |
+| 18 | 12 | 6 |
+| 12 | 6 | 0 |
+| 6 | 0 | stop: gcd = 6 |
+
+So 48 // 6 = 8 pots are watered, and `dry_pots` returns 48 − 8 = 40. To check that against the real arm:
+
+| Hop | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| Pot | 0 | 18 | 36 | 6 | 24 | 42 | 12 | 30 | 0 |
+
+The eight pots are 0, 6, 12, 18, 24, 30, 36 and 42, which are exactly the multiples of 6, and hop 8 is back at the start. A hop of `k = 0` also works: `gcd(n, 0) = n`, so only pot 0 is watered. The code takes O(log min(n, k)) time and O(1) space, against O(n) for the simulation.
+
 ## Complexity
 
 - Rotate, spiral, Set Matrix Zeroes: **O(m · n)** time, **O(1)** extra space for the in-place versions.
@@ -116,7 +189,7 @@ def is_happy(n: int) -> bool:
 
 ## Tips & tricks
 
-- Counter-clockwise rotation is transpose + reverse each **column** (or reverse each row first, then transpose).
+- Counter-clockwise rotation is transpose + reverse each **column** (or reverse each row first, then transpose). Reversing the **order** of the rows first and then transposing gives clockwise instead.
 - Plus One: walk from the last digit; turn 9s into 0s until you find a digit below 9. If every digit was 9, prepend a 1.
 - Multiply Strings: the product of `num1[i]` and `num2[j]` lands at positions `i + j` and `i + j + 1` of the result.
 - Happy Number can use a `seen` set instead of fast/slow pointers — simpler, but O(cycle length) space.

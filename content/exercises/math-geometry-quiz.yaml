@@ -1,0 +1,56 @@
+slug: math-geometry-quiz
+type: quiz
+title: "Math & Geometry — quiz"
+lessons: [math-geometry]
+ladderOrder: 0
+questions:
+  - id: euclid-trace
+    prompt: "You run the lesson's `gcd(210, 66)`. What values do `(a, b)` take after each pass of the loop, and what's the result?"
+    choices: ["(66, 12), (12, 6), (6, 0), so 6", "(66, 12), (12, 6), so 12", "(144, 66), (78, 66), (12, 66), so 12", "(66, 12), (12, 0), so 12"]
+    answer: 0
+    explanation: "210 mod 66 is 12, 66 mod 12 is 6, and 12 mod 6 is 0. The loop stops once `b` is 0, and `a` is then 6. Subtracting 66 each time would also get there in the end, but it takes far more steps on lopsided inputs."
+  - id: reduce-division
+    prompt: "A running total is kept modulo 11 to stay small. To divide by 9 at the end, a teammate computes `(total % 11) / 9` when the true total is 63. What do they get, and how does it compare with 63 / 9?"
+    choices: ["About 0.89, and that equals 7 modulo 11", "7.0, the same, as `%` can be applied at any step", "About 0.89, but `%` on the divisor as well would fix it", "About 0.89, while 63 / 9 is 7, so this step isn't safe to reduce"]
+    answer: 3
+    explanation: "63 % 11 is 8, and 8 / 9 is about 0.89, which isn't 7 or anything equal to it modulo 11. Reducing the 9 changes nothing, because 9 % 11 is still 9. Adding, subtracting and multiplying can be reduced at any step, but plain division can't."
+  - id: sieve-crossings
+    prompt: "You run `primes_up_to(30)`. Which numbers does the inner loop cross off when `p` is 5?"
+    choices: ["10, 15, 20, 25, 30", "5, 10, 15, 20, 25, 30", "25, 30", "15, 25, 30"]
+    answer: 2
+    explanation: "The inner loop starts at 5 × 5 = 25 and steps by 5, so it touches 25 and 30. 10, 15 and 20 have already gone, crossed off through 2 or 3. 5 itself stays prime. At p = 6, 6 × 6 = 36 is over 30, so the loop stops there."
+  - id: flip-order
+    prompt: "A 3 × 3 matrix has the rows `a b c`, `d e f` and `g h i`. You reverse the order of the rows, so `g h i` is on top, then transpose. Where does `a` end up, and which rotation is this?"
+    choices: ["Bottom left, which is a counter-clockwise rotation", "Top right, which is a clockwise rotation", "Top left, which is no rotation at all", "Top right, which is a counter-clockwise rotation"]
+    answer: 1
+    explanation: "After the flip, the rows are `g h i`, `d e f`, `a b c`. Transposing gives `g d a`, `h e b`, `i f c`. So `a` is top right, and the old left column, reversed, is now the top row. That's a clockwise turn, the same as the `rotate` template."
+  - id: pow-counts
+    prompt: "You run `my_pow(x, 45)`. How many times do `result *= x` and `x *= x` each run?"
+    choices: ["44 and 0", "5 and 5", "6 and 6", "4 and 6"]
+    answer: 3
+    explanation: "45 is 101101 in binary: 6 bits, four of them 1. Each pass squares `x`, even the last, so that runs 6 times. `result` is only multiplied on a 1 bit, which is 4 times. Ten multiplications replace the 44 of a plain loop."
+flashcards:
+  - id: euclid
+    front: "Why does gcd(a, b) = gcd(b, a mod b)?"
+    back: "Anything dividing a and b also divides a mod b, and the reverse holds too. So the common divisors don't change, while the numbers shrink."
+  - id: lcm
+    front: "How do you get lcm(a, b) from the gcd?"
+    back: "`a // gcd(a, b) * b`. Dividing first keeps the middle value small in languages with fixed-width integers."
+  - id: prime-test
+    front: "Why test divisors only up to √n?"
+    back: "If n = p × q, the smaller factor is at most √n. If nothing up to there divides n, it's prime."
+  - id: sieve-start
+    front: "Why can the sieve start at p × p?"
+    back: "Any smaller multiple of p also has a factor below p, so a smaller prime has already crossed it off."
+  - id: mod-rules
+    front: "What can you reduce modulo m along the way?"
+    back: "Adding, subtracting and multiplying, at any step. Plain division can't be reduced like that."
+  - id: rotate-recipe
+    front: "Rotating a square matrix clockwise in place"
+    back: "Transpose, then reverse each row. Two simple moves replace moving each corner by hand."
+  - id: pow-squaring
+    front: "Why is squaring O(log n)?"
+    back: "The exponent halves on each pass, and its bits say which squares to multiply in. So x¹³ = x⁸ · x⁴ · x¹."
+  - id: check-proof
+    front: "How should you treat a formula you can't prove?"
+    back: "Test it against a brute force on small inputs first. A property that holds on the examples you tried may still fail elsewhere."

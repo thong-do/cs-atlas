@@ -1,0 +1,56 @@
+slug: dp-1d-quiz
+type: quiz
+title: "1-D Dynamic Programming — quiz"
+lessons: [dp-1d]
+ladderOrder: 0
+questions:
+  - id: table-values
+    prompt: "Tickets are sold in packs of 3 and 4. You run `coin_change([3, 4], 10)` as written. When it finishes, what are `dp[5]` and `dp[10]`?"
+    choices: ["11 and 3", "2 and 3", "0 and 3", "11 and 4"]
+    answer: 0
+    explanation: "No mix of 3s and 4s makes 5, so `dp[5]` keeps the sentinel `INF = amount + 1 = 11`. For 10, the best is 3 + 3 + 4, three packs. Only `dp[amount]` is turned into −1 on return, so the table itself still holds 11."
+  - id: missing-max
+    prompt: "A teammate shortens `rob` to `prev2, prev1 = prev1, prev2 + x`, dropping the `max`. What does it return for `[6, 1, 1, 9]`, and what's the right answer?"
+    choices: ["It returns 15, and that's right", "It returns 7, and the right answer is 15", "It returns 10, and the right answer is 15", "It returns 10, and that's right, as 9 + 1 is the best pick"]
+    answer: 2
+    explanation: "With no `max`, the pair goes (0, 6), (6, 1), (1, 7), (7, 10). It's forced to take every other house counting back from the end, so it returns 1 + 9 = 10. Taking the first and last houses gives 6 + 9 = 15, which the `max` would have found."
+  - id: count-states
+    prompt: "A memoised function computes `f(n) = f(n // 2) + f(n // 3)`, with `f(0) = 1`. Roughly how many different values of n does `f(1_000_000)` store?"
+    choices: ["About 20, one for each halving of n", "About 1,000,000, one for each smaller n", "About 2²⁰, since each call makes two more", "About 100, since each is n // (2ᵃ · 3ᵇ)"]
+    answer: 3
+    explanation: "Every argument reached is n divided by some 2ᵃ · 3ᵇ, rounded down. With a up to 19 and b up to 12, and the product at most n, only about a hundred pairs count, and running it confirms just over 100. Without the memo it would be many more calls, but those repeat these same values."
+  - id: tails-trace
+    prompt: "You run the `tails` method on `[4, 7, 9, 2, 3]`. What is `tails` at the end, and is it itself a subsequence of the input?"
+    choices: ["`[4, 7, 9]`, and yes, it is", "`[2, 3, 9]`, and no, since 9 comes before 2", "`[2, 3]`, and yes, it is", "`[2, 7, 9]`, and no, since 7 comes before 2"]
+    answer: 1
+    explanation: "The first three values append. Then 2 replaces 4, the first tail `>= 2`, and 3 replaces 7. That leaves `[2, 3, 9]`, length 3, which matches the true answer `4, 7, 9`, though the list itself isn't one you can pick from the input."
+  - id: word-cost
+    prompt: "A top-down `word_break` runs on a string of 4,000 characters with 500 dictionary words of at most 20 letters each. Using states × work per state, what's the worst-case bound on character comparisons?"
+    choices: ["About 40 million: 4,000 × 500 × 20", "About 2 million: 4,000 × 500", "About 2⁴⁰⁰⁰, as each position can split", "About 4,500: 4,000 + 500"]
+    answer: 0
+    explanation: "There are 4,000 positions, and each runs once thanks to the cache. At each one, up to 500 words are tried, and `startswith` reads up to 20 characters: 4,000 × 500 × 20 = 40,000,000. The exponential figure is what you'd face without the memo."
+flashcards:
+  - id: four-questions
+    front: "The four questions of any DP"
+    back: "What the state means, how it's built from smaller states, what the base cases are, and which order makes everything ready in time."
+  - id: dp-time
+    front: "How do you work out the time of a DP?"
+    back: "Number of states × work per state. Coin Change is O(amount × coins), not linear, because each amount tries every coin."
+  - id: needs-both
+    front: "When does DP apply?"
+    back: "When subproblems repeat, and when the best result for a state doesn't depend on how you reached it."
+  - id: sentinel
+    front: "Why does Coin Change start with a large value, not 0?"
+    back: "A 0 would read as \"this amount takes no coins\", and `min` would keep it. A large sentinel means impossible."
+  - id: lis-state
+    front: "Why is the LIS state \"ends at i\"?"
+    back: "To extend a subsequence you must know its last value. So the answer is the largest `dp[i]`, not `dp[-1]`."
+  - id: lis-tails
+    front: "What does `tails[k]` hold in the fast LIS?"
+    back: "The smallest last value of any increasing subsequence of length k + 1. Its length is the answer, but it may not be a real subsequence."
+  - id: top-down-bottom-up
+    front: "Memoisation vs tabulation"
+    back: "Top-down is recursion plus a cache, and it's easy to write. Bottom-up fills a table, has no recursion limit and can often drop to O(1) space."
+  - id: vs-greedy
+    front: "DP vs greedy"
+    back: "Greedy commits to one choice and needs a proof that this is safe. DP compares every choice from every state, so it costs more but needs no such rule."

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateContent, type ContentInput, type ExerciseInput, type LessonInput, type TrackInput } from './validate'
 
-const ALGO_SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
+const ALGO_SECTIONS = ['Intuition', 'Visual', 'Template', 'Example', 'Complexity', 'Pitfalls', 'Tips & tricks']
 const OTHER_SECTIONS = ['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks']
 
 const lesson = (slug: string, track = 'algorithms', o: Partial<LessonInput> = {}): LessonInput => ({
@@ -15,6 +15,7 @@ const exercise = (slug: string, lessons: string[], o: Record<string, unknown> = 
   url: `https://leetcode.com/problems/${slug}/`, difficulty: 'easy', lessons, ladderOrder: 1,
   recognitionPrompt: 'prompt text', hint: 'hint', path: `exercises/${slug}`, ...o,
 } as ExerciseInput)
+const card = (id: string) => ({ id, front: 'f', back: 'b' })
 const quiz = (slug: string, lessons: string[], o: Record<string, unknown> = {}): ExerciseInput => ({
   slug, type: 'quiz', title: slug, lessons, ladderOrder: 1, path: `exercises/${slug}`,
   questions: ['q1', 'q2', 'q3'].map((id) => ({ id, prompt: 'p', choices: ['x', 'y'], answer: 0, explanation: 'e' })),
@@ -52,6 +53,9 @@ const valid = (): ContentInput => ({
     exercise('p1', ['aaa']),
     exercise('p2', ['bbb', 'ccc'], { leetcodeId: 2 }),
     exercise('p9', ['ccc'], { leetcodeId: 9 }),
+    quiz('aaa-quiz', ['aaa'], { ladderOrder: 0, flashcards: [card('c1')] }),
+    quiz('bbb-quiz', ['bbb'], { ladderOrder: 0, flashcards: [card('c1')] }),
+    quiz('ccc-quiz', ['ccc'], { ladderOrder: 0, flashcards: [card('c1')] }),
   ],
 })
 
@@ -147,10 +151,21 @@ describe('validateContent', () => {
     expect(errors).toContain('[V8] content/tracks/algorithms/lessons/aaa.mdx: algorithms lessons need a complexity')
   })
 
-  it('V9: lessons need the quality-bar sections (Template for algorithms, Example elsewhere)', () => {
+  it('V9: algorithms lessons need Example as well as Template', () => {
     const c = valid()
-    c.lessons[0] = lesson('aaa', 'algorithms', { headings: ['Intuition', 'Visual', 'Template', 'Tips & tricks'] })
-    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ALGO_SECTIONS })
+    c.lessons[0] = lesson('aaa', 'algorithms', { headings: ALGO_SECTIONS.filter((h) => h !== 'Example') })
+    c.lessons[1] = lesson('bbb', 'algorithms', { headings: ALGO_SECTIONS.filter((h) => h !== 'Template'), prerequisites: ['aaa'], confusedWith: ['aaa'] })
+    const errors = validateContent(c)
+    expect(errors).toEqual([
+      '[V9] content/tracks/algorithms/lessons/aaa.mdx: missing section(s) "## Example"',
+      '[V9] content/tracks/algorithms/lessons/bbb.mdx: missing section(s) "## Template"',
+    ])
+  })
+
+  it('V9: lessons need the quality-bar sections (Template and Example for algorithms, Example elsewhere)', () => {
+    const c = valid()
+    c.lessons[0] = lesson('aaa', 'algorithms', { headings: ['Intuition', 'Visual', 'Template', 'Example', 'Tips & tricks'] })
+    c.lessons[2] = lesson('ccc', 'system-design', { prerequisites: ['aaa'], headings: ALGO_SECTIONS.filter((h) => h !== 'Example') })
     const errors = validateContent(c)
     expect(errors).toContain('[V9] content/tracks/algorithms/lessons/aaa.mdx: missing section(s) "## Pitfalls"')
     expect(errors).toContain('[V9] content/tracks/system-design/lessons/ccc.mdx: missing section(s) "## Example"')
@@ -256,6 +271,44 @@ describe('validateContent', () => {
     c.exercises = c.exercises.filter((e) => !e.lessons.includes('ccc'))
     c.exercises.push(quiz('q2', ['ccc'], { ladderOrder: 1 }))
     expect(validateContent(c).filter((e) => e.startsWith('[V10]') && e.includes('/ccc.mdx'))).toEqual([])
+  })
+
+  it('V17: every lesson, in every track, needs a quiz with flashcards that has it first', () => {
+    const c = valid()
+    c.exercises = c.exercises.filter((e) => !['aaa-quiz', 'ccc-quiz'].includes(e.slug))
+    const errors = validateContent(c)
+    expect(errors).toEqual([
+      '[V17] content/tracks/algorithms/lessons/aaa.mdx: no quiz with at least one flashcard has this lesson first',
+      '[V17] content/tracks/system-design/lessons/ccc.mdx: no quiz with at least one flashcard has this lesson first',
+    ])
+  })
+
+  it('V17: a quiz with no flashcards does not count', () => {
+    const c = valid()
+    c.exercises = c.exercises.map((e) => (e.slug === 'aaa-quiz' ? quiz('aaa-quiz', ['aaa'], { ladderOrder: 0 }) : e))
+    expect(validateContent(c)).toEqual(['[V17] content/tracks/algorithms/lessons/aaa.mdx: no quiz with at least one flashcard has this lesson first'])
+  })
+
+  it('V17: a quiz that lists the lesson second does not count', () => {
+    const c = valid()
+    c.exercises = c.exercises.filter((e) => e.slug !== 'bbb-quiz')
+    c.exercises = c.exercises.map((e) => (e.slug === 'aaa-quiz' ? quiz('aaa-quiz', ['aaa', 'bbb'], { ladderOrder: 0, flashcards: [card('c1')] }) : e))
+    expect(validateContent(c)).toEqual(['[V17] content/tracks/algorithms/lessons/bbb.mdx: no quiz with at least one flashcard has this lesson first'])
+  })
+
+  it('V17: exercises of other types do not count, even with this lesson first', () => {
+    const c = valid()
+    c.exercises = c.exercises.filter((e) => e.slug !== 'ccc-quiz')
+    c.exercises.push(design('d1', ['ccc'], { ladderOrder: 2 }), estimate('e1', ['ccc'], { ladderOrder: 3 }))
+    expect(validateContent(c)).toEqual(['[V17] content/tracks/system-design/lessons/ccc.mdx: no quiz with at least one flashcard has this lesson first'])
+  })
+
+  it('V17 also holds case studies to the rule', () => {
+    const c = valid()
+    c.tracks[1].modules.push({ slug: 'case-studies', lessons: ['ddd'], comingSoon: [] })
+    c.lessons.push(lesson('ddd', 'system-design', { headings: ['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'] }))
+    c.exercises.push(exercise('p4', ['ddd'], { leetcodeId: 44 }))
+    expect(validateContent(c)).toEqual(['[V17] content/tracks/system-design/lessons/ddd.mdx: no quiz with at least one flashcard has this lesson first'])
   })
 
   it('V15 accepts a well-formed estimation drill', () => {

@@ -1,0 +1,10 @@
+slug: number-of-provinces
+type: external-problem
+title: "Number of Provinces"
+leetcodeId: 547
+url: https://leetcode.com/problems/number-of-provinces/
+difficulty: medium
+lessons: [advanced-graphs, graphs]
+ladderOrder: 9
+recognitionPrompt: "A table says which pairs of cities are linked directly; count how many separate clusters of linked cities there are."
+hint: "Begin with every city as its own group, then let each direct link merge two groups."

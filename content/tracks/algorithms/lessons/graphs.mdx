@@ -32,8 +32,8 @@ A grid is an *implicit* graph: each cell is a node, and its up/down/left/right n
 
 **When not to use it.**
 
-- If edges have different weights, the fewest edges may not be the cheapest route. Use Dijkstra.
-- If you need the longest route, or every route, marking each node once is wrong, because a later route may need a node that an earlier one used. Those are backtracking problems.
+- If edges have different weights, the fewest edges may not be the cheapest route. Use Dijkstra if no weight is negative; [Advanced Graphs](/algorithms/advanced-graphs/) covers the other cases.
+- If you need every route, or the longest route on a graph that may have cycles, marking each node once is wrong, because a later route may need a node that an earlier one used. Those are backtracking problems.
 - If you only need one number per node on a graph with no cycles, and that number combines results from earlier nodes, DP in topological order may fit better than a plain traversal.
 
 **Telling it from its neighbours.** [Trees](/algorithms/trees/) are the special case with one route between any two nodes. Starting from the root, a tree traversal needs no `visited` set. Once a node can be reached twice, it does. [Backtracking](/algorithms/backtracking/) also goes deep and returns, but it undoes its marks on the way back so that other paths may reuse a node. It visits paths, which can be exponentially many. A graph traversal visits each node once, so it costs O(V + E).
@@ -108,7 +108,7 @@ def topo_order(n: int, edges: list[tuple[int, int]]) -> list[int]:
 
 ## Example
 
-**The problem.** A town is a grid of blocks, where `#` is a building you can't walk through and `.` is a street block. Polling stations stand on some street blocks, given as a list, and a station's number is its place in that list. Each street block votes at the station nearest by walking, moving up, down, left or right. If two stations are equally near, the lower number wins. Return how many blocks each station serves, counting its own. Blocks that no station can reach aren't counted.
+**The problem.** A town is a grid of blocks, where `#` is a building you can't walk through and `.` is a street block. Polling stations stand on different street blocks, given as a list, and a station's number is its place in that list. Each street block votes at the station nearest by walking, moving up, down, left or right. If two stations are equally near, the lower number wins. Return how many blocks each station serves, counting its own. Blocks that no station can reach aren't counted.
 
 **Spotting the pattern.** "Grid of cells" and "shortest path in an unweighted graph" are both triggers. Every step costs the same, so BFS gives walking distance. Asking for the *nearest of many* points to multi-source BFS.
 

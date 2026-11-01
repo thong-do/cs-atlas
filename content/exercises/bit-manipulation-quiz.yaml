@@ -44,7 +44,7 @@ flashcards:
     back: "When its items come from a small fixed list. Union is `|`, intersection is `&`, and testing item k is `mask & (1 << k)`."
   - id: count-masks
     front: "Why count masks and not compare people?"
-    back: "k items allow only 2ᵏ distinct masks. With many more people than masks, comparing masks and multiplying the counts is far cheaper."
+    back: "m items allow only 2ᵐ distinct masks. With many more people than masks, comparing masks and multiplying the counts is far cheaper."
   - id: python-width
     front: "Why mask with `0xFFFFFFFF` in Python?"
     back: "Python integers have no fixed width, and negatives act as if they have endless leading 1s. Some loops never end without a mask."

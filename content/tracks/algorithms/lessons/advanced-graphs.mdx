@@ -34,9 +34,9 @@ Union-find has limits worth knowing:
 - It ignores direction, so it can't detect a cycle in a directed graph. Edges a→b, a→c and c→b close no cycle, yet the third `union` returns `False`. Use topological sort there.
 - It tells you whether two nodes are connected, but not the route between them. For a route, use BFS or DFS.
 
-**When not to use these tools.** If every edge costs the same, BFS is simpler and drops the log factor. If a graph is fixed and you only need its components once, a BFS or DFS is O(V + E) and needs no extra structure. Union-find earns its place when the links arrive over time, or when you're adding edges in a chosen order, as in Kruskal.
+**When not to use these tools.** If every edge costs the same, BFS is simpler and drops the log factor. If a graph is fixed and you only need its components once, a BFS or DFS is O(V + E) and just as good, though union-find also works. Union-find pays off most when the links arrive over time, or when you're adding edges in a chosen order, as in Kruskal.
 
-**Telling it from its neighbours.** [Graphs](/algorithms/graphs/) covers what you can answer when every edge is equal: reachability, fewest edges and ordering. This lesson begins when costs differ or groups merge. [Greedy](/algorithms/greedy/) is the idea underneath, since Dijkstra always settles the closest node and Kruskal always tries the cheapest edge. These two greedy rules come with proofs, and those proofs rely on conditions: Dijkstra's needs non-negative weights.
+**Telling it from its neighbours.** [Graphs](/algorithms/graphs/) covers what you can answer when every edge is equal: reachability, fewest edges and ordering. This lesson mostly begins when costs differ or groups merge, plus a few harder ordering and routing problems. [Greedy](/algorithms/greedy/) is the idea underneath, since Dijkstra always settles the closest node and Kruskal always tries the cheapest edge. These two greedy rules come with proofs, and those proofs rely on conditions: Dijkstra's needs non-negative weights.
 
 A shortest-path tree and a minimum spanning tree can also differ. Dijkstra minimises the distance from one source to each node. An MST minimises the total length of all the edges kept.
 
@@ -176,7 +176,7 @@ The answer is `[1, 2, 3, 4]`. The first cut changes nothing, since (2,0) closed 
 
 ## Pitfalls
 
-- Using Dijkstra with **negative** edge weights — the "final once popped" guarantee breaks. Use Bellman-Ford instead. This lesson's template re-pushes any node that improves, so it can still reach the right answer on a small graph. But it loses its time bound, and a negative cycle reachable from the source makes it run forever.
+- Using Dijkstra with **negative** edge weights — the "final once popped" guarantee breaks. Use Bellman-Ford instead. This lesson's template re-pushes any node that improves, so without a negative cycle it still ends with the right answer. But it loses its time bound, and a negative cycle reachable from the source makes it run forever.
 - Skipping the stale-entry check (`if d > dist[u]: continue`). Results stay correct, but old heap entries do extra work.
 - Cheapest Flights with plain Dijkstra: the cheapest path may use too many stops. Either carry the stop count in the state or use k-round Bellman-Ford.
 - Updating `prices` in place during a Bellman-Ford round, which lets a single round chain several edges and breaks the stop limit.
@@ -188,4 +188,4 @@ The answer is `[1, 2, 3, 4]`. The first cut changes nothing, since (2,0) closed 
 - Path With Minimum Effort and Swim in Rising Water: the cost of a path is its **maximum** step, so push `max(d, step)` instead of `d + step`.
 - Reconstruct Itinerary: Hierholzer's algorithm — DFS, using each ticket once in lexical order, append the airport after its edges run out, then reverse the list.
 - Build a Matrix With Conditions: topologically sort the row rules and the column rules separately; a cycle in either means it's impossible.
-- Union-find is the simplest way to count connected components or detect a cycle in an undirected graph while edges arrive one at a time. Start with n groups and subtract one for each `union` that returns `True`.
+- Union-find is the simplest way to keep a component count, or spot a cycle in an undirected graph, while edges arrive one at a time.

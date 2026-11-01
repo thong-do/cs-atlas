@@ -7,4 +7,4 @@ difficulty: medium
 lessons: [advanced-graphs, graphs]
 ladderOrder: 8
 recognitionPrompt: "A network was once a tree, then one extra link was added; given all its links in order, work out which one can be removed so that it is a tree again."
-hint: "Add the links in the given order and watch for one whose two ends are already in the same group."
+hint: "The links before the extra one form a forest. What is special about the moment the extra link arrives?"

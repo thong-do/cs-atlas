@@ -7,4 +7,4 @@ difficulty: medium
 lessons: [advanced-graphs, graphs]
 ladderOrder: 9
 recognitionPrompt: "A table says which pairs of cities are linked directly; count how many separate clusters of linked cities there are."
-hint: "Begin with every city as its own group, then let each direct link merge two groups."
+hint: "A traversal from each unseen city works on a fixed table. Try it by merging groups too, and compare."

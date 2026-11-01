@@ -28,12 +28,12 @@ Two ways to write it:
 - **Top-down (memoisation)**: write the recursion, add `@cache`. The easiest to get right first.
 - **Bottom-up (tabulation)**: fill an array from small to large. No recursion limit, and often reducible to O(1) space when `dp[i]` only needs the last one or two values.
 
-**Two things must hold.** The subproblems must repeat, or remembering saves nothing. And the best answer for a state must not depend on how you got there, or one number per state isn't enough. If the rule says "no two picks with the same colour", then `dp[i]` must also say which colour came last, and that's a second index.
+**Two things must hold.** The subproblems must repeat, or remembering saves nothing. And the answer for a state must not depend on how you got there, or one number per state isn't enough. If the rule says "no two picks in a row with the same colour", then `dp[i]` must also say which colour came last, and that's a second index.
 
 **When not to use it.**
 
 - If you must list every solution, not count them or find the best, the output itself can be exponential. Use [Backtracking](/algorithms/backtracking/).
-- If the subproblems don't repeat, as when each call splits the input into separate parts, memoising does nothing. Plain recursion costs the same.
+- If the subproblems don't repeat, as when each call splits the input at one fixed point, like merge sort, memoising does nothing. Plain recursion costs the same.
 - If a simple rule is provably safe, a greedy scan needs no table. [Greedy](/algorithms/greedy/) has to be proved, though, and it's the proof that fails when DP is the right tool.
 
 **Telling it from its neighbours.** Greedy commits to one choice and never looks back. DP keeps the best result for every state and compares them all. Backtracking walks the same decision tree as DP but revisits repeated states, and it can stop early with pruning. If two different paths through the tree lead to the same remaining problem, DP can share the work.

@@ -18,7 +18,7 @@ questions:
     prompt: "A memoised function computes `f(n) = f(n // 2) + f(n // 3)`, with `f(0) = 1`. Roughly how many different values of n does `f(1_000_000)` store?"
     choices: ["About 20, one for each halving of n", "About 1,000,000, one for each smaller n", "About 2²⁰, since each call makes two more", "About 100, since each is n // (2ᵃ · 3ᵇ)"]
     answer: 3
-    explanation: "Every argument reached is n divided by some 2ᵃ · 3ᵇ, rounded down. With a up to 19 and b up to 12, and the product at most n, only about a hundred pairs count, and running it confirms just over 100. Without the memo it would be many more calls, but those repeat these same values."
+    explanation: "Every argument reached is n divided by some 2ᵃ · 3ᵇ, rounded down. With a up to 19 and b up to 12, and the product at most n, there are about 140 pairs, and many round down to the same value. Running it gives 108. Without the memo it would be many more calls, but those repeat these same values."
   - id: tails-trace
     prompt: "You run the `tails` method on `[4, 7, 9, 2, 3]`. What is `tails` at the end, and is it itself a subsequence of the input?"
     choices: ["`[4, 7, 9]`, and yes, it is", "`[2, 3, 9]`, and no, since 9 comes before 2", "`[2, 3]`, and yes, it is", "`[2, 7, 9]`, and no, since 7 comes before 2"]
@@ -38,7 +38,7 @@ flashcards:
     back: "Number of states × work per state. Coin Change is O(amount × coins), not linear, because each amount tries every coin."
   - id: needs-both
     front: "When does DP apply?"
-    back: "When subproblems repeat, and when the best result for a state doesn't depend on how you reached it."
+    back: "When subproblems repeat, and when the answer for a state doesn't depend on how you reached it."
   - id: sentinel
     front: "Why does Coin Change start with a large value, not 0?"
     back: "A 0 would read as \"this amount takes no coins\", and `min` would keep it. A large sentinel means impossible."

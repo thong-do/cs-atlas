@@ -30,7 +30,7 @@ Think of XOR as light switches: flipping the same switch twice leaves it where i
 - `a | b` is the union, `a & b` the intersection, and `mask | (1 << k)` adds item k.
 - `mask & (1 << k)` tests item k.
 - Comparing two sets costs one operation instead of a loop.
-- There are only 2ᵏ possible sets, so sometimes you can count masks instead of looking at people or records one by one.
+- With m possible items there are only 2ᵐ possible sets, so sometimes you can count masks instead of looking at people or records one by one.
 
 **When not to use it.** If items come from a large or open-ended range, like arbitrary words or IDs, a mask would need a bit for each possible item, so use a hash set. If `n` is more than about 25, enumerating `2ⁿ` masks is too slow, however neat the code. And if the problem doesn't need the space or speed, a hash set is clearer.
 

@@ -11,9 +11,9 @@ questions:
     explanation: "210 mod 66 is 12, 66 mod 12 is 6, and 12 mod 6 is 0. The loop stops once `b` is 0, and `a` is then 6. Subtracting 66 each time would also get there in the end, but it takes far more steps on lopsided inputs."
   - id: reduce-division
     prompt: "A running total is kept modulo 11 to stay small. To divide by 9 at the end, a teammate computes `(total % 11) / 9` when the true total is 63. What do they get, and how does it compare with 63 / 9?"
-    choices: ["About 0.89, and that equals 7 modulo 11", "7.0, the same, as `%` can be applied at any step", "About 0.89, but `%` on the divisor as well would fix it", "About 0.89, while 63 / 9 is 7, so this step isn't safe to reduce"]
+    choices: ["About 0.89, and `round()` turns that into 7", "7.0, the same, as `%` can be applied at any step", "About 0.89, but `%` on the divisor as well would fix it", "About 0.89, while 63 / 9 is 7, so this step isn't safe to reduce"]
     answer: 3
-    explanation: "63 % 11 is 8, and 8 / 9 is about 0.89, which isn't 7 or anything equal to it modulo 11. Reducing the 9 changes nothing, because 9 % 11 is still 9. Adding, subtracting and multiplying can be reduced at any step, but plain division can't."
+    explanation: "63 % 11 is 8, and 8 / 9 is about 0.89, not 7. Reducing the 9 changes nothing, because 9 % 11 is still 9. Adding, subtracting and multiplying can be reduced at any step, but plain division can't."
   - id: sieve-crossings
     prompt: "You run `primes_up_to(30)`. Which numbers does the inner loop cross off when `p` is 5?"
     choices: ["10, 15, 20, 25, 30", "5, 10, 15, 20, 25, 30", "25, 30", "15, 25, 30"]

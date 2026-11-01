@@ -30,7 +30,7 @@ Two things change between knapsack problems:
 - **Once or as often as you like.** In one row, going right to left reads values not yet updated for this item, so each item is used at most once. Going left to right reads values already updated, so an item can repeat. That's why `coin_change_ways` goes left to right: coins can repeat.
 - **At most or exactly.** For "at most capacity a", start the whole first row at 0. For "exactly a", only `dp[0][0]` starts as reachable, and everything else starts as impossible.
 
-**When not to use it.** The table has one column per unit of capacity, so its size depends on the capacity's *value*, not on how many digits it has. With 30 items and a capacity of a billion, that's 30 billion cells, and trying all 2³⁰ subsets is cheaper. If the state only needs one number, a 1-D table is enough. If you must list every answer, not count them, the table can't help.
+**When not to use it.** The table has one column per unit of capacity, so its size depends on the capacity's *value*, not on how many digits it has. With 30 items and a capacity of a billion, that's 30 billion cells, and trying all 2³⁰ subsets by recursion is cheaper. If the state only needs one number, a 1-D table is enough. If you must list every answer, not count them, the output can be exponential, so a table alone won't do it.
 
 **Telling it from its neighbours.** [1-D DP](/algorithms/dp-1d/) has the same recipe with one number of state. To choose, say what you must know to finish the rest of the problem. If that takes two numbers, it's 2-D. [Backtracking](/algorithms/backtracking/) walks the same choices one path at a time. It suits listing answers, or a state too large for a table.
 

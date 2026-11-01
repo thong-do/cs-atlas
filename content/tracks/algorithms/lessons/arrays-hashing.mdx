@@ -41,7 +41,7 @@ Everything before the slice cancels out. Building the table is one O(n) pass, an
 
 **When not to use it.** A hash map remembers values but keeps no useful order, so it can't answer "what is the smallest?" or "what is the next bigger?". It also costs O(n) extra memory. If the input is sorted, or memory is tight, look further before reaching for one.
 
-**Telling it from its neighbours.** Use **Two Pointers** when sorted order tells you which candidates to discard. Use **Sliding Window** when the answer is one contiguous block and growing it only makes the condition worse. Use a hash map when you need to look up earlier values by what they are, wherever they sit.
+**Telling it from its neighbours.** Use **Two Pointers** when sorted order tells you which candidates to discard. Use **Sliding Window** when the answer is one contiguous block and growing it only pushes the condition one way. Use a hash map when you need to look up earlier values by what they are, wherever they sit.
 
 ## Visual
 
@@ -141,7 +141,7 @@ The answer is `[6]`. The second refund of 5 has nothing left to cancel. Eight li
 ## Tips & tricks
 
 - `Counter(a) == Counter(b)` checks anagrams in one line.
-- A tuple of 26 letter counts is a faster group key than `sorted(word)`.
+- A tuple of 26 letter counts costs O(k) per word against O(k log k) for `sorted(word)`, which matters for long strings.
 - Longest Consecutive Sequence: put everything in a set and only start counting at numbers whose `x - 1` is missing.
 - If extra memory is forbidden and the input is sorted, think **Two Pointers** instead.
 - Reading a missing key from a `Counter` returns 0 and doesn't add the key; a plain `dict` raises `KeyError`.

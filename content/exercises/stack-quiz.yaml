@@ -26,7 +26,7 @@ questions:
     explanation: "A strictly lower price must pop anything above it, which leaves values rising or level. Using `>=` would let an equal price answer the question wrongly, `<` finds the next higher price, and popping on `>` can't leave a falling stack."
   - id: severity-queue
     prompt: "Tickets arrive at a help desk all day, each with a severity. When an agent is free, they take the most severe open ticket, however old it is. Which structure fits?"
-    choices: ["A plain stack, so the newest ticket is always the first one an agent sees", "A monotonic stack that pops less severe tickets when a more severe one arrives", "Two pointers moving inward over the tickets once they are sorted by severity", "A heap, since the choice depends on severity, not arrival order"]
+    choices: ["A plain stack, so the newest ticket is the first one an agent sees", "A monotonic stack that pops less severe tickets when a more severe one arrives", "Two pointers moving inward over the tickets once they are sorted by severity", "A heap, since the choice depends on severity, not arrival order"]
     answer: 3
     explanation: "A heap gives the most severe ticket as new ones keep arriving. A plain stack picks by recency, not severity. A monotonic stack would throw away tickets that still need handling, and new arrivals keep breaking any one-time sort."
 flashcards:

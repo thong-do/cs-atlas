@@ -83,7 +83,7 @@ def merge(a: ListNode | None, b: ListNode | None) -> ListNode | None:
 
 **Spotting the pattern.** "Input is a ListNode" and "reorder in place" both fit. The siding reverses the pulled cars, the same move as in-place reversal. And the first car might be pulled (when k = 1), so the kept part needs a dummy.
 
-**Why brute force is slow.** A first try might walk from the head to each k-th position and unlink the car there. With 100,000 cars and k = 2, that's 50,000 walks of about 50,000 hops on average, around 2.5 billion hops: O(n²/k). Copying into an array avoids this, but costs O(n) memory.
+**Why brute force is slow.** A first try might walk from the head to each k-th position and unlink the car there. With 100,000 cars and k = 2, that's 50,000 walks of about 25,000 hops on average, around 1.25 billion hops: O(n²/k). Copying into an array avoids this, but costs O(n) memory.
 
 **The key insight.** One walk is enough. Every car goes to exactly one of two places: behind the last kept car, or on top of the siding. Both take O(1) with the right references.
 

@@ -114,7 +114,7 @@ The loop uses `<=` here, unlike the pair template, because a single crate left b
 | 6 | left | 2 | 7 | 7 | 7 |
 | 7 | left | 6 | 13 | 7 | 7 |
 
-The answer is 7: left carries 4 + 1 + 2, right carries 2 + 2 + 3, and the 6 stays. Seven crates took seven steps. With a negative weight a load could shrink, and the insight fails.
+The answer is 7: left carries 4 + 1 + 2, right carries 2 + 2 + 3, and the 6 stays. Step 7 tries the 6, but the loads never match again, so `best` stays 7. Seven crates took seven steps. With a negative weight a load could shrink, and the insight fails.
 
 ## Complexity
 
@@ -124,7 +124,7 @@ The answer is 7: left carries 4 + 1 + 2, right carries 2 + 2 + 3, and the 6 stay
 
 ## Pitfalls
 
-- Using two pointers on **unsorted** input for a sum problem. The "move the smaller side" logic is only valid when sorted; unsorted + indices needed → hash map.
+- Using two pointers on **unsorted** input for a sum problem. The "too big, move right" logic is only valid when sorted; unsorted + indices needed → hash map.
 - `while left <= right` when the two pointers must be different elements — use `<`.
 - Forgetting to **skip duplicates** in 3Sum after a match, producing repeated triplets.
 - In-place problems: overwriting a value you still need. Write at `slow`, read at `fast`.

@@ -43,7 +43,7 @@ For the largest x, the answers run `True … True False … False`, so search fo
 
 **Telling it from its neighbours.** **Two Pointers** also needs order, but it walks one step at a time to compare pairs; binary search jumps and asks one question about one position. A **Heap** gives you the current smallest or largest as items keep arriving. Binary search finds a boundary in data or answers that aren't changing.
 
-**Rotated arrays.** A sorted array of distinct values that has been rotated looks like two sorted runs. Every value in the second run is at most the last element, and every value in the first is above it. So "is `nums[i]` at most the last element?" still reads `False … False True … True`. That's why the comparison uses the right end.
+**Rotated arrays.** A sorted array of distinct values that has been rotated looks like two sorted runs, and the last element tells them apart: every value in the first run is above it, and none in the second is. So a rotated array can still have a test that flips once, and that's why the comparison uses the right end.
 
 ## Visual
 
@@ -135,7 +135,7 @@ Now `lo = hi = 131`, the first cap over budget, so the answer is 130. That cap p
 - Infinite loops from `lo = mid` when `mid = (lo + hi) // 2` — the range can stop shrinking.
 - Mixing inclusive and exclusive bounds in the same loop. Pick one convention (the template uses `[lo, hi)`).
 - Searching on a condition that isn't monotonic — binary search silently returns garbage.
-- Rotated arrays: compare `nums[mid]` with `nums[hi]` (not `nums[lo]`) to find the minimum.
+- Rotated arrays: compare `nums[mid]` with the last element (not the first) to find the minimum. With a half-open `hi`, `nums[hi]` can be out of range.
 
 ## Tips & tricks
 

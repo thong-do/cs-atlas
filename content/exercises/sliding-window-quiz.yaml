@@ -32,16 +32,16 @@ questions:
 flashcards:
   - id: when-to-use
     front: "When does a sliding window fit?"
-    back: "For the best contiguous block, when each new element updates the state in O(1) and a broken window stays broken as it grows."
+    back: "For the best contiguous block, when each new element updates the state in O(1) and growing a window only pushes the condition one way."
   - id: why-left-moves-on
     front: "Why can the left edge move on for good?"
-    back: "If a window breaks the rule, every longer one with the same left edge does too. So no later right edge can use that left edge."
+    back: "In a longest-window search, if a window breaks the rule, every longer one with the same left edge does too. So no later right edge can use that left edge."
   - id: cost
     front: "Sliding window: why O(n)?"
     back: "Each index enters once and leaves at most once, so the inner shrink loop totals at most n steps across the whole run."
   - id: negatives
     front: "When does a variable window fail?"
-    back: "With negative numbers, since growing can repair a broken window. Use prefix sums with a hash map instead."
+    back: "With negative numbers, since growing no longer pushes the sum one way. For an exact sum, use prefix sums with a hash map."
   - id: fixed-vs-variable
     front: "Fixed or variable window?"
     back: "If the size is given, it's fixed: add one, drop one, no shrink loop. If the size is what you're looking for, it's variable."

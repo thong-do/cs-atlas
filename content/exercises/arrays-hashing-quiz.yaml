@@ -1,0 +1,56 @@
+slug: arrays-hashing-quiz
+type: quiz
+title: "Arrays & Hashing — quiz"
+lessons: [arrays-hashing]
+ladderOrder: 0
+questions:
+  - id: trace-prefix-counter
+    prompt: "Using the lesson's template, what does `count_subarrays_with_sum([2, -2, 3, -3, 1], 1)` return?"
+    choices: ["2", "3", "4", "5"]
+    answer: 2
+    explanation: "The running totals are 2, 0, 3, 0, 1. Four slices sum to 1: [-2, 3], [1], [3, -3, 1] and the whole list. Each is counted when a total meets an earlier total one lower, with the empty prefix supplying the whole-list match."
+  - id: insert-before-check
+    prompt: "A teammate moves `seen[x] = i` above the `if` in `two_sum`. What does the changed function return for `two_sum([3, 4, 3], 6)`?"
+    choices: ["(0, 0)", "(0, 2)", "(2, 2)", "None"]
+    answer: 0
+    explanation: "At i = 0, x = 3 goes into the map first. The check then looks for 6 − 3 = 3, finds the value just stored and returns (0, 0), pairing the element with itself. The original code stores it afterwards and correctly returns (0, 2)."
+  - id: pair-differ-by-seven
+    prompt: "An unsorted list holds 10 million integers and memory is plentiful. You must report whether any two values differ by exactly 7, in O(n) time on average. Which approach fits?"
+    choices: ["Sort, then move two pointers inward from opposite ends, as for a pair sum", "Keep a running sum and a map from each total to how often it occurred", "Compare each value with all the values after it, stopping at the first match", "Put all values in a set, then test each x for x + 7"]
+    answer: 3
+    explanation: "A set gives O(1) average lookups, so one pass over the values is O(n). Sorting alone is O(n log n), and moving inward makes no sense for a difference, since both moves shrink it. Running totals describe slices, not pairs, and comparing all pairs is O(n²) when no match exists."
+  - id: sorted-key-cost
+    prompt: "You group 20,000 words of 16 letters each by the key `tuple(sorted(word))`. Sorting k letters takes about k·log₂k steps, and the rest of the work is small beside that. About how many steps is that in all?"
+    choices: ["320,000", "1,280,000", "5,120,000", "400,000,000"]
+    answer: 1
+    explanation: "One sort takes 16 × log₂16 = 16 × 4 = 64 steps, and 20,000 × 64 = 1,280,000. The others forget the log factor (20,000 × 16), square the word length (20,000 × 256), or square the word count, as comparing every pair of words would."
+  - id: zero-in-product-table
+    prompt: "For `nums = [4, 0, 5, 2]` you build a product table with `prefix[0] = 1` and `prefix[i + 1] = prefix[i] * nums[i]`. What happens when you compute the product of `nums[2..3]` as `prefix[4] // prefix[2]`?"
+    choices: ["It returns 10", "It returns 0", "It raises ZeroDivisionError", "It returns 40"]
+    answer: 2
+    explanation: "The table is [1, 4, 0, 0, 0], because the zero wipes out every later entry. The expression is 0 // 0, which raises an error, although the true product 5 × 2 is 10. Division only recovers a range product when no zero came before it."
+flashcards:
+  - id: when-to-hash
+    front: "When does a hash map fit?"
+    back: "When a loop keeps asking about earlier values: seen it, how many, which group. Each O(n) scan becomes an O(1) average lookup, at the price of O(n) memory."
+  - id: average-case
+    front: "Is a hash lookup O(1)?"
+    back: "On average. If many keys land in one bucket, that bucket must be searched, so say \"average case\"."
+  - id: check-before-insert
+    front: "Two Sum: why check before inserting?"
+    back: "Storing x first lets x match itself when target − x equals x, which pairs an element with itself."
+  - id: prefix-formula
+    front: "Sum of nums[i..j] from a prefix table"
+    back: "prefix[j + 1] − prefix[i], where prefix[0] = 0 and prefix[k] is the sum of the first k values. Each query is O(1) after an O(n) build."
+  - id: empty-prefix
+    front: "Why start the prefix counter with {0: 1}?"
+    back: "It stands for the empty prefix. Without it, slices that start at index 0 are missed."
+  - id: prefix-products
+    front: "Prefix products: the catch"
+    back: "A running product shows the product of everything before each position, but one zero turns all later entries to 0, so dividing to get a range fails."
+  - id: group-key
+    front: "Choosing a group key"
+    back: "It must be identical for all members and hashable. Lists aren't, so use a tuple. Sorted letters cost O(k log k) per word."
+  - id: hash-map-limits
+    front: "What can't a hash map answer?"
+    back: "Order questions such as the smallest value or the next bigger one. It finds values by key, and keeps no useful order."

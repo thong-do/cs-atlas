@@ -1,0 +1,56 @@
+slug: sliding-window-quiz
+type: quiz
+title: "Sliding Window — quiz"
+lessons: [sliding-window]
+ladderOrder: 0
+questions:
+  - id: jump-without-max
+    prompt: "This aims to find the longest substring with no repeated letter: `last = {}; left = best = 0`, then `for right, ch in enumerate(s):` with `if ch in last: left = last[ch] + 1`, then `last[ch] = right` and `best = max(best, right - left + 1)`. What does it return for `\"abba\"`?"
+    choices: ["3", "2", "4", "1"]
+    answer: 0
+    explanation: "At the second b, left jumps to 2. At the last a, `last['a']` is 0, so left moves back to 1, giving the window `bba` of length 3. The true answer is 2. Using `max(left, last[ch] + 1)` keeps the left edge from moving backwards."
+  - id: negatives-break-shrink
+    prompt: "This aims to find the shortest slice with sum at least 4: for each x, `total += x`, then `while total >= 4: best = min(best, right - left + 1); total -= nums[left]; left += 1`. What does it report for `[3, -2, 4]`, where `best` starts at infinity?"
+    choices: ["1", "2", "3", "Infinity"]
+    answer: 2
+    explanation: "The sum first reaches 5 at the last element, so it records length 3. Dropping the 3 leaves 2, and the loop stops, but dropping the −2 as well would give [4], of length 1. With a negative value, a smaller sum doesn't mean later shrinking can't help."
+  - id: recompute-cost
+    prompt: "A monitoring job has n = 80,000 readings and needs the sum of every block of k = 500. It calls `sum(nums[i:i + k])` for each block. About how many values does it add up in all?"
+    choices: ["About 80,000", "About 40,000,000", "About 400,000", "About 6,400,000,000"]
+    answer: 1
+    explanation: "There are 80,000 − 500 + 1 = 79,501 blocks of 500 values each, about 40 million. A fixed window instead adds one value and drops one per step, about 160,000 operations."
+  - id: exact-sum-with-negatives
+    prompt: "Readings can be negative. You need the longest contiguous stretch that sums to exactly 10. Which approach fits?"
+    choices: ["Grow a window, and shrink it from the left whenever the sum passes 10", "Slide a fixed window of size 10 and compare the sum of each block with 10", "Sort the readings, then move two pointers inward until the sum reaches 10", "Keep running totals in a map from each total to its earliest position"]
+    answer: 3
+    explanation: "A slice sums to 10 when two running totals differ by 10, and the earliest position gives the longest slice. A shrinking window relies on sums only growing, which negatives break. The size isn't given, so a fixed window doesn't apply, and sorting destroys contiguity."
+  - id: record-after-shrink
+    prompt: "This aims to find the shortest slice of positive numbers with sum at least 7: for each x, `total += x`, then `while total >= 7: total -= nums[left]; left += 1`, and then `best = min(best, right - left + 1)`. What does it return for `[1, 4, 2, 5, 1]`, where `best` starts at infinity?"
+    choices: ["1", "2", "3", "5"]
+    answer: 0
+    explanation: "The first step already records `right - left + 1 = 1`, for a window of [1], whose sum is far below 7. The code records windows that aren't valid. The true answer is 2, from [2, 5], and recording inside the shrink loop would find it."
+flashcards:
+  - id: when-to-use
+    front: "When does a sliding window fit?"
+    back: "For the best contiguous block, when each new element updates the state in O(1) and growing a window only pushes the condition one way."
+  - id: why-left-moves-on
+    front: "Why can the left edge move on for good?"
+    back: "In a longest-window search, if a window breaks the rule, every longer one with the same left edge does too. So no later right edge can use that left edge."
+  - id: cost
+    front: "Sliding window: why O(n)?"
+    back: "Each index enters once and leaves at most once, so the inner shrink loop totals at most n steps across the whole run."
+  - id: negatives
+    front: "When does a variable window fail?"
+    back: "With negative numbers, since growing no longer pushes the sum one way. For an exact sum, use prefix sums with a hash map."
+  - id: fixed-vs-variable
+    front: "Fixed or variable window?"
+    back: "If the size is given, it's fixed: add one, drop one, no shrink loop. If the size is what you're looking for, it's variable."
+  - id: longest-vs-shortest
+    front: "Where to record the answer"
+    back: "Longest: shrink while invalid, then record after the loop. Shortest: shrink while valid, and record inside the loop."
+  - id: window-length
+    front: "Window length formula"
+    back: "`right - left + 1`, since both edges are included."
+  - id: left-jump
+    front: "Jumping left to last_seen + 1"
+    back: "Use `max(left, last_seen + 1)`. An old position could otherwise move the left edge backwards onto values already dropped."

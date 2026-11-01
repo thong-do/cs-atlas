@@ -1,0 +1,56 @@
+slug: binary-search-quiz
+type: quiz
+title: "Binary Search — quiz"
+lessons: [binary-search]
+ladderOrder: 0
+questions:
+  - id: duplicates-two-conventions
+    prompt: "On `nums = [1, 3, 3, 3, 5, 7]` with target 3, which indexes do the lesson's `search` and `search_inclusive` return, in that order?"
+    choices: ["1 and 1", "2 and 2", "1 and 2", "2 and 1"]
+    answer: 2
+    explanation: "`search` finds the first position with a value of at least 3, which is index 1. `search_inclusive` starts at mid = 2, finds a 3 there and returns at once, so it reports whichever match it lands on."
+  - id: mixed-bounds
+    prompt: "This search mixes conventions: `lo, hi = 0, len(nums)`, then `while lo <= hi:` with `mid = (lo + hi) // 2`, a return if `nums[mid] == target`, `lo = mid + 1` if `nums[mid] < target`, and otherwise `hi = mid - 1`. What happens on `[2, 4, 6]` with target 9?"
+    choices: ["It returns -1", "It returns 3", "It loops forever", "It raises IndexError"]
+    answer: 3
+    explanation: "`lo` climbs to 3 while `hi` stays at 3, so the loop runs with mid = 3 and reads `nums[3]`, one past the end. A half-open `hi` belongs with `lo < hi`, and an inclusive loop should start with `hi = len(nums) - 1`."
+  - id: which-predicate
+    prompt: "A van has a tank of size t, and a bigger tank never needs more refills on a route. You want the smallest t with 3 or fewer refills, and `refills(t)` computes the count. Which test can you pass to `first_true` as written?"
+    choices: ["`refills(t) == 3`", "`refills(t) <= 3`", "`refills(t) >= 3`", "`refills(t) % 2 == 0`"]
+    answer: 1
+    explanation: "As t grows, the count only falls, so `<= 3` reads False … False True … True. The test `== 3` is true only in a middle band, `>= 3` reads True then False, and the even test can flip many times. None of those has the shape `first_true` needs."
+  - id: search-on-answer-cost
+    prompt: "A search on the answer covers 1 to 2,000,000, and each `ok(x)` scans all 30,000 items of the input. About how many item visits does the search make?"
+    choices: ["About 630,000", "About 30,021", "About 60,000,000,000", "About 21,000,000"]
+    answer: 0
+    explanation: "Halving 2,000,000 candidates takes about 21 checks, and 21 × 30,000 = 630,000. The checks multiply rather than add, and trying every candidate would take 60 billion visits."
+  - id: largest-that-fits
+    prompt: "`fits(w)` is True for small shelf widths and False for all larger ones, and width 1 fits. Using the lesson's `first_true`, which expression gives the largest width in 1 to 50 that fits?"
+    choices: ["`first_true(1, 50, fits)`", "`first_true(1, 50, fits) - 1`", "`first_true(1, 50, lambda w: not fits(w)) - 1`", "`first_true(1, 50, lambda w: not fits(w))`"]
+    answer: 2
+    explanation: "`first_true` needs False then True, so test for not fitting. That finds the first width that fails, and the one before it is the answer. If all fit, it returns 51, and subtracting 1 gives 50. Passing `fits` itself has the wrong shape."
+flashcards:
+  - id: when-to-use
+    front: "When does binary search fit?"
+    back: "When a yes/no test flips once across a range: F..F T..T. Sorted arrays are one case; \"smallest x such that\" is another."
+  - id: cost
+    front: "Binary search: cost"
+    back: "O(log n) checks, about 20 for a million candidates. On the answer it's O(log(range) × cost of one check)."
+  - id: half-open
+    front: "Half-open convention"
+    back: "`hi` starts one past the last candidate, with `while lo < hi`, `hi = mid` and `lo = mid + 1`. It ends with lo == hi on the boundary."
+  - id: inclusive
+    front: "Inclusive convention"
+    back: "`hi` starts at the last candidate, with `while lo <= hi`, `hi = mid - 1` and `lo = mid + 1`. It suits an exact match with an early return."
+  - id: which-convention
+    front: "Which convention when?"
+    back: "Half-open for a boundary such as the first match or insert position. Inclusive for \"is this value here?\". Never mix the two."
+  - id: on-the-answer
+    front: "Binary search on the answer"
+    back: "Name the range of answers, write ok(x), and check that it flips once. The input needn't be sorted, since you search over answers."
+  - id: largest-x
+    front: "Finding the largest x that works"
+    back: "The answers read T..T F..F, so search for the first x that fails and subtract 1."
+  - id: infinite-loop
+    front: "The classic infinite loop"
+    back: "`lo = mid` with `mid = (lo + hi) // 2`. When hi = lo + 1, mid equals lo, so the range stops shrinking. Use `lo = mid + 1`."

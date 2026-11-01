@@ -2,7 +2,7 @@ slug: lesson-slug-quiz
 type: quiz
 title: "Lesson Title — quiz"
 lessons: [lesson-slug]
-ladderOrder: 1                  # next free number in the lesson's ladder
+ladderOrder: 1                  # next free number in the lesson's ladder; a quiz may use 0 to come first on the ladder
 questions:                      # 3–8 questions, one correct answer each
   # The quiz shows choices in this order — vary the correct position.
   - id: first-question

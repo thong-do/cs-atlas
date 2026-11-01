@@ -16,6 +16,23 @@ You can't index into a linked list — you walk it and rewire `next` pointers. A
 
 Picture train cars: to reorder them you uncouple and recouple, always holding on to the rest of the train so it doesn't roll away.
 
+Each node holds a value and a reference to the next node. That gives a trade: reaching position `i` takes `i` hops, which is O(n), while rewiring a node you already hold is O(1). (See [Complexity & Big-O](/cs-fundamentals/complexity/) for the notation.) Work **in place** where you can: rewire the existing nodes instead of copying them, so extra memory stays O(1).
+
+**Dummy nodes.** Many operations treat the first node differently, because nothing points to it. A dummy is a throwaway node placed in front: now every real node has a predecessor, and the same code handles them all. Build your result after it, then return `dummy.next`. It no longer matters if the old head gets removed.
+
+**In-place reversal.** Reversing needs three references: `prev`, `curr` and whatever comes after `curr`. Save the next node first, since rewiring `curr.next` destroys the only link to it. Then point `curr` back at `prev`, and move both forward one node. When `curr` runs off the end, `prev` is the new head. The template fits this on one line, because Python evaluates the whole right side before assigning.
+
+**Fast and slow pointers.** Two pointers start at the head; `fast` takes two hops for every one that `slow` takes.
+
+- **Middle:** when `fast` reaches the end, `slow` has gone half as far.
+- **Cycle:** if there's a loop, `fast` can't exit. Once both are in the loop, the gap between them changes by one node per step, so they must meet. If `fast` reaches `None`, there's no loop.
+
+**Why Floyd's cycle start works.** Say the start of the loop is `a` hops from the head, the two pointers meet `b` hops into the loop, and the loop's length is `c`. `slow` walked `a + b` hops and `fast` walked `2(a + b)`. The extra `a + b` hops were all spent going around the loop, so `a + b` is a multiple of `c`. So from the meeting point, `a` more hops completes whole laps and lands on the loop's start. A pointer from the head also gets there in `a` hops, so they meet there.
+
+**When not to use it.** Unless you're handed a linked list, a Python list is nearly always better: it has O(1) indexing. A linked list pays off when you hold a node and must insert or remove right there in O(1), as in an LRU cache.
+
+**Telling it from its neighbours.** **Two Pointers** on an array can jump to an index and step backwards; a list can't. A **hash set** of seen nodes also detects a cycle, at O(n) memory where Floyd uses O(1).
+
 ## Visual
 
 ```text
@@ -60,6 +77,50 @@ def merge(a: ListNode | None, b: ListNode | None) -> ListNode | None:
     return dummy.next
 ```
 
+## Example
+
+**The problem.** An inspection crew walks along a freight train and pulls out every k-th car, counting from the front. Pulled cars go onto a short siding, one after another, so the last one pulled is the first out. Once the crew is done, the siding's cars are coupled behind the remaining cars, in the order they leave the siding. Return the new first car. The train is a linked list, and no new cars can be built.
+
+**Spotting the pattern.** "Input is a ListNode" and "reorder in place" both fit. The siding reverses the pulled cars, the same move as in-place reversal. And the first car might be pulled (when k = 1), so the kept part needs a dummy.
+
+**Why brute force is slow.** A first try might walk from the head to each k-th position and unlink the car there. With 100,000 cars and k = 2, that's 50,000 walks of about 25,000 hops on average, around 1.25 billion hops: O(n²/k). Copying into an array avoids this, but costs O(n) memory.
+
+**The key insight.** One walk is enough. Every car goes to exactly one of two places: behind the last kept car, or on top of the siding. Both take O(1) with the right references.
+
+```python
+def pull_every_kth(head: ListNode | None, k: int) -> ListNode | None:
+    dummy = tail = ListNode()          # kept cars grow behind tail
+    siding = None                      # pulled cars, last pulled first
+    curr, position = head, 1
+    while curr:
+        next_car = curr.next           # save it before rewiring
+        if position % k == 0:
+            curr.next = siding         # same move as reversal
+            siding = curr
+        else:
+            tail.next = curr
+            tail = curr
+        curr = next_car
+        position += 1
+    tail.next = siding                 # also cuts any old link off the last kept car
+    return dummy.next
+```
+
+**Traced run** on `1 → 2 → 3 → 4 → 5 → 6 → 7 → 8` with k = 3:
+
+| position | Car | Goes to | Kept so far | Siding |
+|---|---|---|---|---|
+| 1 | 1 | kept | 1 | empty |
+| 2 | 2 | kept | 1 → 2 | empty |
+| 3 | 3 | siding | 1 → 2 | 3 |
+| 4 | 4 | kept | 1 → 2 → 4 | 3 |
+| 5 | 5 | kept | 1 → 2 → 4 → 5 | 3 |
+| 6 | 6 | siding | 1 → 2 → 4 → 5 | 6 → 3 |
+| 7 | 7 | kept | 1 → 2 → 4 → 5 → 7 | 6 → 3 |
+| 8 | 8 | kept | 1 → 2 → 4 → 5 → 7 → 8 | 6 → 3 |
+
+The final `tail.next = siding` gives `1 → 2 → 4 → 5 → 7 → 8 → 6 → 3`. That's one walk of 8 cars with O(1) extra memory. With k = 1 every car is pulled, `tail` stays on the dummy, and `dummy.next` is the reversed train with no special case.
+
 ## Complexity
 
 - Time: **O(n)** for one or two passes.
@@ -71,6 +132,7 @@ def merge(a: ListNode | None, b: ListNode | None) -> ListNode | None:
 - Null checks: loop on `fast and fast.next`, not just `fast.next`.
 - Reorder List: cut the first half (`mid.next = None`) or you create a cycle.
 - Returning `dummy` instead of `dummy.next`.
+- Walking from the head inside a loop: that makes it O(n²).
 
 ## Tips & tricks
 

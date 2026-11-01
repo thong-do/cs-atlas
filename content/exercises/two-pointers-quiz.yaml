@@ -1,0 +1,56 @@
+slug: two-pointers-quiz
+type: quiz
+title: "Two Pointers — quiz"
+lessons: [two-pointers]
+ladderOrder: 0
+questions:
+  - id: what-a-step-rules-out
+    prompt: "`pair_with_sum` runs on `[2, 5, 8, 12, 20]` with target 19. It sees 2 + 20 = 22 and does `right -= 1`. Which pairs has that single step ruled out?"
+    choices: ["Only the pair (2, 20), as it is the only pair checked so far", "Every pair that uses 20, since any partner still in range is at least 2", "Every pair that uses 2, since 2 has now met the largest value", "Every pair whose sum is above 19, including those among 5, 8 and 12"]
+    answer: 1
+    explanation: "Each remaining partner for 20 is at least 2, so all its sums are at least 22 and 20 can go. The step says nothing about 2's other partners, and 8 + 12 = 20 is above 19 yet still in range."
+  - id: less-or-equal-bug
+    prompt: "A teammate writes `while left <= right` in `pair_with_sum`. What does it return for `[1, 3, 5, 8]` with target 10?"
+    choices: ["None", "(1, 3)", "(0, 3)", "(2, 2)"]
+    answer: 3
+    explanation: "The sums go 1 + 8 = 9, 3 + 8 = 11, 3 + 5 = 8, and then both pointers sit on index 2, where 5 + 5 = 10. It uses one element twice. With `<` the loop stops there and correctly returns None."
+  - id: count-pairs-trace
+    prompt: "This runs on a sorted list: `left, right, count = 0, len(nums) - 1, 0`, then `while left < right:`, with `if nums[left] + nums[right] <= limit: count += right - left; left += 1` and `else: right -= 1`. What is `count` for `[1, 2, 3, 4, 6]` with limit 7?"
+    choices: ["7", "10", "5", "6"]
+    answer: 0
+    explanation: "1 + 6 fits, and so does 1 with everything smaller than 6, adding 4. Then 2 + 6 is too big, 2 + 4 fits and adds 2, and 3 + 4 fits and adds 1, for 7. One comparison counts a whole row of pairs for the same reason it can discard one."
+  - id: fix-one-cost
+    prompt: "A list of n = 3,000 numbers is already sorted. For each `i` you run opposite-end pointers on `i + 1 .. n - 1`, which takes about n − i moves. Roughly how many moves is that in all?"
+    choices: ["About 6,000", "About 35,000", "About 4,500,000", "About 4,500,000,000"]
+    answer: 2
+    explanation: "The runs shrink from about 3,000 moves to 0, averaging about 1,500, and 3,000 × 1,500 = 4,500,000, or O(n²). Checking every triplet directly would take about 4.5 billion steps, which is the O(n³) cost this avoids."
+  - id: remove-faults-in-place
+    prompt: "A list of readings uses `-1` to mark a fault. You must remove the faults in place, keep the other readings in order, use O(1) extra memory and return the new length. Which approach fits?"
+    choices: ["Move left and right inward, swapping each fault at left with a reading from the right end", "Copy the good readings to a new list, then copy them back over the old one", "Binary-search for the first fault, then shift everything after it by one slot", "`fast` reads every slot; `slow` marks the next slot to write"]
+    answer: 3
+    explanation: "Same-direction pointers copy each good reading forward, keeping order, and `slow` never passes `fast`, so nothing unread is overwritten. Swapping from the far end breaks the order, a new list costs O(n) memory, and an unsorted list gives binary search nothing to work with."
+flashcards:
+  - id: when-to-use
+    front: "When do two pointers fit?"
+    back: "When order or another structure lets one comparison rule out many candidates: sorted pairs, palindromes, in-place compaction."
+  - id: elimination-invariant
+    front: "Opposite ends: the invariant"
+    back: "Every pair outside left..right has been ruled out. A move drops an element only after showing none of its remaining pairs can work."
+  - id: why-move-right
+    front: "Sorted pair sum is too big: why drop right?"
+    back: "Every remaining partner is at least nums[left], so every sum with nums[right] is too big as well."
+  - id: cost
+    front: "Two pointers: cost"
+    back: "O(n) time, as each move shrinks the range, and O(1) extra space. Sorting first adds O(n log n). Fix one plus two pointers is O(n²)."
+  - id: strict-loop
+    front: "`left < right` or `left <= right`?"
+    back: "For pairs of different elements, use `<`. With `<=`, both pointers can sit on one index and use the element twice."
+  - id: slow-fast
+    front: "Same-direction pointers"
+    back: "`fast` reads every element and `slow` marks the next write. Since `slow` never passes `fast`, nothing unread is overwritten."
+  - id: unsorted-indices
+    front: "Unsorted input, original indices needed"
+    back: "Use a hash map. Sorting would lose the positions, and the move rule isn't valid on an unsorted list."
+  - id: vs-window
+    front: "Two pointers vs sliding window"
+    back: "If both move right and the condition is about everything between them, it's a window. Two pointers usually compare only the two elements."

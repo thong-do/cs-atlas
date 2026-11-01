@@ -12,7 +12,7 @@ summary: "Move two indices toward or along each other to avoid nested loops."
 
 ## Intuition
 
-A brute-force pair search checks every (i, j) — O(n²). Two pointers cut that to O(n) by using **structure** in the input (usually sortedness) to rule out many pairs with a single comparison.
+A brute-force pair search checks every (i, j) — O(n²). Two pointers cut that to O(n) by using **structure** in the input (usually sortedness) to rule out many pairs with a single comparison. (A pointer is just an index. For the notation, see [Complexity & Big-O](/cs-fundamentals/complexity/).)
 
 Picture two people walking toward each other along a shelf of items sorted by price, looking for two that cost exactly your budget. If the pair is too expensive, the person at the expensive end steps left — that item is too pricey even with the cheapest item still in play, so it can't be in any answer. Too cheap? The cheap item falls short even with the priciest one left, so the cheap end steps right. Every step throws away a whole row of candidate pairs.
 
@@ -21,6 +21,26 @@ Three common shapes:
 - **Opposite ends** (`left = 0`, `right = n - 1`, move inward): pair sums, palindromes, container with most water.
 - **Same direction, slow/fast** (`slow` marks where to write, `fast` scans): remove duplicates, move zeroes.
 - **Fix one, two-pointer the rest**: 3Sum — sort, loop `i`, then opposite ends on `i + 1 .. n - 1`.
+
+**Why elimination is safe.** Take `[1, 4, 6, 9]` with target 8. It has six possible pairs. Suppose the pointers sit at 1 and 9.
+
+```text
+1 + 9 = 10, too big.   Every other partner for 9 is at least 1, so
+                       (1,9), (4,9) and (6,9) are all at least 10. Drop 9.
+1 + 6 = 7, too small.  Every other partner for 1 is at most 6, so
+                       (1,6) and (1,4) are both at most 7. Drop 1.
+4 + 6 = 10, too big.   That pair is the last one. Drop 6.
+```
+
+Three comparisons settled all six pairs. The invariant is this: **every pair outside the `left..right` range has already been ruled out**. A move only drops an element after showing that none of its remaining pairs can work. So if an answer exists, the pointers can't walk past it. Because each move shrinks the range by one, there are at most n - 1 moves.
+
+On an unsorted list, "every other partner is at least 1" would be false, and the step would discard unchecked pairs.
+
+**Same direction works differently.** `fast` reads every element and `slow` marks the end of the part you are keeping. Doing this **in place** means rewriting the same list without allocating another one, so the extra memory stays O(1). Since `slow` never passes `fast`, a write can only land on a slot that was already read.
+
+**When not to use it.** If the input is unsorted and you need the original positions, sorting loses them, so use a hash map. Sorting first also costs O(n log n), against a hash map's O(n).
+
+**Telling it from its neighbours.** **Sliding Window** also moves two indices, but both go right and the answer is the block between them. **Binary Search** also uses sorted order, but it jumps to the middle and discards half the range on one question. Two pointers walk one step at a time, and each step answers a question about a pair.
 
 ## Visual
 
@@ -53,6 +73,49 @@ def compact(nums: list[int]) -> int:
     return slow
 ```
 
+## Example
+
+**The problem.** A row of crates stands on a dock, each with a positive weight in kilograms. One porter unloads a run of crates from the left end, another a run from the right end. No crate goes to both, and crates in the middle may stay. What is the heaviest load they can each carry so that the two loads are equal? If there's no such split, the answer is 0.
+
+**Spotting the pattern.** "Compare from both ends" is the trigger. The crates aren't sorted, but look for structure anyway: weights are positive, so each porter's load only grows. Running totals are sorted even when the crates aren't.
+
+**Why brute force is slow.** Trying every left count with every right count means about n²/2 plans. With 100,000 crates, that is 5 billion plans, even if each load were available in O(1).
+
+**The key insight.** Suppose the left load is lighter. Any plan that keeps this right run (or a longer one) needs more on the left, because the right load can't shrink. So the left porter takes the next crate, and no plan worth keeping is lost. The same argument applies the other way round. When the loads are equal, record them and keep going, since a later match is heavier.
+
+```python
+def heaviest_equal_load(crates: list[int]) -> int:
+    """crates must all be positive."""
+    left, right = 0, len(crates) - 1
+    left_load = right_load = best = 0
+    while left <= right:                 # a crate is still unclaimed
+        if left_load <= right_load:
+            left_load += crates[left]
+            left += 1
+        else:
+            right_load += crates[right]
+            right -= 1
+        if left_load == right_load:
+            best = left_load
+    return best
+```
+
+The loop uses `<=` here, unlike the pair template, because a single crate left between the porters can still be taken.
+
+**Traced run** on `[4, 1, 2, 6, 3, 2, 2]`:
+
+| Step | Taken by | Crate | Left load | Right load | best |
+|---|---|---|---|---|---|
+| 1 | left | 4 | 4 | 0 | 0 |
+| 2 | right | 2 | 4 | 2 | 0 |
+| 3 | right | 2 | 4 | 4 | 4 |
+| 4 | left | 1 | 5 | 4 | 4 |
+| 5 | right | 3 | 5 | 7 | 4 |
+| 6 | left | 2 | 7 | 7 | 7 |
+| 7 | left | 6 | 13 | 7 | 7 |
+
+The answer is 7: left carries 4 + 1 + 2, right carries 2 + 2 + 3, and the 6 stays. Step 7 tries the 6, but the loads never match again, so `best` stays 7. Seven crates took seven steps. With a negative weight a load could shrink, and the insight fails.
+
 ## Complexity
 
 - Time: **O(n)** — each pointer moves at most n times. Add O(n log n) if you must sort first.
@@ -61,7 +124,7 @@ def compact(nums: list[int]) -> int:
 
 ## Pitfalls
 
-- Using two pointers on **unsorted** input for a sum problem. The "move the smaller side" logic is only valid when sorted; unsorted + indices needed → hash map.
+- Using two pointers on **unsorted** input for a sum problem. The "too big, move right" logic is only valid when sorted; unsorted + indices needed → hash map.
 - `while left <= right` when the two pointers must be different elements — use `<`.
 - Forgetting to **skip duplicates** in 3Sum after a match, producing repeated triplets.
 - In-place problems: overwriting a value you still need. Write at `slow`, read at `fast`.

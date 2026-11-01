@@ -7,4 +7,4 @@ difficulty: medium
 lessons: [arrays-hashing]
 ladderOrder: 9
 recognitionPrompt: "Count the contiguous subarrays whose sum equals k; values may be negative."
-hint: "sum(i..j) = prefix[j] − prefix[i−1]; count earlier prefixes in a hash map."
+hint: "sum(i..j) = prefix[j + 1] − prefix[i]; count earlier prefixes in a hash map."

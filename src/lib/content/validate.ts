@@ -111,10 +111,11 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
       if (l.triggers.length === 0) err('V8', lessonFile(l), 'algorithms lessons need at least one trigger')
       if (!l.complexity) err('V8', lessonFile(l), 'algorithms lessons need a complexity')
     }
-    // Lessons in a module with slug "case-studies" use the case-study structure; other non-algorithms lessons need Example.
+    // Algorithms lessons need Template and Example. Lessons in a module with slug "case-studies" use the
+    // case-study structure, and other lessons need Example.
     const isCaseStudy = tracks.some((t) => t.slug === l.track && t.modules.some((m) => m.slug === CASE_STUDIES && m.lessons.includes(l.slug)))
     const required = l.track === ALGORITHMS
-      ? [...REQUIRED_SECTIONS, 'Template']
+      ? [...REQUIRED_SECTIONS, 'Template', 'Example']
       : isCaseStudy ? [...REQUIRED_SECTIONS, ...CASE_STUDY_SECTIONS] : [...REQUIRED_SECTIONS, 'Example']
     const missing = required.filter((h) => !l.headings.includes(h))
     if (missing.length > 0) err('V9', lessonFile(l), `missing section(s) ${missing.map((h) => `"## ${h}"`).join(', ')}`)
@@ -125,11 +126,12 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
     }
   }
 
-  // V5/V7/V11/V12/V13/V15/V16 — exercises
+  // V5/V7/V11/V12/V13/V15/V16 — exercises (V10 and V17 are checked below from what this loop collects)
   const exerciseSlugs = new Set<string>()
   const ids = new Set<number>()
   const ladderKeys = new Set<string>()
   const practised = new Set<string>()
+  const reviewable = new Set<string>()
   for (const e of exercises) {
     const file = exerciseFile(e)
     if (baseName(e.path) !== e.slug) err('V11', file, `file name "${baseName(e.path)}" must equal slug "${e.slug}"`)
@@ -189,6 +191,7 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
       if (!known(ref)) err('V5', file, `unknown lesson "${ref}"`)
     }
     practised.add(e.lessons[0])
+    if (e.type === 'quiz' && e.flashcards.length > 0) reviewable.add(e.lessons[0])
     const key = `${e.lessons[0]}#${e.ladderOrder}`
     if (ladderKeys.has(key)) err('V7', file, `ladderOrder ${e.ladderOrder} is already used in "${e.lessons[0]}"`)
     ladderKeys.add(key)
@@ -196,6 +199,9 @@ export function validateContent({ tracks, lessons, exercises }: ContentInput): s
 
   // V10 — every lesson has an exercise that counts for its mastery
   for (const l of bySlug.values()) if (!practised.has(l.slug)) err('V10', lessonFile(l), 'no exercise has this lesson first')
+
+  // V17 — every lesson has a quiz with flashcards, so it can be reviewed as well as practised
+  for (const l of bySlug.values()) if (!reviewable.has(l.slug)) err('V17', lessonFile(l), 'no quiz with at least one flashcard has this lesson first')
 
   return errors
 }

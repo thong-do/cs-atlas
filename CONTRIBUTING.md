@@ -72,9 +72,9 @@ content/
 
 ## Add a lesson
 
-1. Copy `templates/lesson.mdx` to `content/tracks/<track>/lessons/<slug>.mdx` and fill it in. For a case study (a lesson in the `case-studies` module), replace the Example section with Requirements & estimates, Design walkthrough and the other case-study sections listed under the quality bar below.
+1. Copy `templates/lesson.mdx` to `content/tracks/<track>/lessons/<slug>.mdx` and fill it in. An Algorithms lesson has a Template section, then an Example on an original problem. For a case study (a lesson in the `case-studies` module), replace the Example section with Requirements & estimates, Design walkthrough and the other case-study sections listed under the quality bar below.
 2. Add the slug to a module's `lessons` in `content/tracks/<track>/track.yaml`.
-3. Make sure at least one exercise lists it (add one if needed).
+3. Add a quiz with at least one flashcard that lists the lesson first (`templates/quiz.yaml`). Add other exercises if they fit.
 4. Run `npm run dev` and open `/<track>/<slug>/`.
 
 ## Add an exercise
@@ -86,7 +86,7 @@ content/
 
 ## The quality bar (checked by the build)
 
-Every lesson must have these `##` sections: **Intuition**, **Visual**, **Pitfalls**, **Tips & tricks**, plus **Template** (Algorithms) or **Example** (other tracks). A lesson listed in a module with slug `case-studies` uses the case-study structure instead: **Intuition**, **Requirements & estimates**, **Visual**, **Design walkthrough**, **Pitfalls**, **Tips & tricks**. Every lesson needs at least one exercise.
+Every lesson must have these `##` sections: **Intuition**, **Visual**, **Pitfalls**, **Tips & tricks**, plus **Template** and **Example** (Algorithms) or **Example** (other tracks). A lesson listed in a module with slug `case-studies` uses the case-study structure instead: **Intuition**, **Requirements & estimates**, **Visual**, **Design walkthrough**, **Pitfalls**, **Tips & tricks**. Every lesson, case studies included, needs a quiz with at least one flashcard that lists it first.
 
 If something is wrong, `npm test` and `npm run build` fail with a message like:
 
@@ -104,7 +104,7 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V6 | Prerequisites have no cycles |
 | V7 | `ladderOrder` is unique within a primary lesson |
 | V8 | Algorithms lessons have `triggers` and `complexity` |
-| V9 | Required sections are present (Template for Algorithms, Example for other lessons, the case-study sections for lessons in a `case-studies` module); every `<Visualizer kind>` is a known kind |
+| V9 | Required sections are present (Template and Example for Algorithms, Example for other lessons, the case-study sections rather than Example for lessons in a `case-studies` module); every `<Visualizer kind>` is a known kind |
 | V10 | Every lesson is the first entry in at least one exercise's `lessons`, since only those count for mastery |
 | V11 | LeetCode exercises: unique slugs, LeetCode ids and leetcode.com URLs (every exercise's file name equals its slug) |
 | V12 | Quiz: unique question and flashcard ids; each answer is one of its choices |
@@ -112,6 +112,7 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V14 | Placement files: the track exists and the file name equals it; each module has 2–3 questions (none for `comingSoon`-only or exempt modules); 4 distinct choices and an `answer` that is one of them; no repeat of a lesson-quiz prompt or of an earlier placement prompt; no lesson takes the reserved slug `placement` |
 | V15 | Estimation drills: 2–4 steps with unique ids; a known `unit` (bytes, bytes/s, bits/s, requests/s, count, seconds); `answer` > 0 in base units; `tolerance`, if set, 1.5–10 (default 2); each step's `work` shows its answer as the app formats it (e.g. "10 TB"); non-empty `scenario` and `takeaway` |
 | V16 | Lesson quizzes and placement files, per file, counting only questions whose choices differ in length (skipped below 4 such questions): (a) in at least 1 in 5 of them the right answer is the longest or shortest choice; (b) no more than 60% of them have the same number of choices longer than the right answer |
+| V17 | Every lesson, in every track, is the first entry in the `lessons` of a `quiz` exercise with at least one flashcard |
 
 ## Estimation drills
 

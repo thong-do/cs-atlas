@@ -1,0 +1,56 @@
+slug: bit-manipulation-quiz
+type: quiz
+title: "Bit Manipulation — quiz"
+lessons: [bit-manipulation]
+ladderOrder: 0
+questions:
+  - id: odd-counts
+    prompt: "You call `single_number` on `[5, 3, 5, 3, 3, 9]`, which breaks its promise that every other value appears twice. What does it return?"
+    choices: ["9", "3", "0", "10"]
+    answer: 3
+    explanation: "The 5s cancel, and two of the 3s cancel, which leaves 3 ^ 9. In binary that's 0011 ^ 1001 = 1010, or 10. Neither 3 nor 9 comes back on its own, because XOR combines everything that appears an odd number of times."
+  - id: kernighan-steps
+    prompt: "You call `hamming_weight(52)`. What values does `n` take after each pass of the loop, and what does it return?"
+    choices: ["26, 13, 6, 3, 1, 0, and it returns 6", "48, 32, 0, and it returns 3", "51, 48, 32, 0, and it returns 4", "48, 32, 16, 0, and it returns 4"]
+    answer: 1
+    explanation: "52 is 110100. Each pass clears the lowest 1: 110100 becomes 110000 (48), then 100000 (32), then 0. That's three passes for three 1 bits. Halving would show every bit position, which is what this loop avoids."
+  - id: reverse-while
+    prompt: "A teammate changes `reverse_bits` to loop `while n:` in place of `for _ in range(32)`, to skip needless passes. What does it now return for n = 6, and why?"
+    choices: ["3, since the loop stops at the last 1, before the low bits reach the top", "6, since 110 read backwards is 011, which is the same value", "0x60000000, since the leading zeros needn't be processed", "0, since the 32-bit shift pushes the bits past the top"]
+    answer: 0
+    explanation: "With n = 110, the passes shift in 0, 1 and 1, giving 011 = 3, and then n is 0. The real answer is 0x60000000, because 6's low bits must end up at the top, and the 29 passes that were skipped are what would have moved them there."
+  - id: two-missing
+    prompt: "An array has n distinct values from 0 to n + 1, so two values are missing. You XOR all the array values with all of 0 to n + 1. Does that result alone tell you the two missing values?"
+    choices: ["Yes, as all the pairs cancel and the two values remain side by side", "Yes, as the lowest set bit of the result is the smaller of the two", "No, as you get a ^ b, and different pairs give the same result", "No, as XOR stops cancelling values once more than one of them is missing from it"]
+    answer: 2
+    explanation: "All present values cancel, leaving a ^ b as one number. But 1 ^ 6 and 2 ^ 5 are both 7, so the result alone can't separate them. The cancelling still works, and its one result just can't hold two unknowns. You'd need more, like splitting by a bit."
+  - id: mask-cost
+    prompt: "A loop tests every subset of 24 items by counting a mask from 0 to 2²⁴ − 1, and for each mask checks all 24 bits. How many bit checks is that?"
+    choices: ["576, which is 24 × 24, one check of each bit for each bit in turn", "About 402 million, which is 24 × 2²⁴", "About 17 million, which is 2²⁴", "About 17 billion, which is 2²⁴ × 2¹⁰"]
+    answer: 1
+    explanation: "There are 2²⁴ = 16,777,216 masks and 24 checks per mask, which gives 402,653,184. That's within reach for a one-off, but every extra item doubles it, so 30 items would be near 32 billion."
+flashcards:
+  - id: xor-leaves
+    front: "What does XOR of a whole list leave?"
+    back: "The combined XOR of the values appearing an odd number of times. With exactly one such value, that's the value itself."
+  - id: clear-lowest
+    front: "What does `x & (x - 1)` do?"
+    back: "It clears the lowest set bit. Repeating it until zero counts the 1 bits in one pass per 1 bit, not one pass per bit position."
+  - id: isolate-lowest
+    front: "What does `x & -x` give?"
+    back: "A number with only the lowest set bit of x, so 12 (1100) gives 4 (0100)."
+  - id: set-as-mask
+    front: "When can a set be stored as one integer?"
+    back: "When its items come from a small fixed list. Union is `|`, intersection is `&`, and testing item k is `mask & (1 << k)`."
+  - id: count-masks
+    front: "Why count masks and not compare people?"
+    back: "m items allow only 2ᵐ distinct masks. With many more people than masks, comparing masks and multiplying the counts is far cheaper."
+  - id: python-width
+    front: "Why mask with `0xFFFFFFFF` in Python?"
+    back: "Python integers have no fixed width, and negatives act as if they have endless leading 1s. Some loops never end without a mask."
+  - id: caret
+    front: "What is `2 ^ 3` in Python?"
+    back: "It's 1, because `^` is XOR. For powers, use `2 ** 3`, or `1 << 3` for a power of two."
+  - id: vs-hash
+    front: "Bits or a hash set?"
+    back: "A hash set is clearer and handles any values, at O(n) memory. Reach for bits when memory is ruled out or the items are a small fixed list."

@@ -18,10 +18,23 @@ The facts worth memorising:
 
 - `x ^ x == 0` and `x ^ 0 == x`, and XOR is order-independent. XOR everything together and **pairs cancel**.
 - `x & (x - 1)` clears the **lowest set bit**. Loop it to count bits in O(number of 1s).
-- `x & 1` is the last bit (odd/even); `x >> 1` drops it, which is integer division by 2.
+- `x & 1` is the last bit (odd/even); `x >> 1` drops it, which is integer division by 2, rounding down.
 - `x & -x` isolates the lowest set bit; `1 << k` is a mask with only bit k set.
 
 Think of XOR as light switches: flipping the same switch twice leaves it where it started. After every number has flipped its switches, only the unpaired one's switches remain on.
+
+**What XOR really leaves behind.** XOR of a list keeps the values that appear an **odd** number of times, combined. With one unpaired value, that's the value itself. With a value that appears three times, it survives. With two unpaired values `a` and `b`, you get `a ^ b`, and on its own that can't tell you which two they were: 1 ^ 2 and 0 ^ 3 are both 3.
+
+**A set as a number.** When a set draws from a small fixed list of things, such as the days of a week or up to about 60 flags, each one can be a bit. Then one integer holds the whole set:
+
+- `a | b` is the union, `a & b` the intersection, and `mask | (1 << k)` adds item k.
+- `mask & (1 << k)` tests item k.
+- Comparing two sets costs one operation instead of a loop.
+- With m possible items there are only 2ᵐ possible sets, so sometimes you can count masks instead of looking at people or records one by one.
+
+**When not to use it.** If items come from a large or open-ended range, like arbitrary words or IDs, a mask would need a bit for each possible item, so use a hash set. If `n` is more than about 25, enumerating `2ⁿ` masks is too slow, however neat the code. And if the problem doesn't need the space or speed, a hash set is clearer.
+
+**Telling it from its neighbours.** [Math & Geometry](/algorithms/math-geometry/) uses properties of a number's *value*, such as digits, division and remainders. This lesson uses its *binary digits*, and the check is whether your argument works bit by bit. Missing Number can be solved either way. [Arrays & Hashing](/algorithms/arrays-hashing/) solves most of the same "find the odd one" problems with O(n) extra memory and clearer code, so reach for bits when the extra memory is ruled out or the items really are a small set.
 
 ## Visual
 
@@ -87,6 +100,63 @@ def get_sum(a: int, b: int) -> int:
     return a if a <= MAX else ~(a ^ MASK)              # map back to a negative number
 ```
 
+## Example
+
+**The problem.** A clinic runs a five-day week, numbered 0 to 4. Each volunteer gives the list of days they can work. The clinic pairs up volunteers so that together the two cover every day. How many different pairs of volunteers would cover the whole week?
+
+**Spotting the pattern.** The trigger is "subsets as bitmasks": each volunteer's days form a subset of a small fixed list. "Together they cover every day" is a union, and for masks that's one `|`.
+
+**Why brute force is slow.** Comparing every pair is O(n²). With 100,000 volunteers, that's about 5 billion pairs, each with a set union on top.
+
+**The key insight.** Five days allow only 2⁵ = 32 different masks, however many volunteers there are. So count the volunteers per mask, then compare *masks*, not people. There are at most 32 × 33 / 2 = 528 pairs of masks. If a pair of different masks covers the week, it accounts for `count[a] × count[b]` pairs of people. Two volunteers with the same mask form a pair only if that mask alone covers the week, and `c` such people make `c(c − 1) / 2` pairs. It costs O(n · d) to build the counts, where `d` is the most days anyone lists, plus at most 528 mask comparisons, a constant for a fixed week.
+
+```python
+def covering_pairs(rotas: list[list[int]]) -> int:
+    FULL = (1 << 5) - 1                      # 0b11111: all five days
+    count: dict[int, int] = {}
+    for days in rotas:
+        mask = 0
+        for d in days:
+            mask |= 1 << d                   # set this day's bit
+        count[mask] = count.get(mask, 0) + 1
+    masks = sorted(count)
+    pairs = 0
+    for i, a in enumerate(masks):
+        for b in masks[i:]:
+            if a | b == FULL:
+                pairs += count[a] * (count[a] - 1) // 2 if a == b else count[a] * count[b]
+    return pairs
+```
+
+**Traced run** on five volunteers: `[[0, 1, 2], [3, 4], [1, 3, 4], [0, 2, 4], [0, 1, 2]]`.
+
+Building the counts:
+
+| Days | Mask (bits 4 to 0) | Value | Count after |
+|---|---|---|---|
+| 0, 1, 2 | 00111 | 7 | `{7: 1}` |
+| 3, 4 | 11000 | 24 | `{7: 1, 24: 1}` |
+| 1, 3, 4 | 11010 | 26 | `{7: 1, 24: 1, 26: 1}` |
+| 0, 2, 4 | 10101 | 21 | `{7: 1, 24: 1, 26: 1, 21: 1}` |
+| 0, 1, 2 | 00111 | 7 | `{7: 2, 24: 1, 26: 1, 21: 1}` |
+
+Comparing the sorted masks `[7, 21, 24, 26]`:
+
+| a | b | a \| b | Covers all? | Adds | pairs |
+|---|---|---|---|---|---|
+| 7 | 7 | 00111 | no | 0 | 0 |
+| 7 | 21 | 10111 | no | 0 | 0 |
+| 7 | 24 | 11111 | yes | 2 × 1 = 2 | 2 |
+| 7 | 26 | 11111 | yes | 2 × 1 = 2 | 4 |
+| 21 | 21 | 10101 | no | 0 | 4 |
+| 21 | 24 | 11101 | no | 0 | 4 |
+| 21 | 26 | 11111 | yes | 1 × 1 = 1 | 5 |
+| 24 | 24 | 11000 | no | 0 | 5 |
+| 24 | 26 | 11010 | no | 0 | 5 |
+| 26 | 26 | 11010 | no | 0 | 5 |
+
+The answer is 5. On this small input it took 10 comparisons, the same as the 10 pairs of people. The saving only appears when there are many more people than masks. Space is at most 32 dictionary entries, O(1).
+
 ## Complexity
 
 - Each bitwise operation is **O(1)**.
@@ -98,8 +168,8 @@ def get_sum(a: int, b: int) -> int:
 
 - Python integers have no fixed width: `~x` and left shifts never overflow, and negative numbers act as if they had infinitely many leading 1s. Mask with `& 0xFFFFFFFF` when a problem assumes 32-bit integers.
 - `^` is XOR, not exponentiation: `2 ^ 3` is `1` in Python. Use `2 ** 3` or `1 << 3` for powers of two.
-- Using `>>` on a negative number when you meant a logical shift — Python shifts arithmetically, keeping the sign.
-- Sum of Two Integers without the mask loops forever on negative inputs, because the carry never reaches zero.
+- Using `>>` on a negative number when you meant a logical shift — Python shifts arithmetically, keeping the sign. Likewise, `hamming_weight` never ends on a negative number; mask it first.
+- Sum of Two Integers without the mask can loop forever when an input is negative, because the carry may keep moving left without reaching zero: `a = -1, b = 1` never stops.
 - Reaching for bits when a hash set is clearer and the problem doesn't demand O(1) extra space.
 
 ## Tips & tricks

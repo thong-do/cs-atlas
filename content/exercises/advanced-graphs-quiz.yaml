@@ -1,0 +1,56 @@
+slug: advanced-graphs-quiz
+type: quiz
+title: "Advanced Graphs — quiz"
+lessons: [advanced-graphs]
+ladderOrder: 0
+questions:
+  - id: stale-pops
+    prompt: "You run `dijkstra` from node 0 with directed edges (0,1,9), (0,2,2), (2,1,3), (1,3,1), in that order. How many times does `heappop` run, and how many of those pops are stale?"
+    choices: ["4 pops, none stale", "5 pops, 1 stale", "5 pops, 2 stale", "6 pops, 1 stale"]
+    answer: 1
+    explanation: "Node 1 is pushed at 9, then again at 5 via node 2. The pops are (0,0), (2,2), (5,1), (6,3), then (9,1), which is stale because 9 > 5. That's 5 pops in all, and only the last one is skipped."
+  - id: tree-or-tree
+    prompt: "Three offices form a triangle: A–B costs 4, A–C costs 4 and B–C costs 1. You must lay cable so that all three connect, at the lowest total. A teammate keeps the edges of Dijkstra's shortest paths from A. What total do they get, and what's the lowest possible?"
+    choices: ["5 and 5", "8 and 8", "9 and 5", "8 and 5"]
+    answer: 3
+    explanation: "From A, the shortest route to both B and C is the direct one at 4, because going round costs 5. So they keep A–B and A–C, 8 in total. Kruskal takes B–C at 1, then either 4, for 5. That costs A a longer route to one office, but connection only counts total length."
+  - id: union-returns
+    prompt: "A `DSU(6)` receives `union` calls in this order: (0,1), (2,3), (1,3), (0,2), (4,5). Which call returns `False`, and how many groups are left at the end?"
+    choices: ["(0,2) returns False; 2 groups are left", "(1,3) returns False; 2 groups are left", "(0,2) returns False; 1 group is left", "None returns False; 1 group is left"]
+    answer: 0
+    explanation: "After (0,1), (2,3) and (1,3), the nodes 0, 1, 2 and 3 are one group, so (0,2) finds them already joined and returns False. (4,5) then forms a second group. Six nodes minus four successful merges leaves 2."
+  - id: in-place-relax
+    prompt: "Flights, in this order: 0→1 at 30, 1→2 at 40, 0→2 at 90. With k = 0 stops, a teammate's `cheapest_within_k` removes the copy and updates `prices` directly. What does it return for 0 to 2, and what's the right answer?"
+    choices: ["90, and that's right", "It returns −1, and the right answer is 90", "It returns 70, and the right answer is 90", "It returns 70, and that's right"]
+    answer: 2
+    explanation: "Updating in place, 0→1 sets node 1 to 30, and then 1→2 reads that new 30 in the same round, so node 2 becomes 70 with two flights. Zero stops allows just one flight, the direct one at 90. The copy stops one round from chaining edges."
+  - id: dense-cost
+    prompt: "You need a minimum spanning tree over 3,000 points where every pair can be linked. Roughly how much work is sorting all the edges for Kruskal, against Prim with a simple array?"
+    choices: ["About 3,000 × 12 for Kruskal, and about 9 million for Prim", "About 4.5 million for both, as each looks at every edge once", "About 9 million for Kruskal, and about 100 million for Prim", "About 100 million for Kruskal, and about 9 million for Prim"]
+    answer: 3
+    explanation: "There are 3,000 × 2,999 / 2 ≈ 4.5 million edges, and sorting them costs about 4.5 million × 22 ≈ 100 million comparisons. Prim with an array does O(V²) = 3,000² = 9 million steps. So on this dense a graph, the array wins, even though Kruskal is often the simpler choice."
+flashcards:
+  - id: dijkstra-idea
+    front: "What makes Dijkstra's popped distance final?"
+    back: "With non-negative weights, any other route to that node goes through something at least as far away, so it can't be shorter."
+  - id: stale-check
+    front: "What's `if d > dist[u]: continue` for?"
+    back: "It skips heap entries overtaken by a shorter path. The answers stay right without it, but those entries would do extra work."
+  - id: bottleneck
+    front: "Dijkstra when a path's cost is its worst step"
+    back: "Keep the same loop, and push `max(d, step)` in place of `d + step`."
+  - id: k-rounds
+    front: "Why does k-round Bellman-Ford copy the array?"
+    back: "So each round extends paths by one edge only. Updating in place can chain several edges in one round and break the limit."
+  - id: union-false
+    front: "What does `union` returning False tell you?"
+    back: "Both ends were already connected. In an undirected graph, that edge closes a cycle, and the group count stays the same."
+  - id: dsu-limits
+    front: "What can't union-find do?"
+    back: "Remove a link, see direction or give you a route. If links only vanish in a known order, process them backwards."
+  - id: spt-vs-mst
+    front: "Shortest-path tree vs minimum spanning tree"
+    back: "The first minimises each node's distance from one source. The second minimises the total length of the edges kept. They can differ."
+  - id: which-tool
+    front: "Equal, different, or limited-hop costs?"
+    back: "Equal: BFS. Non-negative and different: Dijkstra. At most k edges, or negative weights: Bellman-Ford."

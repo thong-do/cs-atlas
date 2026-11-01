@@ -23,6 +23,17 @@ Common table shapes:
 - **Item × capacity (knapsack)**: `dp[i][a]` uses the first i items to reach amount a (Coin Change II, Target Sum). It often shrinks to a single row.
 - **Index × state**: a small state machine per day, like "holding a stock / sold / cooling down".
 
+**0/1 knapsack, the shape to know.** You have items with a weight and a value, each usable **once**, and a capacity. Let `dp[i][a]` be the best value from the first `i` items with capacity `a`. For each item there are two choices: skip it, `dp[i-1][a]`, or take it if it fits, `dp[i-1][a - w] + v`. Both read from the row above, and that's what "once" means: the smaller table entry doesn't yet include this item. The same shape answers "can some subset reach this exact sum?", with True/False cells and OR in place of `max`.
+
+Two things change between knapsack problems:
+
+- **Once or as often as you like.** In one row, going right to left reads values not yet updated for this item, so each item is used at most once. Going left to right reads values already updated, so an item can repeat. That's why `coin_change_ways` goes left to right: coins can repeat.
+- **At most or exactly.** For "at most capacity a", start the whole first row at 0. For "exactly a", only `dp[0][0]` starts as reachable, and everything else starts as impossible.
+
+**When not to use it.** The table has one column per unit of capacity, so its size depends on the capacity's *value*, not on how many digits it has. With 30 items and a capacity of a billion, that's 30 billion cells, and trying all 2³⁰ subsets by recursion is cheaper. If the state only needs one number, a 1-D table is enough. If you must list every answer, not count them, the output can be exponential, so a table alone won't do it.
+
+**Telling it from its neighbours.** [1-D DP](/algorithms/dp-1d/) has the same recipe with one number of state. To choose, say what you must know to finish the rest of the problem. If that takes two numbers, it's 2-D. [Backtracking](/algorithms/backtracking/) walks the same choices one path at a time. It suits listing answers, or a state too large for a table.
+
 ## Visual
 
 <Visualizer kind="lcs-table" />
@@ -92,6 +103,66 @@ def coin_change_ways(coins: list[int], amount: int) -> int:
     return dp[amount]
 ```
 
+## Example
+
+**The problem.** A courier carries artworks between two galleries in a case that holds at most `cap` kg. Each artwork has a weight and an insurance value, and it can go only once. Find the largest total value that fits, and which artworks to take.
+
+**Spotting the pattern.** The triggers are "knapsack with a capacity" and "a state needs two numbers". What you can still do depends on which artworks you've considered and how many kg are left. Neither number alone is enough.
+
+**Why brute force is slow.** Each artwork is in or out, so there are 2ⁿ sets. With 40 artworks, that's about a trillion. Taking the best value per kg first doesn't work either: in the run below it takes artworks 1 and 3 for a value of 9 and has no room left for anything else, while the best load is worth 11.
+
+**The key insight.** After deciding on the first `i` artworks, all that matters for the future is the capacity left. So `dp[i][a]` holds the best value from the first `i` artworks with `a` kg available. We keep the whole table, not one row, because we need to walk back through it to see which artworks were taken. If `dp[i][a]` differs from `dp[i-1][a]`, artwork `i` must have been taken. There are `n × cap` cells at O(1) each.
+
+```python
+def best_load(weights: list[int], values: list[int], cap: int) -> tuple[int, list[int]]:
+    n = len(weights)
+    dp = [[0] * (cap + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        w, v = weights[i - 1], values[i - 1]
+        for a in range(cap + 1):
+            dp[i][a] = dp[i - 1][a]                          # skip artwork i
+            if w <= a:
+                dp[i][a] = max(dp[i][a], dp[i - 1][a - w] + v)   # or take it
+    taken, a = [], cap
+    for i in range(n, 0, -1):                                # walk back from the answer
+        if dp[i][a] != dp[i - 1][a]:
+            taken.append(i)
+            a -= weights[i - 1]
+    return dp[n][cap], taken[::-1]
+```
+
+**Traced run** with `cap = 8` and four artworks, numbered from 1:
+
+| Artwork | Weight | Value | Value per kg |
+|---|---|---|---|
+| 1 | 2 | 3 | 1.5 |
+| 2 | 3 | 4 | 1.33 |
+| 3 | 4 | 6 | 1.5 |
+| 4 | 5 | 7 | 1.4 |
+
+The filled table, one row per artwork and one column per kg available:
+
+| i \ a | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 (none) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 1 (2 kg, 3) | 0 | 0 | 3 | 3 | 3 | 3 | 3 | 3 | 3 |
+| 2 (3 kg, 4) | 0 | 0 | 3 | 4 | 4 | 7 | 7 | 7 | 7 |
+| 3 (4 kg, 6) | 0 | 0 | 3 | 4 | 6 | 7 | 9 | 10 | 10 |
+| 4 (5 kg, 7) | 0 | 0 | 3 | 4 | 6 | 7 | 9 | 10 | 11 |
+
+One cell worked out: `dp[4][8]` is the better of skipping, `dp[3][8]` = 10, and taking, `dp[3][3] + 7` = 4 + 7 = 11.
+
+Walking back from `dp[4][8]`:
+
+| At | Compare with the row above | Decision | kg left |
+|---|---|---|---|
+| dp[4][8] = 11 | dp[3][8] = 10, differs | take artwork 4 | 8 − 5 = 3 |
+| dp[3][3] = 4 | dp[2][3] = 4, same | skip artwork 3 | 3 |
+| dp[2][3] = 4 | dp[1][3] = 3, differs | take artwork 2 | 3 − 3 = 0 |
+| dp[1][0] = 0 | dp[0][0] = 0, same | skip artwork 1 | 0 |
+
+The answer is value 11 from artworks 2 and 4. It costs O(n · cap) time and space. If you only needed the value, one row updated right to left would do, at O(cap) space, but you'd lose the walk back.
+
 ## Complexity
 
 - Time: **O(m · n)** — one constant-time transition per cell.
@@ -104,7 +175,7 @@ def coin_change_ways(coins: list[int], amount: int) -> int:
 - Forgetting base cases for the empty prefixes — Edit Distance needs row 0 and column 0 filled with 0..m and 0..n.
 - Coin Change II loop order: coins outer, amounts inner counts **combinations**; swapping them counts **permutations** (2+1 and 1+2 separately).
 - Shrinking to one row and then reading a value you've already overwritten. Go right-to-left (0/1 knapsack) or keep a `prev` variable for the diagonal.
-- Target Sum with negative intermediate sums: shift by the total, or turn it into a subset-sum problem with `(total + target) / 2`.
+- Target Sum with negative intermediate sums: shift by the total, or turn it into a subset-sum problem with `(total + target) / 2`. That only works if `total + target` is even and `|target| <= total`; otherwise the answer is 0.
 
 ## Tips & tricks
 

@@ -1,0 +1,56 @@
+slug: graphs-quiz
+type: quiz
+title: "Graphs — quiz"
+lessons: [graphs]
+ladderOrder: 0
+questions:
+  - id: dequeue-order
+    prompt: "You call `shortest_path` with start `A` and goal `F` on this graph: A → B, C; B → D; C → D, E; D → F; E → F; F has no edges. Neighbours are listed in the order shown. In what order does it pop nodes, and what does it return?"
+    choices: ["A, B, D, F and returns 3", "A, B, C, D, E, F and returns 5", "A, C, E, F and returns 3", "A, B, C, D, E, F and returns 3"]
+    answer: 3
+    explanation: "The queue releases all of B and C before D and E, so the pops run in rings. D gets distance 2 from B, and E gets 2 from C. F gets 3 from D and is popped last. The number of pops doesn't count edges on the route."
+  - id: diamond-false-alarm
+    prompt: "Build steps have the edges a → b, a → c, b → d and c → d. A teammate's DFS from `a` keeps one `seen` set, never removes from it, and reports a cycle when it reaches a node already in `seen`. What happens?"
+    choices: ["It correctly reports no cycle, since each node is entered once", "It reports a cycle at d, though none exists, as d has two routes in", "It correctly reports a cycle, since a → b → d and a → c → d form a loop", "It hangs, since d keeps sending the search back up to a"]
+    answer: 1
+    explanation: "After a → b → d returns, the search tries a → c → d and finds d in `seen`. That's a second route, not a loop, since no edge leaves d. A directed check must flag only nodes still in progress on the current path. Kahn's algorithm orders all 4 nodes here."
+  - id: dequeue-marking-cost
+    prompt: "A teammate's BFS on an open 3 × 3 grid starts at a corner, adds a cell to `seen` only when it is popped, skips a popped cell already in `seen`, and appends every neighbour not yet in `seen`. Counting the start, how many appends happen in total?"
+    choices: ["9, one for each cell", "12, one for each edge of the grid", "13, as some cells get queued twice", "24, one for each direction along each edge"]
+    answer: 2
+    explanation: "Running it gives 13: the start plus 12 appends, one for each moment a popped cell looks at a neighbour that hasn't been popped yet. Each of the grid's 12 edges produces one append, so cells get queued more than once. Marking on enqueue gives 9."
+  - id: spread-minutes
+    prompt: "Mould starts in two cells at once and spreads each minute to open neighbours, up, down, left and right. In this grid, `M` is mould, `.` is open and `#` is a wall. Row 1: `M . # .`  Row 2: `. . # .`  Row 3: `. . . M`. How many minutes until the spread stops, and does any open cell stay clean?"
+    choices: ["2 minutes, with none left clean", "3 minutes, with none left clean", "2 minutes, with one cell left clean", "4 minutes, with none left clean"]
+    answer: 0
+    explanation: "Minute 1 reaches the cells next to each source, including row 2 column 4 and row 3 column 3. Minute 2 reaches row 1 column 4, row 3 column 2, row 2 column 2 and row 3 column 1, and that covers every open cell. A third round of the queue spreads to nothing, so it adds no minute."
+  - id: state-in-visited
+    prompt: "You need the fewest moves across a maze, and may break through at most one wall on the way. A teammate runs BFS with `seen` holding `(row, col)`. What's wrong, and what's the fix?"
+    choices: ["Nothing, since BFS reaches each cell by its fewest moves, and later arrivals can't help", "Breaking a wall costs extra, so the fix is to switch to Dijkstra with a weighted wall", "The fewest-move arrival may have used its break, so `seen` must hold `(row, col, broken)`", "BFS can't undo a break, so the fix is to backtrack over all routes and keep the shortest"]
+    answer: 2
+    explanation: "A slower arrival that still has its break can finish where the faster one is stuck. Each of the two situations is its own node, so `seen` holds both. Moves still all cost 1, so plain BFS stays correct and needs no weights, and trying all routes would be exponential."
+flashcards:
+  - id: pick-traversal
+    front: "BFS or DFS?"
+    back: "BFS when you need the fewest edges, since it spreads in rings. For exploring a whole region either works, and DFS is often shorter to write."
+  - id: why-visited
+    front: "Why does a graph traversal need `visited`?"
+    back: "A node can be reached by more than one route, or around a cycle. Without a record you can loop forever or repeat work."
+  - id: mark-when
+    front: "When should BFS mark a node as visited?"
+    back: "When it's enqueued. Marking when it's popped lets the same node be queued several times."
+  - id: multi-source
+    front: "What does multi-source BFS do?"
+    back: "It starts with every source in the queue at distance 0. One run then gives each node its distance to the nearest source, at O(V + E)."
+  - id: components
+    front: "How do you count connected components with BFS or DFS?"
+    back: "Loop over all nodes and start a traversal at each one not yet seen. In an undirected graph, each start is one component."
+  - id: edge-direction
+    front: "Course pair [course, prereq]: which way does the edge go?"
+    back: "From prereq to course, so that a topological order takes the prerequisite first."
+  - id: state-nodes
+    front: "When is a position not enough for a node?"
+    back: "When what you can do next depends on more than where you are, such as holding a key. Then the node is (position, extra fact)."
+  - id: vs-backtracking
+    front: "Graph traversal vs backtracking"
+    back: "A traversal visits each node once and keeps its marks. Backtracking removes marks on the way back, so it can visit all paths, at exponential cost."

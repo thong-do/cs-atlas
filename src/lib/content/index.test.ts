@@ -6,10 +6,10 @@ import { formatAmount } from '@/lib/logic/estimate'
 import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, placementTracks } from './index'
 
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
-const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
 const FOUNDATIONS = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list']
 const TREES_AND_SEARCH = ['trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy']
-const AT_THE_BAR = [...FOUNDATIONS, ...TREES_AND_SEARCH]
+const GRAPHS_AND_MATH = ['graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
+const AT_THE_BAR = [...FOUNDATIONS, ...TREES_AND_SEARCH, ...GRAPHS_AND_MATH]
 const BAR_SECTIONS = ['Intuition', 'Visual', 'Template', 'Example', 'Complexity', 'Pitfalls', 'Tips & tricks']
 
 describe('content accessors', () => {
@@ -193,10 +193,11 @@ describe('content inventory', () => {
   const exercises = allExercises.filter(isProblem)
   const algorithms = lessons.filter((l) => l.track === 'algorithms')
 
-  it('has 18 algorithms lessons with the six standard sections in order', () => {
+  it('has 18 algorithms lessons, all at the bar, with the standard sections in order', () => {
     expect(algorithms).toHaveLength(18)
+    expect([...AT_THE_BAR].sort()).toEqual(algorithms.map((l) => l.slug).sort())
     for (const l of algorithms) {
-      expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(AT_THE_BAR.includes(l.slug) ? BAR_SECTIONS : SECTIONS)
+      expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(BAR_SECTIONS)
     }
   })
 
@@ -211,8 +212,8 @@ describe('content inventory', () => {
     }
   })
 
-  it('has 138 exercises and every ladder is numbered 1..n', () => {
-    expect(exercises).toHaveLength(138)
+  it('has 140 exercises and every ladder is numbered 1..n', () => {
+    expect(exercises).toHaveLength(140)
     for (const l of lessons) {
       const orders = exercises.filter((x) => x.lessons[0] === l.slug).map((x) => x.ladderOrder).sort((a, b) => a - b)
       expect(orders, l.slug).toEqual(orders.map((_, i) => i + 1))

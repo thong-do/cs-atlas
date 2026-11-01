@@ -12,7 +12,7 @@ summary: "Cache answers to subproblems indexed by one variable."
 
 ## Intuition
 
-Dynamic programming is **backtracking that remembers**. When the same subproblem shows up again and again in the recursion tree, solve it once, store the answer, and reuse it. Exponential time collapses to polynomial: the number of states × the work per state, which is linear for the simplest problems.
+Dynamic programming is **backtracking that remembers**. When the same subproblem shows up again and again in the recursion tree, solve it once, store the answer, and reuse it. Exponential time collapses to the number of states × the work per state, which is linear for the simplest problems.
 
 Climbing stairs makes this concrete. The number of ways to reach step n is the ways to reach step n−1 (then take 1 step) plus the ways to reach n−2 (then take 2). Plain recursion recomputes `ways(3)` many times; DP computes each step once.
 
@@ -27,6 +27,20 @@ Two ways to write it:
 
 - **Top-down (memoisation)**: write the recursion, add `@cache`. The easiest to get right first.
 - **Bottom-up (tabulation)**: fill an array from small to large. No recursion limit, and often reducible to O(1) space when `dp[i]` only needs the last one or two values.
+
+**Two things must hold.** The subproblems must repeat, or remembering saves nothing. And the answer for a state must not depend on how you got there, or one number per state isn't enough. If the rule says "no two picks in a row with the same colour", then `dp[i]` must also say which colour came last, and that's a second index.
+
+**When not to use it.**
+
+- If you must list every solution, not count them or find the best, the output itself can be exponential. Use [Backtracking](/algorithms/backtracking/).
+- If the subproblems don't repeat, as when each call splits the input at one fixed point, like merge sort, memoising does nothing. Plain recursion costs the same.
+- If a simple rule is provably safe, a greedy scan needs no table. [Greedy](/algorithms/greedy/) has to be proved, though, and it's the proof that fails when DP is the right tool.
+
+**Telling it from its neighbours.** Greedy commits to one choice and never looks back. DP keeps the best result for every state and compares them all. Backtracking walks the same decision tree as DP but revisits repeated states, and it can stop early with pruning. If two different paths through the tree lead to the same remaining problem, DP can share the work.
+
+**Longest Increasing Subsequence, step by step.** Let `dp[i]` be the longest increasing subsequence that *ends at* index i. The "ends at" part matters, since to extend a subsequence you need to know its last value. The overall answer is the largest `dp[i]`, not `dp[-1]`, because the best one may end anywhere. Each `i` scans all earlier indices, which gives O(n²).
+
+The faster way keeps `tails`, where `tails[k]` is the smallest last value of any increasing subsequence of length `k + 1`. A smaller last value can never hurt, since it lets more numbers follow it. So when `x` arrives, it replaces the first tail `>= x`, or extends the list if it's bigger than all of them. `tails` stays sorted, so binary search finds the place, for O(n log n) in total. The length of `tails` is the answer, but `tails` itself may not be a real subsequence, because a later small value can overwrite an early position.
 
 ## Visual
 
@@ -89,6 +103,42 @@ def word_break(s: str, words: list[str]) -> bool:
     return can(0)
 ```
 
+## Example
+
+**The problem.** A long hiking trail has huts at known distances, sorted by km. You start at the first hut and must finish at the last, and you can walk at most `reach` km between one night's hut and the next. Each hut charges a fee for a night, and you pay at every hut you stop at, including both ends. What's the smallest total fee? Return -1 if no plan reaches the end.
+
+**Spotting the pattern.** The triggers are "min/max over choices with overlapping subproblems" and "answer for i depends on earlier answers". The best way to reach a hut depends only on the best ways to reach huts before it, not on the route taken to them.
+
+**Why brute force is slow.** Each middle hut is either a stop or not, so there are up to 2ⁿ plans. With 40 middle huts, that's about a trillion. Simple rules don't work either, as the run below shows: walking as far as possible each day costs 9 and taking the cheapest hut in range costs 10, while the best plan costs 8.
+
+**The key insight.** Use the four questions. The state: `best[i]` is the smallest total fee for a plan that ends with a stop at hut i. The transition: `best[i]` is `fee[i]` plus the smallest `best[j]` among huts within `reach` before it. The base case: `best[0] = fee[0]`. The order: left to right, since every `j` is before `i`. That's n states and up to n earlier huts each, O(n²) at worst, and O(n·w) if at most w huts fit in one day's walk.
+
+```python
+def cheapest_hike(km: list[int], fee: list[int], reach: int) -> int:
+    INF = float("inf")
+    best = [INF] * len(km)
+    best[0] = fee[0]
+    for i in range(1, len(km)):
+        for j in range(i - 1, -1, -1):
+            if km[i] - km[j] > reach:
+                break                      # huts are sorted, so earlier ones are farther still
+            best[i] = min(best[i], best[j] + fee[i])
+    return best[-1] if best[-1] != INF else -1
+```
+
+**Traced run** with `km = [0, 4, 9, 12, 16, 20]`, `fee = [0, 1, 2, 7, 7, 0]` and `reach = 9`:
+
+| i | km | fee | Huts in range: best + fee | best[i] |
+|---|---|---|---|---|
+| 0 | 0 | 0 | start | 0 |
+| 1 | 4 | 1 | hut 0: 0 + 1 = 1 | 1 |
+| 2 | 9 | 2 | hut 1: 1 + 2 = 3; hut 0: 0 + 2 = 2 | 2 |
+| 3 | 12 | 7 | hut 2: 2 + 7 = 9; hut 1: 1 + 7 = 8 (hut 0 is 12 km away, so stop) | 8 |
+| 4 | 16 | 7 | hut 3: 8 + 7 = 15; hut 2: 2 + 7 = 9 (hut 1 is 12 km away, so stop) | 9 |
+| 5 | 20 | 0 | hut 4: 9 + 0 = 9; hut 3: 8 + 0 = 8 (hut 2 is 11 km away, so stop) | 8 |
+
+The answer is 8, by stopping at km 4 and km 12. Walking as far as possible goes 0, 9, 16, 20 and pays 9. Taking the cheapest hut in range goes 0, 4, 9, 16, 20 and pays 10. Each rule commits before it can see the later fees, while the table compares them all. Time is the number of `j` steps. Space is O(n), since a later hut may look back over many of the earlier values.
+
 ## Complexity
 
 - Time = **number of states × work per transition**. Climbing Stairs and House Robber: O(n). Coin Change: O(amount × coins). Word Break: O(n × words × word length).
@@ -99,8 +149,8 @@ def word_break(s: str, words: list[str]) -> bool:
 
 - An unclear state. If you can't say what `dp[i]` means in one sentence, the transition will be wrong.
 - Wrong base cases: Coin Change needs `dp[0] = 0` and "impossible" as a large sentinel, not 0.
-- Using greedy where DP is needed — Coin Change with coins `[1, 3, 4]` and amount 6 is the classic trap.
-- House Robber II (houses in a circle): the first and last houses can't both be robbed, so run the linear version twice — once without the first house, once without the last.
+- Using greedy where DP is needed — Coin Change with coins `[1, 3, 4]` and amount 6 is the classic trap: taking the largest coin first gives 4 + 1 + 1, but 3 + 3 uses two coins.
+- House Robber II (houses in a circle): the first and last houses can't both be robbed, so run the linear version twice — once without the first house, once without the last. A single house is the exception: both runs are empty, so return its value directly.
 - Decode Ways: `"0"` can't stand alone, and two-digit codes must be between 10 and 26.
 
 ## Tips & tricks
@@ -109,5 +159,5 @@ def word_break(s: str, words: list[str]) -> bool:
 - "Count the ways" → add the transitions. "Min/max" → take the min/max of them. "Is it possible" → OR them.
 - Min Cost Climbing Stairs: `dp[i] = cost[i] + min(dp[i-1], dp[i-2])`, answer `min(dp[-1], dp[-2])`.
 - Word Break bottom-up: `ok[i]` is True if some `ok[j]` is True and `s[j:i]` is a word.
-- Longest Increasing Subsequence: `dp[i]` is the longest one ending at `i`, so `dp[i] = 1 + max(dp[j])` over `j < i` with `nums[j] < nums[i]`, or 1 if there is none. For O(n log n), keep `tails`, where `tails[k]` is the smallest tail of any increasing subsequence of length `k + 1`. For each `x`, replace the first tail `>= x`, or append if there is none. The answer is `len(tails)`; `tails` itself need not be a real subsequence.
+- Longest Increasing Subsequence: `dp[i] = 1 + max(dp[j])` over `j < i` with `nums[j] < nums[i]`, or 1 if there is none. Use `bisect_left` on `tails` for the strict version.
 - When the state needs **two** indices (two strings, a grid, item × capacity), you've moved on to **2-D DP**.

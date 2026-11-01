@@ -7,6 +7,8 @@ import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, pl
 
 const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
 const SECTIONS = ['Intuition', 'Visual', 'Template', 'Complexity', 'Pitfalls', 'Tips & tricks']
+const FOUNDATIONS = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list']
+const FOUNDATIONS_SECTIONS = ['Intuition', 'Visual', 'Template', 'Example', 'Complexity', 'Pitfalls', 'Tips & tricks']
 
 describe('content accessors', () => {
   it('sorts tracks by order and lessons by track, module and position', () => {
@@ -191,7 +193,20 @@ describe('content inventory', () => {
 
   it('has 18 algorithms lessons with the six standard sections in order', () => {
     expect(algorithms).toHaveLength(18)
-    for (const l of algorithms) expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(SECTIONS)
+    for (const l of algorithms) {
+      expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(FOUNDATIONS.includes(l.slug) ? FOUNDATIONS_SECTIONS : SECTIONS)
+    }
+  })
+
+  it('opens each Foundations ladder with its quiz of 5 questions and 8 flashcards', () => {
+    for (const slug of FOUNDATIONS) {
+      const quizSlug = `${slug}-quiz`
+      const ladder = allExercises.filter((e) => e.lessons[0] === slug)
+      expect(ladder[0], slug).toMatchObject({ slug: quizSlug, type: 'quiz', lessons: [slug], ladderOrder: 0, questionCount: 5 })
+      expect((ladder[0] as QuizExercise).flashcardIds, slug).toHaveLength(8)
+      expect((getExerciseDoc(quizSlug) as QuizDoc).questions, slug).toHaveLength(5)
+      expect(ladder.slice(1).every(isProblem), slug).toBe(true)
+    }
   })
 
   it('has 138 exercises and every ladder is numbered 1..n', () => {

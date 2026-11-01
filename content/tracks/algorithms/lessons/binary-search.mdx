@@ -16,7 +16,34 @@ Whenever you can ask a yes/no question whose answers look like `False … False 
 
 It's the "guess my number from 1 to 100, higher or lower?" game: seven guesses are always enough.
 
+O(log n) means that doubling the input adds just one more step. Each check halves what's left, so 1,000,000 candidates need about 20 checks, because 2²⁰ is just over a million. (See [Complexity & Big-O](/cs-fundamentals/complexity/) for the notation.)
+
 Sorted arrays are the obvious case. The bigger idea is **binary search on the answer**: "Can Koko finish at speed k?" — if speed k works, every faster speed works too, so search for the smallest k that works.
+
+**Binary search on the answer, step by step.** You search through possible answers, not data.
+
+1. **Name the range.** What are the smallest and largest answers that could be right?
+2. **Write `ok(x)`.** A yes/no test of whether x would work.
+3. **Check it flips once.** Ask: "if x works, does every larger x work too?" If not, binary search returns garbage.
+
+For the largest x, the answers run `True … True False … False`, so search for the first x that **fails** and subtract 1.
+
+**Two conventions.** Both are correct. The bugs come from mixing them.
+
+| | Half-open `[lo, hi)` | Inclusive `[lo, hi]` |
+|---|---|---|
+| `hi` starts at | one past the last candidate | the last candidate |
+| Loop | `while lo < hi` | `while lo <= hi` |
+| Shrink right | `hi = mid` | `hi = mid - 1` |
+| Ends with | `lo == hi`, the boundary | `lo == hi + 1`, or an early return |
+
+**How to choose.** Use half-open when you want a boundary: the first position that passes, or an insert position. A `True` at `mid` might be the answer, so it stays in reach. Inclusive suits a plain "is this exact value here?", with an early return on a match. On duplicates, it returns whichever match it hits first, not the first one.
+
+**When not to use it.** If the condition doesn't flip once, it can't work. If unsorted data is searched just once, an O(n) scan beats sorting first.
+
+**Telling it from its neighbours.** **Two Pointers** also needs order, but it walks one step at a time to compare pairs; binary search jumps and asks one question about one position. A **Heap** gives you the current smallest or largest as items keep arriving. Binary search finds a boundary in data or answers that aren't changing.
+
+**Rotated arrays.** A sorted array of distinct values that has been rotated looks like two sorted runs. Every value in the second run is at most the last element, and every value in the first is above it. So "is `nums[i]` at most the last element?" still reads `False … False True … True`. That's why the comparison uses the right end.
 
 ## Visual
 
@@ -48,6 +75,55 @@ def search(nums: list[int], target: int) -> int:
 def min_eating_speed(piles: list[int], h: int) -> int:              # search on the answer
     return first_true(1, max(piles), lambda k: sum((p + k - 1) // k for p in piles) <= h)
 ```
+
+The inclusive version of an exact-match search, for comparison:
+
+```python
+def search_inclusive(nums: list[int], target: int) -> int:
+    lo, hi = 0, len(nums) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1
+```
+
+## Example
+
+**The problem.** A volunteer group has a travel fund of 500 dollars. Five volunteers file claims of `[120, 40, 300, 80, 200]`, which is more than the fund holds. The treasurer sets one whole-dollar cap: everyone gets their claim or the cap, whichever is less. What is the largest cap the fund can pay in full?
+
+**Spotting the pattern.** "Largest value that satisfies a condition" is the trigger. Test the flip: a higher cap never pays out less, so once a cap goes over budget, every higher cap does too. "Is this cap over budget?" reads `False … False True … True`. The claims needn't be sorted, since we search over caps.
+
+**Why brute force is slow.** Trying every cap is fine here. But with 100,000 claims of up to 1,000,000 dollars, that is 1,000,000 × 100,000 = 100 billion steps.
+
+**The key insight.** We want the largest cap that's still affordable, and that's one less than the first cap that is over budget. The search takes about 20 checks instead of 1,000,000, so the big case costs 20 × 100,000 = 2 million steps.
+
+```python
+def largest_cap(claims: list[int], fund: int) -> int:
+    over = lambda cap: sum(min(c, cap) for c in claims) > fund
+    return first_true(0, max(claims), over) - 1
+```
+
+If the fund covers every claim, no cap is over budget, `first_true` returns `max(claims) + 1`, and subtracting 1 gives the largest claim.
+
+**Traced run** with `first_true`, where `hi` starts at 300 + 1:
+
+| lo | hi | mid | Payout at cap mid | Over 500? | Next range |
+|---|---|---|---|---|---|
+| 0 | 301 | 150 | 540 | yes | `hi = 150` |
+| 0 | 150 | 75 | 340 | no | `lo = 76` |
+| 76 | 150 | 113 | 459 | no | `lo = 114` |
+| 114 | 150 | 132 | 504 | yes | `hi = 132` |
+| 114 | 132 | 123 | 486 | no | `lo = 124` |
+| 124 | 132 | 128 | 496 | no | `lo = 129` |
+| 129 | 132 | 130 | 500 | no | `lo = 131` |
+| 131 | 132 | 131 | 502 | yes | `hi = 131` |
+
+Now `lo = hi = 131`, the first cap over budget, so the answer is 130. That cap pays 120 + 40 + 130 + 80 + 130 = 500 dollars exactly. Eight checks covered 301 possible caps.
 
 ## Complexity
 

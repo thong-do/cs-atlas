@@ -12,7 +12,7 @@ summary: "Grow a window on the right, shrink it from the left, never move backwa
 
 ## Intuition
 
-For "best contiguous block" questions, brute force restarts from every starting index. A sliding window keeps its work: when the right edge moves in, update the state with one element; when the left edge moves, remove one. Every index enters and leaves once, so the whole scan is O(n).
+For "best contiguous block" questions, brute force restarts from every starting index. A sliding window keeps its work: when the right edge moves in, update the state with one element; when the left edge moves, remove one. Every index enters and leaves once, so the whole scan is O(n), meaning the work grows in step with the input (see [Complexity & Big-O](/cs-fundamentals/complexity/)).
 
 Picture a caterpillar crawling along the array: the head stretches forward, and when the body breaks a rule, the tail catches up.
 
@@ -20,6 +20,14 @@ Two kinds:
 
 - **Variable size**: grow until the window breaks the rule, then shrink until it's valid again.
 - **Fixed size k**: add the new element, drop the one that falls off.
+
+**Fixed or variable?** The problem usually tells you. "Every block of 7 days" is fixed: the size is given, the left edge is always `right - k + 1`, and there's no shrink loop. On `[2, 1, 5, 1, 3]` with k = 3, the sums go 8, 7, 9, each one found by adding the new number and dropping the oldest. "The longest block such that…" is variable: the size is the thing you are looking for.
+
+**Why you can throw the left end away.** A variable window relies on one property: **if a window breaks the rule, every longer window with the same left edge breaks it too**. Adding more can't repair it. So once `left..right` is invalid, no later `right` can make use of this `left`, and the left edge can move on for good. That is what stops the scan from being O(n²): `left` only goes forward, so across the whole run the shrink loop steps at most n times.
+
+**When it fails.** That property has to be true. Take "longest subarray with sum at most 3" on `[5, -4, 1]`. The window `[5]` breaks the rule, so a window would drop the 5. But `[5, -4, 1]` sums to 2, which is valid, and it's the true answer at length 3. A negative number means adding more can repair a broken window, so shrinking throws away real answers. For sums with negatives, use prefix sums with a hash map, as in [Arrays & Hashing](/algorithms/arrays-hashing/). Counts of characters and sums of non-negative numbers can only grow as the window grows, which is why they're safe.
+
+**Telling it from its neighbours.** **Two Pointers** usually compares just the two elements at the pointers, and the pointers often move toward each other. A window cares about **everything between** its edges and both edges move right. **Arrays & Hashing** finds slices too, but by looking up earlier prefixes rather than by keeping one live block, so it handles negatives and exact-sum counts where a window can't.
 
 ## Visual
 
@@ -51,6 +59,49 @@ def max_sum_of_size_k(nums: list[int], k: int) -> int:
     return best
 ```
 
+## Example
+
+**The problem.** A beach café logs each day as `S` (sunny), `R` (rainy) or `C` (closed for a holiday). A travel writer wants the longest run of consecutive days with at most 2 rainy days and at most 1 closed day. Return its length.
+
+**Spotting the pattern.** "Consecutive days" means contiguous, "longest run" with a rule is a variable window, and we are counting characters. Counts only grow as a window grows, so a broken window stays broken until its left edge moves. That makes shrinking safe.
+
+**Why brute force is slow.** There are about n²/2 runs. Recounting each one from scratch takes up to n more steps, so O(n³): a 5-year log of about 1,800 days would need around a billion steps. Reusing counts for each start brings it to O(n²), still about 1.6 million for a log this short and 5 billion for 100,000 days.
+
+**The key insight.** When a new day arrives, only that day's letter can have just gone over its limit, because the window was valid before it came in. So the shrink loop only has to test that letter. Sunny days have no limit.
+
+```python
+LIMITS = {"R": 2, "C": 1}
+
+
+def longest_run(days: str) -> int:
+    count: dict[str, int] = {}
+    left = best = 0
+    for right, day in enumerate(days):
+        count[day] = count.get(day, 0) + 1
+        while count[day] > LIMITS.get(day, len(days)):   # no limit: can't exceed n
+            count[days[left]] -= 1
+            left += 1
+        best = max(best, right - left + 1)
+    return best
+```
+
+**Traced run** on `"SRSCRRSSCS"`:
+
+| right | Day | Dropped from the left | Window | R | C | best |
+|---|---|---|---|---|---|---|
+| 0 | S | | `S` | 0 | 0 | 1 |
+| 1 | R | | `SR` | 1 | 0 | 2 |
+| 2 | S | | `SRS` | 1 | 0 | 3 |
+| 3 | C | | `SRSC` | 1 | 1 | 4 |
+| 4 | R | | `SRSCR` | 2 | 1 | 5 |
+| 5 | R | S, R | `SCRR` | 2 | 1 | 5 |
+| 6 | S | | `SCRRS` | 2 | 1 | 5 |
+| 7 | S | | `SCRRSS` | 2 | 1 | 6 |
+| 8 | C | S, C | `RRSSC` | 2 | 1 | 6 |
+| 9 | S | | `RRSSCS` | 2 | 1 | 6 |
+
+The answer is 6. At `right = 5`, a third rain makes the window invalid, so `left` steps past `S` and then `R` until only two rains remain. `right` moves 10 times and `left` only 4.
+
 ## Complexity
 
 - Time: **O(n)** — each index is added once and removed once.
@@ -62,6 +113,7 @@ def max_sum_of_size_k(nums: list[int], k: int) -> int:
 - Recording the answer before the window is valid again.
 - Recomputing the window's state from scratch on each step (that's O(n·k)).
 - Off-by-one: the window length is `right - left + 1`.
+- Jumping `left` to `last_seen + 1` without `max(left, …)`. An old position can move the window backwards onto values it already dropped.
 
 ## Tips & tricks
 
@@ -69,3 +121,4 @@ def max_sum_of_size_k(nums: list[int], k: int) -> int:
 - **Shortest** window: shrink while still valid, record inside the shrink loop.
 - Character Replacement: a window is valid while `length - max_freq <= k`; `max_freq` never needs to decrease.
 - Sliding Window Maximum: keep a **monotonic deque** of indices with decreasing values.
+- Before coding, test the property: "if this window is invalid, is every longer one with the same start also invalid?" If not, a window is the wrong tool.

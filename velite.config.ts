@@ -57,7 +57,7 @@ const base = {
   slug: s.slug('exercises'),
   title: s.string(),
   lessons: s.array(s.string()).min(1),
-  ladderOrder: s.number().int().positive(),
+  ladderOrder: s.number().int().nonnegative(),
   path: s.path(),
 }
 

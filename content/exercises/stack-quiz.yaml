@@ -1,0 +1,56 @@
+slug: stack-quiz
+type: quiz
+title: "Stack — quiz"
+lessons: [stack]
+ladderOrder: 0
+questions:
+  - id: stack-after-run
+    prompt: "Run `days_until_warmer` on `[8, 3, 5, 1, 4]`. Which indices are on the stack after the last element has been processed?"
+    choices: ["[0, 4]", "[4]", "[0, 2, 3, 4]", "[0, 2, 4]"]
+    answer: 3
+    explanation: "Index 1 (value 3) is popped by the 5. Index 3 (value 1) is popped by the 4. The 4 can't pop the 5 at index 2 or the 8 at index 0, so 0, 2 and 4 remain, with values falling from bottom to top."
+  - id: values-on-the-stack
+    prompt: "A teammate changes `days_until_warmer` to push temperatures, with `stack.append(t)` and `while stack and stack[-1] < t: j = stack.pop(); answer[j] = i - j`. What happens on `[70, 75]`?"
+    choices: ["It returns [1, 0]", "It raises IndexError", "It returns [0, 0]", "It returns [5, 0]"]
+    answer: 1
+    explanation: "At i = 1, the pop gives j = 70, and `answer[70]` is out of range for a list of 2. A temperature can't stand in for a position, which is why the stack holds indices when the answer is a distance."
+  - id: total-stack-operations
+    prompt: "`days_until_warmer` gets 800 temperatures: 799 strictly falling, then one warmer than all of them. How many pushes and pops are there in total?"
+    choices: ["800", "319,600", "1,599", "639,200"]
+    answer: 2
+    explanation: "Each index is pushed once, which is 800 pushes. The last value pops the other 799, and nothing was popped before it, so the total is 1,599. The big pop at the end only spends what earlier steps pushed."
+  - id: next-strictly-lower
+    prompt: "For each price you want the next strictly lower price to its right, and prices can repeat. The loop is `while stack and <condition>: j = stack.pop(); answer[j] = i`, followed by `stack.append(i)`, with `p = prices[i]`. Which condition and stack order are right?"
+    choices: ["`prices[stack[-1]] > p`; values rise or stay level from bottom to top", "`prices[stack[-1]] < p`; values fall or stay level from bottom to top", "`prices[stack[-1]] >= p`; values rise strictly from bottom to top", "`prices[stack[-1]] > p`; values fall or stay level from bottom to top"]
+    answer: 0
+    explanation: "A strictly lower price must pop anything above it, which leaves values rising or level. Using `>=` would let an equal price answer the question wrongly, `<` finds the next higher price, and popping on `>` can't leave a falling stack."
+  - id: severity-queue
+    prompt: "Tickets arrive at a help desk all day, each with a severity. When an agent is free, they take the most severe open ticket, however old it is. Which structure fits?"
+    choices: ["A plain stack, so the newest ticket is always the first one an agent sees", "A monotonic stack that pops less severe tickets when a more severe one arrives", "Two pointers moving inward over the tickets once they are sorted by severity", "A heap, since the choice depends on severity, not arrival order"]
+    answer: 3
+    explanation: "A heap gives the most severe ticket as new ones keep arriving. A plain stack picks by recency, not severity. A monotonic stack would throw away tickets that still need handling, and new arrivals keep breaking any one-time sort."
+flashcards:
+  - id: when-to-use
+    front: "When does a stack fit?"
+    back: "When the most recent unresolved item is settled first: nested pairs, undo, expressions, and next greater or smaller element."
+  - id: monotonic-invariant
+    front: "Monotonic stack: the invariant"
+    back: "Stack values only go one way, and everything on it still waits for an answer. Popping an element means the new value just answered it."
+  - id: direction
+    front: "Decreasing or increasing stack?"
+    back: "A stack decreasing from bottom to top finds the next greater value. One increasing from bottom to top finds the next smaller value."
+  - id: indices
+    front: "Why store indices, not values?"
+    back: "A value is one lookup away from its index, but not the reverse, and distances and widths need the position."
+  - id: linear-cost
+    front: "Why is a `while` inside a `for` still O(n)?"
+    back: "Each element is pushed once and popped at most once, so n elements mean at most 2n stack operations in total."
+  - id: empty-pop
+    front: "The classic bracket bug"
+    back: "Popping from an empty stack when a closer has no opener. Check `stack` first, and at the end check that the stack is empty too."
+  - id: leftovers
+    front: "Items left on the stack at the end"
+    back: "They never found an answer, so they keep the default value. That's why the answer list starts as all zeros in the template."
+  - id: vs-heap
+    front: "Stack vs heap"
+    back: "A stack picks by recency, whatever the value. A heap picks by priority, whatever the arrival order."

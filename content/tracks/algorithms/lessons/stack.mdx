@@ -16,10 +16,24 @@ A stack holds things you've seen but can't resolve yet — and the **most recent
 
 Think of a browser's Back button: the page you visited last is the first one you return to.
 
+In Python a plain list is a stack: `append` pushes on the end and `pop` removes from the end, both O(1) on average. (See [Complexity & Big-O](/cs-fundamentals/complexity/) for the notation.)
+
 Two shapes:
 
 - **Plain stack**: brackets, undo, Reverse Polish Notation.
 - **Monotonic stack**: keep values increasing or decreasing; popping an element means you just found its answer.
+
+**Monotonic stacks.** "Monotonic" means the values on the stack only ever go one way. Take a stack whose values decrease from bottom to top. When a new value arrives, anything smaller on top can't stay, because the new value would break the order. That pop is also the answer: the new value is the first larger value to the right of the popped one, since anything larger in between would already have popped it.
+
+So the invariant does the work. Everything on the stack is still waiting for an answer, and the stack's order means only the top few can be answered by the new value. As soon as the top is big enough, you stop, because everything below it is at least as big.
+
+**Why values and indices both appear.** The trace below shows `index:temp` so you can read it, but the template's stack holds only the index. The temperature is one lookup away (`temps[j]`), while the position can't be recovered from a temperature, and the answer `i - j` needs the position. If a problem asks for a distance or a width, push indices.
+
+**Why the nested loop is still O(n).** A `while` inside a `for` looks like O(n²). Count from the element's point of view instead: each index is pushed once and popped at most once, so 1,000 elements mean at most 2,000 stack operations in total. One step can pop many, but only what earlier steps pushed.
+
+**When not to use it.** If you need the largest or smallest of everything so far, not the latest, a stack is the wrong order. If you must look at old items again without removing them, you need random access. A stack only ever offers its top.
+
+**Telling it from its neighbours.** A **Heap** also hands out one item at a time, but it picks by priority, whatever the arrival order. A stack picks by recency, whatever the value. **Two Pointers** discards candidates using sorted order and needs little memory, while a stack needs no sorted input and remembers what's pending. Ask: "does what I just saw settle the most recent open item?" If so, it's a stack.
 
 ## Visual
 
@@ -61,6 +75,51 @@ def days_until_warmer(temps: list[int]) -> list[int]:
     return answer
 ```
 
+## Example
+
+**The problem.** A packing line logs its work in order. `"open"` starts a new box, which may sit inside the box currently open. A number is an item of that weight, placed in the innermost open box. `"close"` seals the innermost box. A box's weight includes everything inside it, nested boxes too. Given a well-formed log, return the weight of the heaviest box.
+
+**Spotting the pattern.** Two triggers fit: "matching pairs / nesting", because each `"close"` pairs with an `"open"`, and "the most recent unresolved item matters", because each new item goes into the latest box still open.
+
+**Why brute force is slow.** For each `"open"`, you could scan forward, tracking depth to find its `"close"` and adding up the weights on the way. A log of 100,000 lines nested as deeply as it can go has 50,000 boxes, and the average scan covers 50,000 lines. That is about 2.5 billion steps: O(n²).
+
+**The key insight.** Only the innermost open box is changing. Keep one running total per open box, on a stack. When a box closes, its total is final, and it counts towards the box around it. Each line then costs O(1).
+
+```python
+def heaviest_box(log: list[str]) -> int:
+    stack: list[int] = []                 # running weight of each open box
+    best = 0
+    for entry in log:
+        if entry == "open":
+            stack.append(0)
+        elif entry == "close":
+            total = stack.pop()           # this box is finished
+            best = max(best, total)
+            if stack:
+                stack[-1] += total        # it now weighs down its parent
+        else:
+            stack[-1] += int(entry)
+    return best
+```
+
+**Traced run** on `["open", "3", "open", "2", "4", "close", "1", "close", "open", "5", "close"]`:
+
+| Entry | What happens | Stack after | best |
+|---|---|---|---|
+| open | outer box starts | [0] | 0 |
+| 3 | item in outer box | [3] | 0 |
+| open | inner box starts | [3, 0] | 0 |
+| 2 | item in inner box | [3, 2] | 0 |
+| 4 | item in inner box | [3, 6] | 0 |
+| close | inner box is 6; add to outer | [9] | 6 |
+| 1 | item in outer box | [10] | 6 |
+| close | outer box is 10 | [] | 10 |
+| open | third box starts | [0] | 10 |
+| 5 | item in third box | [5] | 10 |
+| close | third box is 5 | [] | 10 |
+
+The answer is 10. The stack's depth is the current nesting depth, so the deepest log costs O(n) memory, and every line is handled once.
+
 ## Complexity
 
 - Time: **O(n)** — every element is pushed once and popped at most once, even with the inner `while`.
@@ -71,6 +130,7 @@ def days_until_warmer(temps: list[int]) -> list[int]:
 - Popping from an empty stack — check `stack` first.
 - Storing values when you need **indices** (for distances or widths).
 - Forgetting elements still on the stack at the end — they have no answer (default value).
+- Using `<` where the problem needs `<=`. Equal values decide whether a tie pops: `<` waits for strictly greater, `<=` accepts an equal value.
 - Generate Parentheses looks like a stack problem but is really backtracking with two counters.
 
 ## Tips & tricks
@@ -79,3 +139,4 @@ def days_until_warmer(temps: list[int]) -> list[int]:
 - Largest Rectangle in Histogram: append a height-0 sentinel to flush the stack at the end.
 - Min Stack: push `(value, min_so_far)` pairs.
 - Car Fleet: sort by position (closest to target first) and compare arrival times.
+- Stuck? Write out what is still "waiting" at each step. If only the newest waiting item can be settled, that list is your stack.

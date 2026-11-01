@@ -1,0 +1,56 @@
+slug: tries-quiz
+type: quiz
+title: "Tries — quiz"
+lessons: [tries]
+ladderOrder: 0
+questions:
+  - id: node-count
+    prompt: "You insert `stop`, `stops`, `step`, `star` and `tar` into an empty `Trie`. How many nodes does it have, not counting the root?"
+    choices: ["20", "9", "13", "12"]
+    answer: 3
+    explanation: "`stop` adds 4 nodes and `stops` 1 more. `step` shares `st` and adds 2. `star` shares `st` and adds 2. `tar` starts a new branch and adds 3. That makes 12, against 20 letters in all, so the shared paths saved 8 nodes."
+  - id: delete-link
+    prompt: "A trie holds `car`, `cart` and `care`. To delete `car`, a teammate removes the `r` entry from the children of the `a` node. What does `search(\"cart\")` return now, and why?"
+    choices: ["True, since `is_word` is still set on the `t` node", "False, since the walk finds no `r` child after `ca`", "True, since removing `car` leaves other words alone", "It raises AttributeError, on `None.children`"]
+    answer: 1
+    explanation: "`_walk` reaches `a`, looks up `r` and gets `None`, so it returns `None` and `search` returns False. The `t` node still exists but nothing leads to it. `_walk` checks for `None` before going on, so nothing raises. Deleting `car` should only clear its `is_word`, since `r` has children."
+  - id: dots-calls
+    prompt: "A trie holds all 27 three-letter strings over `a`, `b` and `c`. How many calls to `search_with_dots` does `search_with_dots(trie.root, \"..x\")` make, including the first?"
+    choices: ["13", "40", "4", "27"]
+    answer: 0
+    explanation: "There is 1 call at the root, 3 for the first dot and 9 for the second. Each of those 9 calls looks up `x`, finds no child and returns False without another call: 1 + 3 + 9 = 13. Nothing returns True, so `any` never stops early."
+  - id: count-under-prefix
+    prompt: "You need to insert names and to ask how many stored names start with a given prefix, each in O(L) for a string of length L. Duplicates don't occur. Which change meets both limits?"
+    choices: ["Walk to the prefix's node, then run a DFS below it that counts `is_word` marks", "Keep a Python dictionary from each prefix to a count, updating every prefix on insert", "Add a counter to each node, adding 1 to it along the path of every insert", "Keep the names in a sorted list and use two binary searches for the range"]
+    answer: 2
+    explanation: "With a counter, the insert path costs O(L) and a query walks to the node and reads the number. The DFS costs time for the whole subtree. The dictionary hashes L prefixes of up to L characters per insert, which is O(L²). A sorted list costs O(n) to shift on insert."
+  - id: suffix-lookup
+    prompt: "You have a million words and must list those ending in a given suffix, at a cost that depends on the suffix length and on how many words match, not on the total. Which fits?"
+    choices: ["A normal trie, using `search_with_dots` with a run of dots in front of the suffix", "A hash set of all the words, testing each one with Python's `endswith`", "The words sorted alphabetically, with binary search on the suffix", "A trie of the reversed words, walked with the reversed suffix"]
+    answer: 3
+    explanation: "Reversing turns a suffix into a prefix, and walking costs the suffix length, then collecting costs the part of the trie below it. Dots fix the word's length and branch over huge parts of the trie. Testing each word depends on the total, and alphabetical order doesn't group words by ending."
+flashcards:
+  - id: when-to-use
+    front: "When does a trie beat a hash set?"
+    back: "When the questions are about prefixes: what starts with this, or the longest stored prefix of this string. For exact lookups, a set is simpler."
+  - id: is-word
+    front: "Why does a trie need `is_word`?"
+    back: "A path exists for every prefix of a stored word. The flag separates \"this word was stored\" from \"some word passes through here\"."
+  - id: cost
+    front: "What does a trie lookup cost?"
+    back: "O(L) for a string of length L, however many words are stored. Each step follows one child."
+  - id: space
+    front: "What does a trie cost in space?"
+    back: "One node per distinct prefix, so at most the total number of characters, and less when words share prefixes."
+  - id: wildcard
+    front: "Why can wildcard search be slow?"
+    back: "Each `.` tries every child at that level, so the calls multiply with each dot."
+  - id: longest-match
+    front: "Finding the longest stored prefix of a string"
+    back: "Walk the string down the trie and remember the last marked node. Stop when a character has no child."
+  - id: word-search-ii
+    front: "Why use a trie in Word Search II?"
+    back: "One grid search follows all the words at once, and a path stops as soon as it isn't a prefix of any word."
+  - id: vs-backtracking
+    front: "Trie vs backtracking"
+    back: "A trie stores strings, and backtracking searches through choices. A trie can tell a backtracking search when to give up on a path."

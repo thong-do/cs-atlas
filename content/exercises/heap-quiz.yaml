@@ -1,0 +1,56 @@
+slug: heap-quiz
+type: quiz
+title: "Heap / Priority Queue — quiz"
+lessons: [heap]
+ladderOrder: 0
+questions:
+  - id: push-then-pop
+    prompt: "With `heapq`, you push 6, 4, 9, 2, 7 in that order onto an empty list, then call `heappop` once. What does the list hold now?"
+    choices: ["[4, 6, 9, 7]", "[4, 6, 7, 9]", "[4, 7, 9, 6]", "[6, 4, 9, 7]"]
+    answer: 0
+    explanation: "After the pushes the list is [2, 4, 9, 6, 7]. The pop removes 2 and moves the last item, 7, to the top. It swaps with its smaller child 4, then with 6 at index 3, which gives [4, 6, 9, 7]. A heap array isn't sorted, and this one shows it."
+  - id: reused-template
+    prompt: "A teammate wants the 3 cheapest quotes from `[5, 1, 9, 3, 7]` and calls `k_largest(quotes, 3)` as written, thinking a min-heap keeps the small values. What do they get?"
+    choices: ["[5, 3, 1]", "[1, 3, 5]", "[9, 7, 5]", "[9, 5, 1]"]
+    answer: 2
+    explanation: "Whenever the heap passes 3 items, the smallest is popped, so 1 goes when 3 arrives and 3 goes when 7 arrives. That leaves 5, 7 and 9, the largest three, sorted in reverse. The small values are what a min-heap makes easy to throw away."
+  - id: pops-count
+    prompt: "`k_largest` runs on 10,000 distinct numbers with k = 16. How many `heappop` calls does it make, and does the input's order change that?"
+    choices: ["16, whatever the order", "9,984, whatever the order", "10,000 when rising, and none when falling", "9,984 when rising, and none when falling"]
+    answer: 1
+    explanation: "The code pushes every number and pops whenever the size passes 16, without comparing the values first. So after the first 16 pushes, each of the other 9,984 is followed by one pop, in any order."
+  - id: score-updates
+    prompt: "A leaderboard must show the top score at any time, and any player's score can change. There are many updates and few reads, and the cost should stay near O(log n) per update. What should an update do?"
+    choices: ["Find the player's entry in the heap array, overwrite the score, and leave the rest as it is", "Find the player's entry in the heap array, overwrite it, and call `heapify` on the whole list", "Replace the heap with a list sorted by score, and use `bisect.insort` for each new score", "Push a new entry, note the score in a dictionary, and pop stale tops on a read"]
+    answer: 3
+    explanation: "Each entry is pushed once and popped at most once, so the work stays O(log n) per entry. Overwriting in place breaks the heap rule, so the top can be wrong. `heapify` and a scan each cost O(n) per update, and `insort` costs O(n) to shift items."
+  - id: median-state
+    prompt: "A new `MedianFinder` receives 4, 8, 1, 6 through `add`. After the last call, what do the two halves hold, and what does `median` return?"
+    choices: ["`low` 1, 4, 6; `high` 8; median 6", "`low` 1, 4; `high` 6, 8; median 5.0", "`low` 1, 6; `high` 4, 8; median 5.0", "`low` 4, 8; `high` 1, 6; median 6.0"]
+    answer: 1
+    explanation: "Each number goes through `low`, and the largest of `low` moves to `high`, then back if `high` got bigger. After 4 and 8: `low` 4, `high` 8. After 1: `low` 1, 4. Adding 6 moves it to `high`, and the sizes are equal at 2 each, so the median is (4 + 6) / 2 = 5.0."
+flashcards:
+  - id: when-to-use
+    front: "When does a heap fit?"
+    back: "When you repeatedly need the current smallest or largest item while items keep arriving, but never need the rest in order."
+  - id: top-k-direction
+    front: "Which heap keeps the k largest?"
+    back: "A min-heap of size k. Its top is the smallest of the k, the one to throw out when a better item arrives."
+  - id: costs
+    front: "What do heap operations cost?"
+    back: "Peek is O(1), push and pop are O(log n), and `heapify` on a whole list is O(n)."
+  - id: partial-order
+    front: "What does the array of a heap guarantee?"
+    back: "Only that each parent is at most its children. So `heap[0]` is the minimum, and `heap[-1]` needn't be the maximum."
+  - id: max-heap-python
+    front: "Getting a max-heap in Python"
+    back: "`heapq` has only a min-heap, so push `-x` and negate again when you pop."
+  - id: tuple-tiebreak
+    front: "Heap tuples that crash on a tie"
+    back: "On equal first fields Python compares the next one, which fails for objects like list nodes. Put a unique index before the object."
+  - id: lazy-deletion
+    front: "Changing an item already in a heap"
+    back: "Push a new entry and remember which one is current. When a stale entry reaches the top, pop it and carry on."
+  - id: vs-greedy
+    front: "Heap vs greedy"
+    back: "A greedy rule says what to pick. A heap makes \"the best one left\" fast to find, but it can't tell you whether the rule is correct."

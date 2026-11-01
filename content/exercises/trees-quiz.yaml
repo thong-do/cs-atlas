@@ -1,0 +1,56 @@
+slug: trees-quiz
+type: quiz
+title: "Trees — quiz"
+lessons: [trees]
+ladderOrder: 0
+questions:
+  - id: delete-two-children
+    prompt: "Insert 50, 30, 70, 60, 80, 65 in that order into an empty BST with `bst_insert`, then call `bst_delete(root, 50)`. What does `level_order` return for the result?"
+    choices: ["[[65], [30, 70], [60, 80]]", "[[30], [70], [60, 80], [65]]", "[[60], [30, 70], [65, 80]]", "[[60], [30, 70], [80], [65]]"]
+    answer: 2
+    explanation: "The successor of 50 is the leftmost value in its right subtree, 60. It's copied to the root and removed from the right subtree, where its right child 65 takes its place under 70. The BST rule still holds for 30, 65, 70 and 80 around 60."
+  - id: lca-stray-node
+    prompt: "A binary tree has root 8 with children 3 and 5, and 3 has children 9 and 1. You call `lca(root, p, q)`, where `p` is the node holding 9 and `q` is a node that isn't in this tree. What comes back?"
+    choices: ["The node holding 9", "None", "The root, 8", "The node holding 3"]
+    answer: 0
+    explanation: "The search finds `p` and returns it. No call ever finds `q`, so no node sees results from both sides, and each parent passes the one result upward. The answer looks real, which is why the function requires both nodes to be present."
+  - id: above-everyone
+    prompt: "In an org chart stored as a binary tree, you want every employee whose rating beats everyone in their chain of managers. Which recursion fits, and why?"
+    choices: ["Bottom-up: return the highest rating in each subtree, since parents combine what children report", "BFS by level: compare each employee with the highest rating on the level above them", "Inorder: the walk visits ratings in sorted order, so each new highest rating marks an employee", "Top-down: pass the highest rating so far to each child, since the test depends on what's above"]
+    answer: 3
+    explanation: "The test depends only on a node's ancestors, so that information has to flow down. A subtree knows nothing about the managers above it. The level above holds people who aren't this employee's managers, and inorder is only sorted for a BST, which an org chart's ratings aren't."
+  - id: balanced-naive-cost
+    prompt: "A check calls `max_depth` on the left and right child of every node, to compare them. It runs on a chain of 2,000 nodes where each node has one child on the left. Counting all calls that land on a real node, not on `None`, in the `max_depth` runs, about how many are there?"
+    choices: ["About 2,000", "About 2 million", "About 22,000", "About 4 million"]
+    answer: 1
+    explanation: "At the node with m nodes below it, `max_depth` on its child visits those m nodes. Summing m from 0 to 1,999 gives 1,999,000. A subtree height computed once per node, returned upward, would need only about 2,000 visits."
+  - id: dfs-vs-bfs-memory
+    prompt: "A perfect binary tree has 20 levels, so 1,048,575 nodes. You run `max_depth` once and `level_order` once. Roughly what is the most each one holds at a time: recursion frames on real nodes for the first, queue entries for the second?"
+    choices: ["20 frames; 524,288 entries", "20 frames; 20 entries", "524,288 frames; 20 entries", "1,048,575 of each"]
+    answer: 0
+    explanation: "Recursion holds one path at a time, and a path here has 20 nodes. The queue holds a whole level, and the last level has 2¹⁹ = 524,288 nodes. That's why a wide tree favours DFS for memory, and a skewed chain reverses the picture."
+flashcards:
+  - id: when-to-use
+    front: "When does tree recursion fit?"
+    back: "When the input is a tree and a node's answer can be built from its children's answers, or from values passed down from its parent."
+  - id: trust-the-call
+    front: "Writing a recursive function: what do you check?"
+    back: "A base case, a call on something smaller, and that this node's answer is right if the children's answers are. You don't trace the calls below."
+  - id: return-vs-track
+    front: "Return one thing, track another"
+    back: "Return what the parent needs, such as a height. Keep the answer that may not pass through the parent, such as a diameter, in an outer variable."
+  - id: top-down-or-bottom-up
+    front: "Top-down or bottom-up?"
+    back: "Pass values down when a node's test depends on its ancestors. Return values up when it depends on its descendants."
+  - id: bst-delete
+    front: "Deleting a BST node with two children"
+    back: "Copy in the smallest value of its right subtree, then delete that value from the right subtree. It has no left child, so that deletion is easy."
+  - id: bst-cost
+    front: "What does a plain BST operation cost?"
+    back: "O(h). That's about log₂ n if balanced, but a plain BST doesn't balance itself, so h can reach n."
+  - id: lca-idea
+    front: "Finding the LCA in a BST"
+    back: "Walk down from the root. If both values are on one side, go there. The first node where they aren't is the LCA."
+  - id: vs-graphs
+    front: "Tree vs graph traversal"
+    back: "A tree node has one parent, so no `visited` set is needed. With several parents or cycles, track `visited`."

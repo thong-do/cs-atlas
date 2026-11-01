@@ -1,0 +1,56 @@
+slug: backtracking-quiz
+type: quiz
+title: "Backtracking — quiz"
+lessons: [backtracking]
+ladderOrder: 0
+questions:
+  - id: permutation-calls
+    prompt: "`permutations` runs on 5 distinct numbers. How many times is `backtrack` called, including the first call?"
+    choices: ["120", "206", "326", "3,125"]
+    answer: 2
+    explanation: "There's one call per partial path: 1 empty, 5 of length 1, 20 of length 2, 60 of length 3, 120 of length 4 and 120 of length 5. That adds up to 326, so the 120 full orders are not even half of the calls."
+  - id: forgot-used-reset
+    prompt: "In `permutations`, a teammate deletes the line `used[i] = False` but keeps `path.pop()`. What does it return for `[1, 2, 3]`?"
+    choices: ["[[1, 2, 3]]", "[[1, 2, 3], [1, 3, 2]]", "All six orders", "[]"]
+    answer: 0
+    explanation: "The first descent marks all three numbers used and records [1, 2, 3]. On the way back nothing is unmarked, so every later loop finds all numbers used and adds nothing. State that isn't restored leaks into every other branch."
+  - id: unsorted-break
+    prompt: "A teammate deletes the `sorted` line from `combination_sum` and keeps the `break`. What does it return for candidates `[5, 2, 3]` and target 7?"
+    choices: ["[[5, 2], [2, 2, 3]]", "[[5, 2]]", "[]", "[[2, 2, 3]]"]
+    answer: 3
+    explanation: "At 5, 2 remains, and the loop starts at the 5 again: 5 > 2 breaks before it can reach the 2. So [5, 2] is lost. From 2, the path 2, 2, 3 is found. The `break` was only valid because everything after a too-big candidate was bigger still."
+  - id: prune-never-fires
+    prompt: "You add `if sum(path) > limit: return` as the first line of `backtrack` in `subsets`, with 20 positive numbers and `limit` set to the sum of all 20. How many calls are there, and is it faster?"
+    choices: ["About 524,288 calls, faster, since half the branches go over", "1,048,576 calls, and slower, since each call now also sums its path", "20 calls, and much faster, since it stops at the first full path", "1,048,576 calls, and about as fast, since `sum(path)` costs O(1)"]
+    answer: 1
+    explanation: "No subset can go over the sum of all the numbers, so the check never returns early. All 2²⁰ = 1,048,576 calls still happen. `sum(path)` takes time proportional to the path's length, so each one adds work and saves nothing."
+  - id: count-not-list
+    prompt: "You need only the number of ordered ways to climb a 40-step stair in moves of 1 or 2 steps. There are 165,580,141 ways. Which approach is right, and why?"
+    choices: ["Backtracking with `used`, since each order of moves is a permutation", "Backtracking with the sorted `break`, since it removes the moves that overshoot", "A table indexed by steps left, since paths at the same step share one future", "Largest move first, since taking 2 whenever possible counts the ways directly"]
+    answer: 2
+    explanation: "The table has 41 entries and costs O(1) per entry. Any backtracking version still walks each of the 165 million ways, since a prune removes only failures. Taking the largest move builds one way and counts nothing, and `used` applies when items can't repeat."
+flashcards:
+  - id: when-to-use
+    front: "When does backtracking fit?"
+    back: "When you must list every valid arrangement, or find one by trying choices step by step, and partial answers can be built and undone."
+  - id: three-moves
+    front: "The three moves inside the loop"
+    back: "Choose: add an option. Explore: recurse. Un-choose: undo it, so the next option starts from the same state."
+  - id: copy-path
+    front: "Why `path[:]`, not `path`?"
+    back: "`path` is one list that keeps changing. Without a copy, every result points to it, and it ends up empty."
+  - id: start-or-used
+    front: "`start` or `used`?"
+    back: "`start` for subsets and combinations, where order doesn't matter. `used` for permutations, where any unused element can come next."
+  - id: reuse
+    front: "`backtrack(i)` vs `backtrack(i + 1)`"
+    back: "Passing `i` lets the same element be chosen again. Passing `i + 1` moves past it, so each element is used at most once."
+  - id: when-pruning-helps
+    front: "When does pruning pay off?"
+    back: "When a cheap check can fail on a short partial path, cutting off a large subtree. If the check rarely fails, it only adds cost."
+  - id: prune-needs-reason
+    front: "Why does the sorted `break` in Combination Sum work?"
+    back: "Candidates are sorted and positive, so later ones are at least as big and what remains can't grow back."
+  - id: vs-dp
+    front: "Backtracking vs DP"
+    back: "Backtracking when you need the arrangements themselves. DP when you need a count or best value and different paths reach the same state with the same future."

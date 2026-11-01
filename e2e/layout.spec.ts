@@ -17,3 +17,15 @@ for (const path of PAGES) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 }
+
+test.describe('narrower than 375px', () => {
+  test.use({ viewport: { width: 320, height: 700 } })
+
+  // Text width depends on the machine's fonts, so a table must scroll inside the lesson rather than rely on fitting.
+  test('a wide lesson table scrolls inside itself, not the page', async ({ page }) => {
+    await page.goto('/algorithms/advanced-graphs/')
+    await expect(page.locator('h1').first()).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+})

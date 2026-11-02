@@ -5,8 +5,8 @@ import { isProblem } from '@/lib/types'
 import { formatAmount } from '@/lib/logic/estimate'
 import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, placementTracks } from './index'
 
-const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
-const FOUNDATIONS = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list']
+const ALGORITHMS_ORDER = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'recursion', 'sorting', 'trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy', 'graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
+const FOUNDATIONS = ['arrays-hashing', 'two-pointers', 'stack', 'sliding-window', 'binary-search', 'linked-list', 'recursion', 'sorting']
 const TREES_AND_SEARCH = ['trees', 'tries', 'heap', 'backtracking', 'intervals', 'greedy']
 const GRAPHS_AND_MATH = ['graphs', 'dp-1d', 'advanced-graphs', 'dp-2d', 'bit-manipulation', 'math-geometry']
 const AT_THE_BAR = [...FOUNDATIONS, ...TREES_AND_SEARCH, ...GRAPHS_AND_MATH]
@@ -19,7 +19,7 @@ describe('content accessors', () => {
     expect(lessons.map((l) => l.slug)).toEqual(tracks.flatMap((t) => t.modules.flatMap((m) => m.lessons)))
   })
 
-  it('keeps the v1 algorithms order exactly', () => {
+  it('keeps the algorithms order exactly', () => {
     expect(getCatalog().lessons.filter((l) => l.track === 'algorithms').map((l) => l.slug)).toEqual(ALGORITHMS_ORDER)
   })
 
@@ -157,6 +157,11 @@ describe('content inventory', () => {
     expect(prereqs('greedy')).toEqual(['arrays-hashing'])
     expect(prereqs('intervals')).toEqual(['arrays-hashing'])
     expect(prereqs('dp-2d')).toEqual(['dp-1d'])
+    expect(prereqs('recursion')).toEqual(['linked-list'])
+    expect(prereqs('sorting')).toEqual(['recursion'])
+    expect(prereqs('trees')).toEqual(['binary-search', 'linked-list', 'recursion'])
+    expect(all.find((l) => l.slug === 'recursion')!.background).toEqual(['complexity'])
+    expect(all.find((l) => l.slug === 'sorting')!.background).toEqual(['complexity'])
     expect(all.find((l) => l.slug === 'arrays-hashing')!.background).toEqual(['complexity', 'data-in-memory'])
     expect(all.find((l) => l.slug === 'caching')!.background).toEqual(['memory-hierarchy'])
     expect(all.find((l) => l.slug === 'replication-sharding')!.background).toEqual(['transactions-isolation'])
@@ -193,8 +198,8 @@ describe('content inventory', () => {
   const exercises = allExercises.filter(isProblem)
   const algorithms = lessons.filter((l) => l.track === 'algorithms')
 
-  it('has 18 algorithms lessons, all at the bar, with the standard sections in order', () => {
-    expect(algorithms).toHaveLength(18)
+  it('has 20 algorithms lessons, all at the bar, with the standard sections in order', () => {
+    expect(algorithms).toHaveLength(20)
     expect([...AT_THE_BAR].sort()).toEqual(algorithms.map((l) => l.slug).sort())
     for (const l of algorithms) {
       expect(getLessonDoc(l.slug)!.toc.map((t) => t.title), l.slug).toEqual(BAR_SECTIONS)
@@ -212,8 +217,8 @@ describe('content inventory', () => {
     }
   })
 
-  it('has 140 exercises and every ladder is numbered 1..n', () => {
-    expect(exercises).toHaveLength(140)
+  it('has 150 exercises and every ladder is numbered 1..n', () => {
+    expect(exercises).toHaveLength(150)
     for (const l of lessons) {
       const orders = exercises.filter((x) => x.lessons[0] === l.slug).map((x) => x.ladderOrder).sort((a, b) => a - b)
       expect(orders, l.slug).toEqual(orders.map((_, i) => i + 1))

@@ -1,0 +1,10 @@
+slug: fibonacci-number
+type: external-problem
+title: "Fibonacci Number"
+leetcodeId: 509
+url: https://leetcode.com/problems/fibonacci-number/
+difficulty: easy
+lessons: [recursion]
+ladderOrder: 1
+recognitionPrompt: "Return the n-th term of the sequence that starts 0, 1 and adds the previous two terms each time."
+hint: "Write the plain recursion first and count its calls for n = 30. Then make it remember answers, or loop upwards keeping two values."

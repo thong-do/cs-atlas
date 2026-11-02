@@ -5,7 +5,7 @@ order: 1
 modules:
   - slug: foundations
     title: Foundations
-    lessons: [arrays-hashing, two-pointers, stack, sliding-window, binary-search, linked-list]
+    lessons: [arrays-hashing, two-pointers, stack, sliding-window, binary-search, linked-list, recursion, sorting]
   - slug: trees-heaps
     title: Trees & Heaps
     lessons: [trees, tries, heap]

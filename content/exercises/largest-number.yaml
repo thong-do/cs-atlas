@@ -1,0 +1,10 @@
+slug: largest-number
+type: external-problem
+title: "Largest Number"
+leetcodeId: 179
+url: https://leetcode.com/problems/largest-number/
+difficulty: medium
+lessons: [sorting]
+ladderOrder: 4
+recognitionPrompt: "Arrange a list of non-negative integers so that, written side by side, they form the biggest possible number, returned as a string."
+hint: "Plain numeric order fails. Decide which of two numbers goes first by comparing the two ways of joining them, and watch out for all zeros."

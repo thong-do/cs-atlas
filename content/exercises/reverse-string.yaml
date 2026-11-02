@@ -1,0 +1,10 @@
+slug: reverse-string
+type: external-problem
+title: "Reverse String"
+leetcodeId: 344
+url: https://leetcode.com/problems/reverse-string/
+difficulty: easy
+lessons: [recursion]
+ladderOrder: 2
+recognitionPrompt: "Reverse a list of characters in place."
+hint: "After you swap the two ends, the job left is the same one on the part in between. That recursion is n/2 calls deep, too deep for Python on long input, so turn it into a loop."

@@ -1,0 +1,10 @@
+slug: swap-nodes-in-pairs
+type: external-problem
+title: "Swap Nodes in Pairs"
+leetcodeId: 24
+url: https://leetcode.com/problems/swap-nodes-in-pairs/
+difficulty: medium
+lessons: [recursion]
+ladderOrder: 4
+recognitionPrompt: "Swap every two neighbouring nodes of a linked list by relinking them, without changing any values."
+hint: "Rewire just the first two nodes, and trust a recursive call to return the rest of the list already swapped."

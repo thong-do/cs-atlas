@@ -1,0 +1,159 @@
+---
+slug: recursion
+title: Recursion
+prerequisites: [linked-list]
+background: [complexity]
+confusedWith: [backtracking, dp-1d]
+triggers: ["the answer for an input is built from the answer for a smaller input", "input is a ListNode or TreeNode", "nested or self-similar structure", "split the input into parts and combine their answers"]
+complexity: "Time is the work across all calls; stack space is O(depth)"
+level: beginner
+authors: [cs-atlas]
+summary: "Solve a problem by calling the same function on a smaller input, and know what that costs in calls and stack depth."
+---
+
+## Intuition
+
+You're in a dark cinema and want to know your row number. You ask the person in front, "what row are you in?" They don't know either, so they ask the person in front of them. The question travels forward until it reaches the front row, where someone can answer "1" without asking anyone. Then the answers travel back, and each person adds one before passing it on.
+
+That's **recursion**: a function that solves a problem by calling itself on a smaller version of the same problem. It has two parts.
+
+- **Base case:** an input small enough to answer directly, like the front row. Without one, the calls never stop.
+- **Recursive step:** call the function on a strictly smaller input, then build this answer from the result. Each step must move towards a base case, or you never get there.
+
+**The call stack.** While the front row is being asked, everyone behind waits with a half-finished job: "add one to whatever comes back". Python keeps each unfinished call, with its local variables, in a **frame** on the **call stack**. A call chain 500 levels deep holds 500 frames at once, so recursion uses memory in proportion to its **depth**, even when each call does almost nothing.
+
+**The recursion tree.** When a call makes two or more calls, draw each call as a node with its calls as children. The time is the work done across all the nodes, often the number of calls times the work in each. The stack only ever holds one path from the root down, so memory follows the tree's height, not its size.
+
+**Why naive Fibonacci is exponential.** Each Fibonacci number is the sum of the two before it, so `fib(n)` calls `fib(n - 1)` and `fib(n - 2)`, and both of those branch again. The number of calls grows by about 1.6 times for each step up in n: `fib(20)` makes 21,891 calls and `fib(30)` makes 2,692,537. Almost all of it is repeated work: inside `fib(30)`, `fib(2)` is computed 514,229 times. Saving each answer the first time and reusing it is **memoization**, where [1-D Dynamic Programming](/algorithms/dp-1d/) begins. ([Complexity & Big-O](/cs-fundamentals/complexity/) compares exponential growth with the rest.)
+
+**Recursion vs loops.** Anything recursive can be written as a loop, with your own stack if needed. When each call makes just one call, as in `length`, a loop can usually carry the partial answer forward instead, as `length_loop` does: the same time, O(1) memory and no depth limit. Recursion earns its place when calls branch, as in trees or splitting an array in half, because a loop would have to manage that stack by hand.
+
+**Stack depth limits.** Python caps the depth. `sys.getrecursionlimit()` returns 1000 by default, and a simple recursive function raises `RecursionError` a little before 1,000 levels, because a few frames are already in use. So recursing once per node of a 10,000-node linked list fails, while a balanced tree of a million nodes is only about 20 levels deep. CPython doesn't turn a call on the last line into a jump, so moving the call there doesn't help. `sys.setrecursionlimit` raises the cap, but set it too high and the interpreter can crash instead of raising an error.
+
+**Recursion on lists and trees.** A linked list is one node followed by a shorter list. A tree is one node with smaller trees below it. So the base case is usually `None`, the empty list or tree, and the recursive step handles one node and hands the rest to the call. Then **trust the call**: assume the call on the smaller input already returns the right answer, and check only two things. Is the base case right, and does this level combine correctly? [Trees](/algorithms/trees/) builds on this habit.
+
+**When not to use it.** For one call per element on long input, use a loop. When branching calls keep asking the same question, memoize.
+
+**Telling it from its neighbours.** [Backtracking](/algorithms/backtracking/) is recursion over choices: try one, recurse, undo it, try the next. **Dynamic programming** is recursion that remembers answers to repeated inputs. Plain recursion underlies both.
+
+## Visual
+
+```text
+Call stack for length(7 → 3 → 9)
+
+length(7 → 3 → 9)   waits for 1 + length(3 → 9)   returns 3
+  length(3 → 9)     waits for 1 + length(9)       returns 2
+    length(9)       waits for 1 + length(None)    returns 1
+      length(None)  base case                     returns 0
+
+Calls go down, answers come back up.
+At the deepest point, 4 frames are on the stack.
+
+
+Recursion tree for fib(4): 9 calls
+
+              fib(4)
+           /          \
+      fib(3)          fib(2)
+      /    \          /    \
+  fib(2)  fib(1)  fib(1)  fib(0)
+  /    \
+fib(1) fib(0)
+
+fib(2) is computed twice and fib(1) three times.
+```
+
+## Template
+
+```python
+class ListNode:
+    def __init__(self, val: int = 0, next: "ListNode | None" = None):
+        self.val, self.next = val, next
+
+
+class TreeNode:
+    def __init__(self, val: int = 0, left: "TreeNode | None" = None, right: "TreeNode | None" = None):
+        self.val, self.left, self.right = val, left, right
+
+
+def length(head: ListNode | None) -> int:
+    if head is None:                     # base case: the empty list
+        return 0
+    return 1 + length(head.next)         # this node, plus the rest
+
+
+def tree_sum(root: TreeNode | None) -> int:
+    if root is None:                     # base case: the empty tree
+        return 0
+    return root.val + tree_sum(root.left) + tree_sum(root.right)
+
+
+def fib(n: int) -> int:                  # naive: about 1.6x more calls per step of n
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+
+def length_loop(head: ListNode | None) -> int:   # same answer, no stack growth
+    count = 0
+    while head:
+        count, head = count + 1, head.next
+    return count
+```
+
+## Example
+
+**The problem.** A depot can't put more than `limit` tonnes on one truck. Any load that's too heavy goes through a splitter that cuts it into two halves, and when the weight is odd the second half gets the extra tonne. Halves that are still too heavy are split again. Given a load of `n` tonnes, with `n` and `limit` whole numbers of at least 1, how many trucks leave the depot?
+
+**Spotting the pattern.** "Solve the same problem on smaller pieces and add up the answers" is recursion. The base case is a load that fits: one truck. The recursive step splits the load and adds the two counts.
+
+**Why brute force is slow.** Following every split is correct, but a load of 10¹² tonnes with a 10-tonne limit ends as 137,438,953,472 truckloads. The recursion tree has one leaf per truck, so that's about 275 billion calls.
+
+**The key insight.** Look at the tree one level at a time. Splitting loads of k and k + 1 tonnes only ever gives halves of ⌊k/2⌋ and ⌊k/2⌋ + 1, so each level holds at most two different sizes. Billions of calls ask the same few questions. Remember each answer the first time, with `@cache` as in [1-D DP](/algorithms/dp-1d/), and the 10¹² load needs only 63 distinct computations.
+
+```python
+from functools import cache
+
+
+def trucks_needed(n: int, limit: int) -> int:
+    @cache
+    def trucks(load: int) -> int:
+        if load <= limit:                         # base case: fits on one truck
+            return 1
+        half = load // 2
+        return trucks(half) + trucks(load - half)  # odd: the second half is bigger
+    return trucks(n)
+```
+
+Without `@cache`, the same function is the brute force. The stack is only about log₂(n / limit) + 1 calls deep, 38 for the big load, so the depth limit is never a problem.
+
+**Traced run** with `n = 23` and `limit = 5`, one row per level of the recursion tree:
+
+| Depth | Loads | Distinct sizes | Trucks that leave |
+|---|---|---|---|
+| 0 | 23 | 1 | 0 |
+| 1 | 11, 12 | 2 | 0 |
+| 2 | 5, 6, 6, 6 | 2 | 1 |
+| 3 | 3, 3, 3, 3, 3, 3 | 1 | 6 |
+
+Seven trucks leave. The plain recursion makes 13 calls, one for each load in the table. With `@cache` only six sizes are ever computed: 23, 11, 12, 5, 6 and 3.
+
+## Complexity
+
+- Time: the work across all calls. One call per list node is **O(n)**; naive Fibonacci is **exponential**, about 1.6 times more calls per step of n.
+- Space: **O(depth)** for the call stack, which is O(n) for a list and O(h) for a tree of height h.
+- The Example: at most two distinct loads per level with `@cache`, so **O(log(n / limit))** computations, against one call per load without it.
+
+## Pitfalls
+
+- A base case the calls can skip past: `if n == 0` with a step of `n - 2` never stops for odd n. Use `if n <= 0`.
+- Forgetting `return` on the recursive line: the answer is computed and dropped, the call returns `None`, and the level above fails on `1 + None`.
+- Slicing on every call: `total(nums[1:])` copies the list each time, which is O(n²) time and memory for a plain sum. Pass an index instead.
+- One call per element on long input: past about 1,000 levels Python raises `RecursionError`. Use a loop.
+
+## Tips & tricks
+
+- Write the base case first, then ask: "if the call on the smaller input already works, how do I finish this level?"
+- Check the smallest inputs by hand: empty, one item, two items.
+- When you suspect repeated work, count the calls on a small input. If they grow much faster than the input, memoize.
+- In an interview, state the depth: "it goes one call deeper per level of the tree, so O(h) stack".

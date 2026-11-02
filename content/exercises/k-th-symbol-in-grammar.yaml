@@ -1,0 +1,10 @@
+slug: k-th-symbol-in-grammar
+type: external-problem
+title: "K-th Symbol in Grammar"
+leetcodeId: 779
+url: https://leetcode.com/problems/k-th-symbol-in-grammar/
+difficulty: medium
+lessons: [recursion]
+ladderOrder: 5
+recognitionPrompt: "Rows of 0s and 1s grow by rewriting every symbol as a fixed pair; report one symbol of a deep row without building the row."
+hint: "Every symbol comes from one symbol in the row above. Find which one, recurse on it, and work out how a child relates to its parent."

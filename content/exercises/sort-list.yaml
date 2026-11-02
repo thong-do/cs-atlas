@@ -1,0 +1,10 @@
+slug: sort-list
+type: external-problem
+title: "Sort List"
+leetcodeId: 148
+url: https://leetcode.com/problems/sort-list/
+difficulty: medium
+lessons: [sorting]
+ladderOrder: 5
+recognitionPrompt: "Sort a singly linked list in O(n log n) time."
+hint: "Merging needs no random access, so merge sort fits a list: find the middle with fast and slow pointers, cut, sort both halves and merge."

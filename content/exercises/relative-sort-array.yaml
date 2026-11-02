@@ -1,0 +1,10 @@
+slug: relative-sort-array
+type: external-problem
+title: "Relative Sort Array"
+leetcodeId: 1122
+url: https://leetcode.com/problems/relative-sort-array/
+difficulty: easy
+lessons: [sorting]
+ladderOrder: 1
+recognitionPrompt: "Reorder one array to follow the value order given by a second array, with any values it doesn't mention at the end in ascending order."
+hint: "The values are small, so count each one. Then write them out in the second array's order, followed by the rest in value order."

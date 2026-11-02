@@ -50,7 +50,7 @@ flashcards:
     back: "Sending keys chosen to collide, so each operation degrades to O(n). Python salts str and bytes hashes per process; int hashes are not salted."
   - id: balanced-tree-order
     front: "What does a balanced search tree buy over a hash table?"
-    back: "Guaranteed O(log n) operations plus order: in-order iteration in O(n) and range queries in O(log n + k) for k results. A hash table must sort for either."
+    back: "Guaranteed O(log n) operations plus order: in-order iteration in O(n) and range queries in O(log n + k) for k results. A hash table must scan everything for a range and sort for order."
   - id: heap-in-array
     front: "Binary heap index arithmetic (root at 0)"
     back: "Children of i at 2i + 1 and 2i + 2; parent at (i − 1) // 2. The min sits at index 0; push and pop cost O(log n); finding any other value is O(n)."

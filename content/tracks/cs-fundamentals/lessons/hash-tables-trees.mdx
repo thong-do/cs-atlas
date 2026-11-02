@@ -34,11 +34,11 @@ Deleting from open addressing has a catch. Emptying the slot would cut a probe c
 
 So tables **resize** before they fill: allocate an array typically twice the size and re-insert every entry, since each key's slot depends on the array size. Java's `HashMap` resizes past α = 0.75; CPython's dict past about two thirds (in 3.12, `sys.getsizeof` jumps at 6, 11, 22 and 43 entries). One resize costs O(n), yet inserts stay **O(1) amortised**, as the Example shows.
 
-**The worst case is O(n).** If many keys land in one bucket, a lookup scans them all. That takes bad luck, a bad hash, or an attacker who sends keys chosen to collide, so n inserts cost O(n²): **hash flooding**. Since 3.3, Python salts `str` and `bytes` hashes with a random per-process seed: run `python3 -c "print(hash('apple'))"` twice and you get two numbers, unless `PYTHONHASHSEED=0` is set. Integers are *not* salted: `hash(5)` is 5.
+**The worst case is O(n).** If many keys land in one bucket, a lookup scans them all. That takes bad luck, a bad hash, or an attacker who sends keys chosen to collide, so n inserts cost O(n²): **hash flooding**. (Java 8+ `HashMap` limits the damage by turning crowded buckets into small balanced trees.) Since 3.3, Python salts `str` and `bytes` hashes with a random per-process seed: run `python3 -c "print(hash('apple'))"` twice and you get two numbers, unless `PYTHONHASHSEED=0` is set. Integers are *not* salted: `hash(5)` is 5.
 
 **Iteration order.** Since Python 3.7, a dict iterating in insertion order is a language guarantee; overwriting a value keeps the key's place, while deleting and re-inserting moves it to the end. Sets promise no order, and with salted string hashes it can differ between runs. Go randomises map iteration order on purpose, and Java's `HashMap` leaves it unspecified.
 
-**Balanced search trees.** A binary search tree keeps smaller keys left and larger keys right, so a search walks one root-to-leaf path. Fed keys in sorted order, a plain BST degenerates into a chain of height n. A **balanced** tree (red-black, AVL) rotates nodes on insert and delete to keep the height O(log n): at 1,000,000 keys a perfect tree has 20 levels and a red-black tree is guaranteed under 40. Besides that guarantee, a tree gives **order**: an in-order walk yields sorted keys in O(n), and "all keys between x and y" costs O(log n + k) for k results. A hash table can do neither without sorting. Databases use the wide cousin, the B-tree ([Indexes & B-trees](/cs-fundamentals/indexes-btrees/)).
+**Balanced search trees.** A binary search tree keeps smaller keys left and larger keys right, so a search walks one root-to-leaf path. Fed keys in sorted order, a plain BST degenerates into a chain of height n. A **balanced** tree (red-black, AVL) rotates nodes on insert and delete to keep the height O(log n): at 1,000,000 keys a perfect tree has 20 levels and a red-black tree is guaranteed under 40. Besides that guarantee, a tree gives **order**: an in-order walk yields sorted keys in O(n), and "all keys between x and y" costs O(log n + k) for k results. A hash table must scan every entry for a range, and sort to get order. Databases use the wide cousin, the B-tree ([Indexes & B-trees](/cs-fundamentals/indexes-btrees/)).
 
 **Heaps as arrays.** A binary heap is a tree with no pointers. Filled level by level, it packs into an array: index i has children at 2i + 1 and 2i + 2 and its parent at (i − 1) // 2. A min-heap only promises each parent ≤ its children, so the minimum sits at index 0, push and pop sift along one path in O(log n), and finding any other value means scanning. Python's `heapq` works on a plain list this way.
 
@@ -84,14 +84,14 @@ In general each term is half the next, so the sum stays below twice the last ter
 
 The average hides a spike: insert number 786,433 alone moves 786,432 entries. If one slow call would break a latency budget, size the table up front, or use one that migrates entries a few at a time.
 
-**How full does it end up?** The final array has 2,097,152 slots, so α = 1,000,000 ÷ 2,097,152 ≈ 0.48. Then 1 − α ≈ 0.523, and from the formulas a stored key takes about ½(1 + 1/0.523) ≈ 1.46 probes and a missing key about ½(1 + 1/0.523²) ≈ 2.33. Cram the same keys into 1,111,112 slots (α = 0.9) and memory drops by about 47%, but a missing-key lookup averages 50.5 probes, about 22 times more. The load-factor threshold sets that trade.
+**How full does it end up?** The final array has 2,097,152 slots, so α = 1,000,000 ÷ 2,097,152 ≈ 0.48. Then 1 − α ≈ 0.523, and from the formulas a stored key takes about ½(1 + 1/0.523) ≈ 1.46 probes and a missing key about ½(1 + 1/0.523²) ≈ 2.33. Cram the same keys into 1,111,112 slots (α = 0.9) and memory drops by about 47%, but a missing-key lookup averages 50.5 probes, about 22 times more. How full you let the table get sets that trade: a higher threshold saves memory on average but lets α climb closer to it before each resize.
 
 ## Pitfalls
 
 - **Mutating a key after storing it.** If the hash depends on a field you change, the entry sits in a bucket its new hash never visits. Fix: hash only immutable fields (a tuple, a frozen dataclass).
 - **Emptying slots on delete in an open-addressing table.** Lookups stop early and stored keys vanish. Fix: tombstones or backward-shift deletion, and count tombstones when deciding to rebuild.
 - **Trusting integer keys from untrusted input.** CPython's int hash is unsalted: for non-negative `k` it is `k` modulo 2⁶¹ − 1, so multiples of 2⁶¹ − 1 all hash to 0. On our Apple M2 with CPython 3.12.2, adding 8,000 of them to a set took 261 ms against 0.12 ms for 8,000 ordinary ints, and going from 4,000 to 8,000 quadrupled the time, the O(n²) signature. Fix: cap request sizes, or key by strings.
-- **Using a hash table when you need order.** "Everything between two dates" means sorting the table each time. Fix: a balanced tree or sorted array.
+- **Using a hash table when you need order.** "Everything between two dates" means scanning the whole table each time, and sorting if you want the results in order. Fix: a balanced tree or sorted array.
 
 ## Tips & tricks
 

@@ -14,7 +14,7 @@ prompt: |
 
   Right after a restart, looking up a token that is **not** in the cache (expired or forged) takes about **0.1 µs**, and a cached token
   about **0.08 µs**. After one day, lookups of absent tokens take about **0.5 µs**. After three days they take about **15 µs**, inserting a
-  new session is about as slow, and lookups of cached tokens have crept up to about **2 µs**. The gateway's CPU use has tripled. A restart
+  new session is about as slow, while lookups of cached tokens are almost unchanged, about **0.09 µs**. The gateway's CPU use has tripled. A restart
   brings back day-zero speed, and the slowdown then builds up again.
 
   Explain why the table slows down although its size never changes. Show the arithmetic, including why absent-token lookups and inserts
@@ -26,9 +26,9 @@ rubric:
   - id: live-load-is-low
     point: "Shows that live load cannot explain it: α ≈ 400,000 ÷ 1,048,576 ≈ 0.38, for which an absent-key lookup expects about ½(1 + 1/0.62²) ≈ 1.8 probes, at any age of the table; the restart restoring speed with the same live count points at accumulated state."
   - id: churn-arithmetic
-    point: "Sizes the churn: 14 erases/s × 86,400 s ≈ 1.2 million a day against about 650,000 slots without a live entry (1,048,576 − 400,000), so within a few days nearly every free slot has held an entry and been tombstoned; and estimates the end state: absent lookups 150 times slower (15 ÷ 0.1) means a few hundred probes, and since a probe stops only at an empty slot, roughly 1 in every few hundred slots is still empty (about 0.3–0.5%, a few thousand slots)."
+    point: "Sizes the churn: 14 erases/s × 86,400 s ≈ 1.2 million a day against about 650,000 slots without a live entry (1,048,576 − 400,000), so within a few days nearly every free slot has held an entry and been tombstoned; and estimates the end state: absent lookups 150 times slower (15 ÷ 0.1) means a few hundred probes, and since a probe stops only at an empty slot, roughly 1 in every few hundred slots is still empty (about 0.2–0.4%, a few thousand slots)."
   - id: why-misses-and-inserts
-    point: "Explains the pattern: a lookup for an absent key must reach an empty slot, so it pays the whole run; an insert must first confirm the key is absent, so it scans as far even if it then reuses a tombstone; a lookup for a cached key stops at that key, partway along, so it slows less; the even hash spread rules out a bad hash or flooding."
+    point: "Explains the pattern: a lookup for an absent key must reach an empty slot, so it pays the whole run; an insert must first confirm the key is absent, so it scans as far even though it then reuses the first tombstone it passed; a lookup for a cached key stops at that key, and because inserts reuse the first tombstone on their path, cached keys sit at or next to their home slot, so hits barely slow; the even hash spread rules out a bad hash or flooding."
   - id: confirm
     point: "Confirms by counting slots by state (live, tombstone, empty) on a running instance, expecting tombstones near 60% and empty slots near zero, by logging probes per lookup, or by reproducing with a steady-size insert-and-erase load test that shows the same drift."
   - id: fixes
@@ -46,7 +46,8 @@ reference: |
   300 is still empty, a miss scans about 300 slots. That is about 0.3% of the table, some 3,000 slots, with tombstones near 60%.
 
   **Pattern.** Absent-token lookups pay the whole run. Inserts must first prove the token is absent, so they scan as far, even when they
-  then reuse a tombstone. Cached tokens stop at their own slot, partway along, so they slow less. An even hash spread rules out a bad
+  then reuse a tombstone. Cached tokens barely slow: each insert reused the first tombstone on its path, which with tombstones in about
+  60% of slots is nearly always its home slot or the next, so a hit stops after one or two probes. An even hash spread rules out a bad
   hash or flooding, and a restart rebuilds the table with no tombstones.
 
   **Confirm.** Walk the table and count live, tombstone and empty slots, expecting about 38%, 60% and well under 1%. Log probes per

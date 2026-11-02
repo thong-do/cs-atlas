@@ -19,7 +19,7 @@ questions:
     answer: 3
     explanation: "With elements packed back to back, the address of element i is the start address plus i times the element size, one calculation whatever i is. A singly linked list stores only each node's successor, so reaching node i means following i pointers, O(i)."
   - module: foundations
-    prompt: "A service stores login events keyed by timestamp. New events keep arriving, and it must list every login between two timestamps in time that grows with log n plus the number of results. Which structure fits?"
+    prompt: "A service stores login events keyed by timestamp. Events from offline devices often arrive minutes late and out of order, and it must list every login between two timestamps in time that grows with log n plus the number of results. Which structure fits?"
     choices:
       - "A hash map, since its O(1) lookups reach each timestamp in the range directly"
       - "A binary min-heap, since the earliest timestamp always sits at its root"
@@ -111,9 +111,9 @@ questions:
   - module: machine-math
     prompt: "Why does a modern CPU core guess which way a conditional branch will go, instead of waiting until the comparison has been computed?"
     choices:
-      - "Its pipeline fetches the following instructions before the comparison finishes, so waiting would leave stages idle; a wrong guess costs a refill"
+      - "Its pipeline fetches the following instructions before the comparison finishes, so waiting would leave stages idle"
       - "Comparisons are carried out by the operating system, which takes microseconds, so guessing saves a system call on every branch"
-      - "A confident guess lets the core skip the comparison entirely, so the branch costs nothing at all"
-      - "Branches are rare in compiled code, so the core guesses only to save power, and speed is unaffected"
+      - "A confident guess lets the core skip the comparison entirely, so a well-predicted branch costs nothing at all to run"
+      - "Branches are rare in compiled code, so the core guesses only to save power, and the speed of the program is unaffected"
     answer: 0
     explanation: "A pipelined core starts later instructions every cycle, long before an earlier comparison has a result, so stalling at each branch would waste most of its capacity. It predicts from the branch's history, still checks the comparison, and on a wrong guess discards the speculative work, typically 10 to 20 cycles on current cores."

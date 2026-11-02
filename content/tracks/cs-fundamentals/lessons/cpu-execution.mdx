@@ -15,7 +15,7 @@ A laundromat with one washer, one dryer and one folding table does not wait for 
 
 - **Compiled** (C, C++, Rust, Go): a compiler translates ahead of time. Clang turns `return a + b * c;` into one ARM64 instruction, `madd x0, x2, x1, x0` (multiply and add), or into `imul` plus `lea` on x86-64.
 - **Interpreted** (CPython): source is compiled to **bytecode**, simple instructions for a virtual machine. CPython 3.12's `dis` shows `if x >= 128:` as `LOAD_FAST`, `LOAD_CONST`, `COMPARE_OP`, `POP_JUMP_IF_TRUE`. An interpreter loop, itself machine code, reads each bytecode and runs dozens of machine instructions to carry it out. CPython 3.13 added an experimental JIT, off by default.
-- **Bytecode plus JIT** (Java, C#, JavaScript in V8): the runtime starts by interpreting, counts which methods run hot, and compiles those to machine code while the program runs, using the types it has actually seen. Early requests are slower until this **warm-up** finishes.
+- **Bytecode plus JIT** (Java, C#, JavaScript in V8): the runtime starts with a quick, unoptimised version (HotSpot and V8 interpret; .NET compiles each method fast on its first call), counts which methods run hot, and compiles those to optimised machine code while the program runs, using the types it has actually seen. Early requests are slower until this **warm-up** finishes.
 
 **Instructions and registers.** One instruction does one small thing: load a value from memory, add two values, compare them, jump elsewhere, store a result. Instructions work on **registers**, a few dozen named slots inside the core: 16 general-purpose ones on x86-64, 31 on ARM64. A special register, the **program counter**, holds the address of the next instruction.
 
@@ -31,7 +31,7 @@ where IPC is instructions per cycle. A 3 GHz core at an IPC of 4 beats a 4 GHz c
 
 **Branch prediction.** An `if` compiles to a conditional jump. The pipeline must fetch the next instructions long before the comparison finishes, so the core *guesses* the outcome from the branch's history. A correct guess costs nothing extra. A wrong one throws away the work done on the wrong path and refills the pipeline: typically 10 to 20 cycles on current desktop and phone cores. Predictors learn biased branches and short repeating patterns; a branch decided by random 50/50 data defeats them about half the time. Compilers can also remove the branch, computing both outcomes and selecting one with an instruction such as `csel` (ARM64) or `cmov` (x86-64), so there is nothing to mispredict.
 
-**SIMD.** One instruction can work on several values at once: a 128-bit NEON register on ARM64 holds 4 floats, a 256-bit AVX2 register on x86-64 holds 8. Compilers **auto-vectorise** simple loops, and NumPy's compiled loops use SIMD where they can. The float sum above, built with `-ffast-math` so the compiler was allowed to reorder additions, became vector code and took 0.053 ns per addition against 0.85 ns, 16 times faster.
+**SIMD.** One instruction can work on several values at once: a 128-bit NEON register on ARM64 holds 4 floats, a 256-bit AVX/AVX2 register on x86-64 holds 8. Compilers **auto-vectorise** simple loops, and NumPy's compiled loops use SIMD where they can. The float sum above, built with `-ffast-math` so the compiler was allowed to reorder additions, became vector code and took 0.053 ns per addition against 0.85 ns, 16 times faster: 4 lanes per instruction, times the four independent running sums the compiler also created.
 
 **Cores and hardware threads.** A **core** has its own pipelines, execution units and small caches. **Simultaneous multithreading** (SMT; Intel calls it Hyper-Threading) lets one core hold two instruction streams and feed both into the same execution units, filling slots one stream leaves idle while it waits. The operating system shows each stream as a CPU, so a "16-CPU" machine may have 8 cores. Two threads on one core usually add much less than a second core would; how much depends on the workload, and it can be nothing. Our M2 has 8 cores (4 performance, 4 efficiency) and no SMT. Loads that miss the caches are another story, told in [The memory hierarchy](/cs-fundamentals/memory-hierarchy/).
 
@@ -77,7 +77,7 @@ As written, clang vectorised the loop: it compares 16 elements per iteration, ma
 With a real branch, sorted data gives a predictor a long run of "skip" followed by a long run of "add". Random values cross 128 unpredictably, so about half the guesses are wrong:
 
 - extra time: 49.6 − 5.0 = 44.6 ms, or 44.6 ms ÷ 16,777,216 ≈ 2.66 ns per element
-- mispredicts: about 16,777,216 ÷ 2 ≈ 8.4 million
+- mispredicts: about 16,777,216 ÷ 2 ≈ 8.4 million, assuming half the guesses miss (macOS gave us no branch-miss counter to check)
 - cost of each: 44.6 ms ÷ 8.4 million ≈ 5.3 ns; at the 3.46 GHz we measured with a chain of dependent adds, about 18 cycles
 
 That lands in the typical 10 to 20 cycle range. The same filter in CPython 3.12, over 2,000,000 values, took 40 ms unsorted and 25 ms sorted on this machine: a real effect too, but each element costs 12 to 20 ns of interpreter work against 0.07 ns for the vectorised C.

@@ -25,14 +25,14 @@ questions:
     answer: 1
     explanation: "A JIT runtime starts by interpreting and spends compile time only on code that proves hot, so early requests run slower bytecode until the compiled versions take over. Branch predictors adapt within microseconds, operating systems do not throttle new processes this way, and javac runs before deployment, not at run time."
   - id: simd-lanes
-    prompt: "A C loop adds two arrays of 1,000 `float` values element by element. With 256-bit AVX2 registers, about how many vector add instructions does the vectorised loop need, and how fast should it be compared with the scalar loop?"
+    prompt: "A C loop adds two arrays of 1,000 `float` values element by element. With 256-bit AVX/AVX2 registers, about how many vector add instructions does the vectorised loop need, and how fast should it be compared with the scalar loop?"
     choices: ["About 250, because a 256-bit register holds 4 floats, so the loop should be about 4 times faster", "1,000, because SIMD makes each addition faster rather than fewer, so the speed-up comes from a shorter cycle", "About 125, because a register holds 8 floats, so the loop should be exactly 8 times faster in every case", "About 125, because a register holds 8 floats, though loading and storing the data often keeps the gain below 8 times"]
     answer: 3
     explanation: "A float is 32 bits, so a 256-bit register holds 8 and 1,000 ÷ 8 = 125 vector adds. The adds are no longer the only cost: each step still loads two vectors and stores one, and for arrays that do not fit in cache memory bandwidth can set the pace, so the measured gain is often below 8 times. 4 lanes would be doubles, and SIMD reduces the number of instructions, not the length of a cycle."
 flashcards:
   - id: three-ways-to-run
     front: "Compiled vs interpreted vs JIT"
-    back: "Compiled: machine code made ahead of time. Interpreted: a loop runs bytecode one instruction at a time. JIT: starts interpreting, then compiles hot code to machine code at run time."
+    back: "Compiled: machine code made ahead of time. Interpreted: a loop runs bytecode one instruction at a time. JIT: starts interpreted or quickly compiled, then optimises hot code at run time."
   - id: registers
     front: "What are registers?"
     back: "A few dozen named storage slots inside a core (16 general-purpose on x86-64, 31 on ARM64). Instructions work on them; loads and stores move data between them and memory."
@@ -50,7 +50,7 @@ flashcards:
     back: "The core guesses a branch's outcome to keep the pipeline full. A wrong guess discards the speculative work and refills it, typically 10 to 20 cycles on current cores."
   - id: simd
     front: "What is SIMD?"
-    back: "One instruction applied to several values at once: 4 floats in a 128-bit NEON register, 8 in a 256-bit AVX2 register. Compilers auto-vectorise simple loops."
+    back: "One instruction applied to several values at once: 4 floats in a 128-bit NEON register, 8 in a 256-bit AVX/AVX2 register. Compilers auto-vectorise simple loops."
   - id: cores-vs-smt
     front: "Cores vs hardware threads (SMT)"
     back: "A core has its own pipelines and execution units. SMT runs two instruction streams on one core, sharing those units, so the second thread usually adds much less than another core."

@@ -1,0 +1,62 @@
+slug: diagnose-workers-stop-scaling-at-eight
+type: design-prompt
+kind: diagnose
+title: "Diagnose: sixteen workers, barely faster than eight"
+lessons: [cpu-execution]
+ladderOrder: 2
+prompt: |
+  A genomics batch job aligns DNA reads against a reference on a cloud VM sold as **16 vCPUs** (x86-64, Linux). Each worker is a
+  **separate process** running an alignment library whose inner loops are vectorised with **AVX2**. Workers share no memory and write
+  to separate files, and all input is already in RAM. Nothing else runs on the VM.
+
+  Throughput, in batches of reads per second, as workers are added:
+
+  | Workers | 1 | 4 | 8 | 12 | 16 |
+  |---|---|---|---|---|---|
+  | Batches/s | 100 | 396 | 784 | 840 | 900 |
+
+  At 16 workers, `top` shows about **1,600%** CPU, I/O wait is **0%**, the container's `cpu.stat` shows `nr_throttled 0`, and `perf`
+  shows no lock waits and almost no system calls. A colleague wants to move to a **32-vCPU** VM of the same family and run 32 workers,
+  expecting about **3,200 batches/s** (32 × 100).
+
+  Explain why throughput flattens after 8 workers although every vCPU reads busy. Show the arithmetic. Say how you would confirm the
+  cause, whether the colleague's estimate holds, and what you would do, with the trade-offs.
+hint: "Ask what a vCPU is on this kind of VM, and what two workers have to share when the operating system runs them on the same piece of hardware."
+rubric:
+  - id: cause
+    point: "Identifies that the 16 vCPUs are 8 physical cores with 2 hardware threads each (SMT, Hyper-Threading); the first 8 workers usually land on separate cores, and workers 9 to 16 share a core with one of them, competing for the same execution units, including the vector units the AVX2 loops already keep busy."
+  - id: arithmetic
+    point: "Shows the numbers: up to 8 workers scaling is near linear (784 ÷ 8 = 98 batches/s per worker against 100 alone); the second thread on each core adds 900 ÷ 784 ≈ 1.15, about 15%, which also fits 12 workers (4 cores alone and 4 shared: 4 × 98 + 4 × 113 ≈ 840); per worker at 16 that is 900 ÷ 16 ≈ 56 batches/s, so each batch takes about 18 ms instead of 10 ms."
+  - id: busy-is-not-throughput
+    point: "Explains why 1,600% CPU misleads: the OS counts a hardware thread as busy whenever it has an instruction stream to run, even while that stream waits for execution units its sibling is using."
+  - id: rules-out
+    point: "Uses the given facts to rule out the usual suspects: no quota throttling (`nr_throttled 0`), no locks, false sharing or system calls (separate processes, perf), no I/O wait (input in RAM); names lower turbo clocks with more busy cores or memory bandwidth as possible smaller contributors to check, not the main cause."
+  - id: confirm
+    point: "Confirms with `lscpu` (Thread(s) per core: 2, Core(s): 8) or `/sys/devices/system/cpu/cpu0/topology/thread_siblings_list`, and with a pinning test: two workers pinned to sibling threads of one core against two workers on different cores; per-thread IPC from `perf stat` should drop when siblings run together."
+  - id: estimate-and-options
+    point: "Corrects the estimate: a 32-vCPU VM of the same family is likely 16 cores, so 32 workers should give about 16 × 98 × 1.15 ≈ 1,800 batches/s, not 3,200 (and about 1,570 from 16 workers); then gives options with trade-offs: run about 8 workers here (87% of the throughput, 10 ms per batch, spare threads for other work), keep 16 (15% more throughput for nothing extra), or choose instance types priced per physical core, comparing cost per batch."
+reference: |
+  **Cause.** On many x86 cloud VMs a vCPU is one hardware thread, not a core. This VM has 8 cores with 2 threads each (SMT, Intel's
+  Hyper-Threading). Linux usually places the first 8 busy workers on separate cores, so they scale almost perfectly. Workers 9 to 16
+  share a core with one of the first 8, and two threads on a core share its execution units. Vectorised AVX2 loops already keep those
+  units busy, so the second thread finds few idle slots to fill.
+
+  **Arithmetic.** 784 ÷ 8 = 98 batches/s per worker against 100 alone: near linear. Then 900 ÷ 784 ≈ 1.15, so doubling the threads adds
+  about 15%. That fits 12 workers too: 4 cores run one worker each and 4 run two, 4 × 98 + 4 × 113 ≈ 840. At 16 workers each gets 900 ÷ 16 ≈ 56 batches/s, about 18 ms per batch instead of 10 ms. `top` shows 1,600% because the OS
+  counts a hardware thread as busy whenever it has work, even while it waits for units its sibling holds.
+
+  **Ruled out.** `nr_throttled 0` excludes a CPU quota. Separate processes with no shared writes, no lock waits and few system calls
+  exclude locks and false sharing. 0% I/O wait with input in RAM excludes the disk. Lower turbo clocks with all cores busy, or memory
+  bandwidth, may shave a little; check them, but they do not explain the knee at exactly 8.
+
+  **Confirm.** `lscpu` should show `Thread(s) per core: 2` and `Core(s) per socket: 8` (or see `thread_siblings_list`). Pin two workers
+  to sibling threads of one core, then to two different cores: the siblings should give about 1.15 × 100 batches/s together, the
+  separate cores about 200. `perf stat` shows lower IPC per thread when siblings share a core.
+
+  **The 32-vCPU estimate.** Same family means about 16 cores with 2 threads each. 32 workers should give roughly
+  16 × 98 × 1.15 ≈ 1,800 batches/s, not 3,200; 16 workers, one per core, about 16 × 98 ≈ 1,570.
+
+  **Options.**
+  - **Run about 8 workers:** 784 of 900 batches/s (87%), 10 ms per batch, and spare threads for other work.
+  - **Keep 16:** the extra 15% costs nothing on this VM.
+  - **Buy cores, not threads:** compare cost per batch across instance types, including ones where a vCPU is a full core.

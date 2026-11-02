@@ -1,0 +1,61 @@
+slug: diagnose-cache-slows-at-steady-size
+type: design-prompt
+kind: diagnose
+title: "Diagnose: the token cache that slows at a steady size"
+lessons: [hash-tables-trees]
+ladderOrder: 2
+prompt: |
+  An auth gateway written in **C++** caches session tokens in a hand-written **open-addressing hash table with linear probing**:
+  **2²⁰ = 1,048,576 slots** of 16 bytes each. A session expires **8 hours** after login and is then erased from the table. The table
+  doubles when its **live entries pass 75%** of the slots, which has never happened in production.
+
+  Live entries hold steady at **395,000–410,000**. About **14 sessions start and 14 expire every second**, all day. Memory use is flat,
+  and a test of the hash function on a sample of today's tokens shows them spread evenly across the slots.
+
+  Right after a restart, looking up a token that is **not** in the cache (expired or forged) takes about **0.1 µs**, and a cached token
+  about **0.08 µs**. After one day, lookups of absent tokens take about **0.5 µs**. After three days they take about **15 µs**, inserting a
+  new session is about as slow, and lookups of cached tokens have crept up to about **2 µs**. The gateway's CPU use has tripled. A restart
+  brings back day-zero speed, and the slowdown then builds up again.
+
+  Explain why the table slows down although its size never changes. Show the arithmetic, including why absent-token lookups and inserts
+  suffer most. Say how you would confirm the cause, and give fixes with their trade-offs.
+hint: "Ask what stops a probe for a key that isn't there, what an erase leaves behind in a linear-probing table, and whether anything ever turns those slots back."
+rubric:
+  - id: cause
+    point: "Explains that each erase leaves a tombstone rather than an empty slot (so later keys stay reachable), that the resize rule counts only live entries so nothing ever clears the tombstones, and that the slots not holding live entries therefore turn, one by one, into tombstones until almost no empty slots remain."
+  - id: live-load-is-low
+    point: "Shows that live load cannot explain it: α ≈ 400,000 ÷ 1,048,576 ≈ 0.38, for which an absent-key lookup expects about ½(1 + 1/0.62²) ≈ 1.8 probes, at any age of the table; the restart restoring speed with the same live count points at accumulated state."
+  - id: churn-arithmetic
+    point: "Sizes the churn: 14 erases/s × 86,400 s ≈ 1.2 million a day against about 650,000 slots without a live entry (1,048,576 − 400,000), so within a few days nearly every free slot has held an entry and been tombstoned; and estimates the end state: absent lookups 150 times slower (15 ÷ 0.1) means a few hundred probes, and since a probe stops only at an empty slot, roughly 1 in every few hundred slots is still empty (about 0.3–0.5%, a few thousand slots)."
+  - id: why-misses-and-inserts
+    point: "Explains the pattern: a lookup for an absent key must reach an empty slot, so it pays the whole run; an insert must first confirm the key is absent, so it scans as far even if it then reuses a tombstone; a lookup for a cached key stops at that key, partway along, so it slows less; the even hash spread rules out a bad hash or flooding."
+  - id: confirm
+    point: "Confirms by counting slots by state (live, tombstone, empty) on a running instance, expecting tombstones near 60% and empty slots near zero, by logging probes per lookup, or by reproducing with a steady-size insert-and-erase load test that shows the same drift."
+  - id: fixes
+    point: "Gives fixes with trade-offs: count tombstones in the rebuild rule and rehash in place when live plus tombstones pass the threshold (an O(n) pause now and then, amortised); backward-shift deletion for linear probing, which moves later entries back so no tombstones exist (more work per erase, trickier code); a scheduled rebuild (simple, but a pause and drift between rebuilds); or a library table that already handles deletion."
+reference: |
+  **Cause.** An erase in a linear-probing table cannot simply empty its slot: a key stored further along the same run would become
+  unreachable, because lookups stop at the first empty slot. So it leaves a tombstone. Tombstones never turn back into empty slots here,
+  because the only rebuild is a resize, and the resize rule counts live entries only, which never pass 38%. With constant churn, every
+  slot that is not live eventually holds an entry, loses it and stays a tombstone, so empty slots almost run out.
+
+  **Arithmetic.** Live load is α ≈ 400,000 ÷ 1,048,576 ≈ 0.38, and an absent-key lookup at that load expects about
+  ½(1 + 1/0.62²) ≈ 1.8 probes, so size alone predicts day-zero speed forever. Churn: 14 × 86,400 ≈ 1.2 million erases a day, against
+  about 650,000 slots without a live entry, so within a few days almost every free slot has been used and tombstoned. On day three
+  absent lookups are 15 ÷ 0.1 = 150 times slower, a few hundred probes each. A probe run ends only at an empty slot; if roughly 1 slot in
+  300 is still empty, a miss scans about 300 slots. That is about 0.3% of the table, some 3,000 slots, with tombstones near 60%.
+
+  **Pattern.** Absent-token lookups pay the whole run. Inserts must first prove the token is absent, so they scan as far, even when they
+  then reuse a tombstone. Cached tokens stop at their own slot, partway along, so they slow less. An even hash spread rules out a bad
+  hash or flooding, and a restart rebuilds the table with no tombstones.
+
+  **Confirm.** Walk the table and count live, tombstone and empty slots, expecting about 38%, 60% and well under 1%. Log probes per
+  lookup. Reproduce with a load test that inserts and erases at a fixed size and watch the drift.
+
+  **Fixes.**
+  - **Count tombstones in the rebuild rule** and rehash in place (same size) when live + tombstones pass 75%: an O(n) pause now and
+    then, amortised over many erases.
+  - **Backward-shift deletion**, which moves later entries of the run back into the gap so tombstones never exist: more work per erase
+    and subtler code.
+  - **A scheduled rebuild:** simple, but a pause, and speed drifts between rebuilds.
+  - **A well-tested library table** that already rehashes on deletions.

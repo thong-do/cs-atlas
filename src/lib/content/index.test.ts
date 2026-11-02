@@ -182,12 +182,15 @@ describe('content inventory', () => {
     expect(prereqs('trees')).toEqual(['binary-search', 'linked-list', 'recursion'])
     expect(all.find((l) => l.slug === 'recursion')!.background).toEqual(['complexity'])
     expect(all.find((l) => l.slug === 'sorting')!.background).toEqual(['complexity'])
-    expect(all.find((l) => l.slug === 'arrays-hashing')!.background).toEqual(['complexity', 'data-in-memory'])
+    expect(all.find((l) => l.slug === 'arrays-hashing')!.background).toEqual(['complexity', 'data-in-memory', 'hash-tables-trees'])
+    expect(all.find((l) => l.slug === 'trees')!.background).toEqual(['hash-tables-trees'])
+    expect(all.find((l) => l.slug === 'heap')!.background).toEqual(['hash-tables-trees'])
     expect(all.find((l) => l.slug === 'caching')!.background).toEqual(['memory-hierarchy'])
     expect(all.find((l) => l.slug === 'replication-sharding')!.background).toEqual(['transactions-isolation'])
     const CSF: Record<string, { prerequisites: string[]; exercises: string[] }> = {
       complexity: { prerequisites: [], exercises: ['complexity-quiz', 'diagnose-slow-growth'] },
       'data-in-memory': { prerequisites: ['complexity'], exercises: ['data-in-memory-quiz', 'diagnose-shared-mutation'] },
+      'hash-tables-trees': { prerequisites: ['data-in-memory'], exercises: ['hash-tables-trees-quiz', 'diagnose-cache-slows-at-steady-size'] },
       'processes-threads': { prerequisites: ['data-in-memory'], exercises: ['processes-threads-quiz', 'diagnose-thread-pool-starvation'] },
       'cpu-scheduling': { prerequisites: ['processes-threads'], exercises: ['cpu-scheduling-quiz', 'diagnose-cpu-throttling'] },
       'virtual-memory': { prerequisites: ['processes-threads'], exercises: ['virtual-memory-quiz', 'diagnose-prefork-memory'] },
@@ -199,13 +202,14 @@ describe('content inventory', () => {
       'indexes-btrees': { prerequisites: ['data-in-memory'], exercises: ['indexes-btrees-quiz', 'diagnose-slowing-bulk-import'] },
       'transactions-isolation': { prerequisites: ['indexes-btrees'], exercises: ['transactions-isolation-quiz', 'diagnose-double-booking'] },
       'query-planning': { prerequisites: ['indexes-btrees'], exercises: ['query-planning-quiz', 'diagnose-slow-login'] },
-      'memory-hierarchy': { prerequisites: ['data-in-memory'], exercises: ['memory-hierarchy-quiz', 'diagnose-counters-dont-scale'] },
+      'cpu-execution': { prerequisites: ['data-in-memory'], exercises: ['cpu-execution-quiz', 'diagnose-workers-stop-scaling-at-eight'] },
+      'memory-hierarchy': { prerequisites: ['data-in-memory', 'cpu-execution'], exercises: ['memory-hierarchy-quiz', 'diagnose-counters-dont-scale'] },
       'number-representation': { prerequisites: [], exercises: ['number-representation-quiz', 'diagnose-broken-order-links'] },
       'discrete-math-essentials': { prerequisites: [], exercises: ['discrete-math-essentials-quiz', 'diagnose-skewed-coupon-codes'] },
     }
     expect(csf.modules.flatMap((m) => m.lessons)).toEqual(Object.keys(CSF))
     expect(csf.modules.flatMap((m) => m.comingSoon)).toEqual([])
-    expect(Object.keys(CSF)).toHaveLength(16)
+    expect(Object.keys(CSF)).toHaveLength(18)
     expect(lessons.find((l) => l.slug === 'tcp-ip-stack')!.prerequisites).toEqual([])
     for (const [slug, want] of Object.entries(CSF)) {
       expect(lessons.find((l) => l.slug === slug), slug).toMatchObject({ track: 'cs-fundamentals', prerequisites: want.prerequisites })
@@ -306,7 +310,7 @@ describe('placement quizzes', () => {
   }
   it('ships the planned question counts per module', () => {
     expect([...placementTracks()].sort()).toEqual(['algorithms', 'cs-fundamentals', 'system-design'])
-    expect(counts('cs-fundamentals')).toEqual({ foundations: 2, 'operating-systems': 2, networking: 2, databases: 3, 'machine-math': 3 })
+    expect(counts('cs-fundamentals')).toEqual({ foundations: 3, 'operating-systems': 2, networking: 2, databases: 3, 'machine-math': 3 })
     expect(counts('algorithms')).toEqual({ foundations: 3, 'trees-heaps': 2, 'search-greedy': 2, 'graphs-dp': 3, 'math-bits': 2 })
     expect(counts('system-design')).toEqual({ foundations: 3, scaling: 3, advanced: 3 })
   })

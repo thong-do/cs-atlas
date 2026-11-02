@@ -1,0 +1,56 @@
+slug: hash-tables-trees-quiz
+type: quiz
+title: "Hash tables & trees under the hood — quiz"
+lessons: [hash-tables-trees]
+ladderOrder: 1
+questions:
+  - id: mutated-key
+    prompt: "A Python class `Cart` defines `__eq__` and `__hash__` from `tuple(self.items)`, where `items` is a list. A cart is added to a set `seen`, and then one more item is appended to its `items`. Now `cart in seen` returns False, though that very object is in the set. Why?"
+    choices: ["The set compares elements by memory address, and the object moved to a new address when its list grew", "The append changed the cart's hash, so the lookup searches where the new hash points, not where the entry was stored", "The set stored a copy of the cart when it was added, and that copy no longer equals the cart after the append", "The process's hash seed was refreshed after the insert, so every element stored in the set now sits in the wrong bucket"]
+    answer: 1
+    explanation: "A lookup goes where the key's current hash leads; the entry sits where its hash at insert time put it, so the two rarely meet. Python objects do not move when a list inside them grows, sets store references rather than copies, and the hash seed is fixed for the life of the process."
+  - id: fixed-step-growth
+    prompt: "A hand-written hash table starts with 1,000 slots. Whenever it reaches α = 0.75 it adds 1,000 more slots and re-inserts every entry. Loading 300,000 keys takes 2 seconds. About how long should 3,000,000 keys take, and why?"
+    choices: ["About 20 s: each key is inserted once and resizes are O(1) amortised, as they are with any growth policy", "About 30 s: the table grows steadily with n, so total resize work is about n log n, a bit more than linear", "About 20 s: a resize copies only the 1,000 new slots, so the cost of growing is the same for every resize", "About 200 s: a resize comes every 750 inserts and moves every entry so far, so total moves grow with n²"]
+    answer: 3
+    explanation: "Adding a fixed 1,000 slots at α = 0.75 means a resize every 750 inserts, each moving all entries present: about n² ÷ 1,500 moves, 6 × 10⁷ for 300,000 keys and 6 × 10⁹ for 3,000,000, so ten times the keys cost about a hundred times the time. Only growth by a constant factor, such as doubling, keeps total moves below a fixed multiple of n."
+  - id: heap-sift-up
+    prompt: "A scheduler keeps 40 jobs in a binary min-heap stored in a Python list, with the root at index 0. The job at index 25 becomes more urgent, so its key decreases and it must sift up. At most, which indices does it compare with, in order?"
+    choices: ["12, 5, 2 and 0, the chain of parents found by (i − 1) // 2", "12, 6, 3, 1 and 0, the chain of parents found by i // 2", "51 and 52, its two children, then their children in turn", "Every index from 24 down to 0, since a heap is only partly sorted"]
+    answer: 0
+    explanation: "With the root at index 0, the parent of i is (i − 1) // 2: 25 → 12 → 5 → 2 → 0, at most four comparisons, about log₂ 40. The i // 2 rule belongs to heaps stored from index 1. Comparing with children is sifting down, used when a key grows, and this heap has no index above 39. Scanning every index is the cost of finding an arbitrary value, not of sifting."
+  - id: miss-heavy-lookups
+    prompt: "A mail filter checks each sender against a linear-probing table of 9,000,000 known spam domains, and 98% of lookups are for domains not in the table. The table has 11,250,000 slots, and a teammate proposes 15,000,000. Assuming a good hash, roughly how does the average number of probes per lookup change?"
+    choices: ["From about 3 to about 1.75: a stored domain is found within a few slots, and the larger table shortens that walk", "It falls by about a quarter, in step with the load factor going from 0.8 to 0.6", "From about 13 to about 3.6: most lookups are misses, and a miss stops only at an empty slot", "Barely: hash lookups take O(1) probes at any load factor below 1, so the extra slots only cost memory"]
+    answer: 2
+    explanation: "α falls from 9,000,000 ÷ 11,250,000 = 0.8 to 0.6. A miss costs about ½(1 + 1/(1 − α)²): 13 at 0.8 and about 3.6 at 0.6. Weighting 98% misses and 2% hits gives about 12.8 before and 3.6 after, roughly 3.5 times fewer probes. The 3 and 1.75 figures are for stored keys only, and probe counts are not proportional to α."
+  - id: flaky-order-test
+    prompt: "A Python test builds `tags = {\"red\", \"green\", \"blue\"}` and asserts `list(tags) == [\"red\", \"green\", \"blue\"]`. It passes on some runs and fails on others, on the same machine and Python version, with no code change. What explains it?"
+    choices: ["Set literals keep insertion order only in Python 3.7 and later, so some runs must be picking up an older interpreter", "A set's order follows its elements' hashes, and string hashes are salted with a new random seed in every process", "The garbage collector compacts the set between runs, which moves its strings to different addresses and so reorders them", "Sets are sorted alphabetically when they are created, but the test runner's parallel threads reorder them afterwards"]
+    answer: 1
+    explanation: "A set places each string by its hash, and since Python 3.3 `str` hashes use a random per-process seed, so the iteration order can differ from one run to the next; `PYTHONHASHSEED=0` would make it repeatable. The 3.7 ordering guarantee covers dicts, not sets; CPython does not move objects, and sets are never sorted."
+flashcards:
+  - id: hash-function-rules
+    front: "What must a hash function do?"
+    back: "Give equal keys equal hashes (at least within one run), be cheap to compute, and spread keys evenly over buckets. It need not, and cannot, be unique."
+  - id: chaining-vs-probing
+    front: "Chaining vs open addressing"
+    back: "Chaining keeps a small list per bucket for colliding keys. Open addressing stores entries in the array itself and probes onward (linear probing: next slot) until it finds the key or an empty slot."
+  - id: tombstone
+    front: "What is a tombstone in an open-addressing table?"
+    back: "A marker left when a key is deleted, so lookups keep probing past it instead of stopping. Inserts may reuse it, but tombstones still lengthen probe chains."
+  - id: load-factor-probes
+    front: "Load factor and linear-probing cost"
+    back: "α = entries ÷ slots. Expected probes: about ½(1 + 1/(1 − α)) to find a key and ½(1 + 1/(1 − α)²) to report a miss, so 2.5 and 8.5 at α = 0.75."
+  - id: amortised-resize
+    front: "Why are hash-table inserts O(1) amortised despite O(n) resizes?"
+    back: "Doubling means each resize moves twice as many entries as the last, so the total moved stays below 2n. One insert can still be slow when it triggers a resize."
+  - id: hash-flooding
+    front: "Hash flooding"
+    back: "Sending keys chosen to collide, so each operation degrades to O(n). Python salts str and bytes hashes per process; int hashes are not salted."
+  - id: balanced-tree-order
+    front: "What does a balanced search tree buy over a hash table?"
+    back: "Guaranteed O(log n) operations plus order: in-order iteration in O(n) and range queries in O(log n + k) for k results. A hash table must sort for either."
+  - id: heap-in-array
+    front: "Binary heap index arithmetic (root at 0)"
+    back: "Children of i at 2i + 1 and 2i + 2; parent at (i − 1) // 2. The min sits at index 0; push and pop cost O(log n); finding any other value is O(n)."

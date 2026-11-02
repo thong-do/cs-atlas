@@ -1,0 +1,10 @@
+slug: sort-an-array
+type: external-problem
+title: "Sort an Array"
+leetcodeId: 912
+url: https://leetcode.com/problems/sort-an-array/
+difficulty: medium
+lessons: [sorting]
+ladderOrder: 2
+recognitionPrompt: "Sort an array of integers in O(n log n) time without calling a built-in sort."
+hint: "Don't copy the lesson's code. Write quicksort with the three-way partition the lesson only describes (smaller, equal, larger), then test it on an empty array and on 50,000 copies of one value."

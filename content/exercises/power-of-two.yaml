@@ -1,0 +1,10 @@
+slug: power-of-two
+type: external-problem
+title: "Power of Two"
+leetcodeId: 231
+url: https://leetcode.com/problems/power-of-two/
+difficulty: easy
+lessons: [recursion]
+ladderOrder: 3
+recognitionPrompt: "Decide whether a given integer equals 2 raised to some whole power."
+hint: "Settle 1, numbers below 1 and odd numbers straight away. For an even number, which smaller number has the same answer?"

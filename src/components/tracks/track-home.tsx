@@ -39,6 +39,11 @@ export function TrackHome({ slug, hasPlacement }: { slug: string; hasPlacement: 
         <h1 className="text-3xl font-bold">{track.title}</h1>
         <p className="text-lg text-muted-foreground">{track.summary}</p>
         <p className="text-sm text-muted-foreground">{trackMastery(track, masteries)}% mastered</p>
+        {slug === 'algorithms' && (
+          <p className="text-sm text-muted-foreground">
+            New to Big-O? Read <Link href="/cs-fundamentals/complexity/" className="underline">Complexity &amp; Big-O</Link> first: every lesson here uses it.
+          </p>
+        )}
         {complete ? (
           <p role="status" className="font-medium">
             Track complete: every lesson is mastered. Keep your reviews going on <Link href="/" className="underline">Today</Link>.

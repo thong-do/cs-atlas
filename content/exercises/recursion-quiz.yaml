@@ -1,0 +1,56 @@
+slug: recursion-quiz
+type: quiz
+title: "Recursion — quiz"
+lessons: [recursion]
+ladderOrder: 0
+questions:
+  - id: depth-not-calls
+    prompt: "With Python's default recursion limit, which one of these calls raises `RecursionError`? Each uses the lesson's template."
+    choices: ["`fib(25)`, which makes 242,785 calls", "`length` on a linked list of 1,500 nodes", "`tree_sum` on a balanced tree of 1,000,000 nodes", "`length` on a linked list of 400 nodes"]
+    answer: 1
+    explanation: "The limit is on depth, not on the number of calls. `length` goes one call deeper per node, so 1,500 nodes pass the limit of about 1,000, and 400 don't. `fib(25)` is never more than about 25 calls deep, and a balanced tree of a million nodes is about 20 levels deep."
+  - id: double-call
+    prompt: "A teammate writes `def g(n): return 1 if n <= 1 else g(n - 1) + g(n - 1)`. How many calls does `g(10)` make in all, counting the first one?"
+    choices: ["10, one for each value from 10 down to 1", "19, since each level below the first adds two calls", "55, the sum 1 + 2 + … + 10", "1,023, since each level doubles"]
+    answer: 3
+    explanation: "Every call above n = 1 makes two calls on the same smaller value, so level d of the tree holds 2^d calls, for d = 0 to 9. That's 1 + 2 + 4 + … + 512 = 1,023. Computing `g(n - 1)` once and doubling it would take 10 calls."
+  - id: tail-call
+    prompt: "To dodge the depth limit, a teammate makes the recursive call the very last thing `length` does: `def length(head, acc=0): return acc if head is None else length(head.next, acc + 1)`. What happens on a 5,000-node list in CPython?"
+    choices: ["It raises `RecursionError`", "It returns 5,000, because a call in last position reuses the current frame", "It returns 0, because `acc` starts again at 0 on every call", "It returns 4,999, because the last node is never counted"]
+    answer: 0
+    explanation: "CPython creates a new frame for every call, wherever the call sits, so this still needs about 5,000 frames, far past the limit. The value passed along is right, which is why a `while` loop carrying `acc` forward works with no depth at all."
+  - id: missing-empty-case
+    prompt: "This returns the largest value in a linked list: `def biggest(head):` with `if head.next is None: return head.val`, then `return max(head.val, biggest(head.next))`. Which one of these inputs makes it fail?"
+    choices: ["The list -2 → -9 → -4", "A single node holding -5", "An empty list, passed as `None`", "The list 3 → 3 → 3"]
+    answer: 2
+    explanation: "Its base case is a one-node list, so nothing checks for `None`, and `None.next` raises AttributeError. `max` handles negative values and ties, and a single node is the base case itself. Decide what an empty list should return, or rule it out explicitly."
+  - id: where-cache-helps
+    prompt: "Which one of these recursive functions would `@cache` speed up by far the most on a large input?"
+    choices: ["`length` on a long linked list, one call per node", "`ways(n) = ways(n - 1) + ways(n - 3)`, which is 1 at 0 and 0 below it", "`tree_sum` on a big balanced tree, one call per node", "A recursive binary search that calls itself on one half"]
+    answer: 1
+    explanation: "Only `ways` asks the same question many times: `ways(n - 1)` and `ways(n - 3)` both lead to `ways(n - 4)`, and the overlap compounds, so plain recursion is exponential. The others never call themselves twice with the same input, so a cache would store answers nobody asks for again."
+flashcards:
+  - id: base-and-step
+    front: "The two parts of a recursive function"
+    back: "A base case answered directly, and a recursive step that calls on a strictly smaller input and builds on the result."
+  - id: call-stack
+    front: "What the call stack holds"
+    back: "One frame per unfinished call, with its local variables. Memory grows with the depth of the recursion, not with the number of calls."
+  - id: recursion-tree
+    front: "Reading cost from a recursion tree"
+    back: "Time is the work across all its nodes. Stack space is its height, since only one root-to-leaf path is active at a time."
+  - id: naive-fib
+    front: "Why is naive Fibonacci exponential?"
+    back: "Each call branches into two, and the same values are recomputed again and again: about 1.6 times more calls per step of n. Memoization computes each value once."
+  - id: trust-the-call
+    front: "Trust the call"
+    back: "Assume the call on the smaller input returns the right answer. Check only the base case and that this level combines the result correctly."
+  - id: depth-limit
+    front: "Python's recursion limit"
+    back: "`sys.getrecursionlimit()` is 1000 by default, and deeper recursion raises RecursionError. CPython doesn't optimise tail calls, so moving the call last doesn't help."
+  - id: loop-or-recursion
+    front: "Loop or recursion?"
+    back: "One call per step: a loop can carry the answer forward in O(1) memory. Branches into different parts, as in trees: recursion, if the depth stays small. Branches that repeat inputs: memoize or loop."
+  - id: slicing-cost
+    front: "Why avoid `f(nums[1:])` in a recursion?"
+    back: "Each slice copies the rest of the list, so a single pass becomes O(n²) time and memory. Pass an index instead."

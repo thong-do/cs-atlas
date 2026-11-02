@@ -1,0 +1,10 @@
+slug: h-index
+type: external-problem
+title: "H-Index"
+leetcodeId: 274
+url: https://leetcode.com/problems/h-index/
+difficulty: medium
+lessons: [sorting]
+ladderOrder: 3
+recognitionPrompt: "From a researcher's citation count per paper, find the largest h such that h of the papers each have at least h citations."
+hint: "Sort the counts from high to low and walk down the list. The answer can't exceed the number of papers, which also makes counting work."

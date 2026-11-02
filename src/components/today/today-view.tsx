@@ -66,6 +66,8 @@ export function TodayView() {
   const pool = recLadder.some((p) => !solved.has(p.slug)) ? recLadder : exercisesInTracks(exercises, ownTracks, trackOf)
   const finishedTracks = recLesson ? [] : tracks.filter((t) => started.has(t.slug))
   const nextUp = pool.filter((p) => !solved.has(p.slug)).slice(0, 3)
+  // Wait for placements to load, so a returning learner never sees the beginner card flash.
+  const startedNothing = placements !== undefined && solved.size === 0 && Object.keys(placements).length === 0
 
   async function rate(slug: string, rating: ReviewRating) {
     try {
@@ -97,6 +99,15 @@ export function TodayView() {
           </p>
           <p className="text-sm text-muted-foreground">
             Keep your reviews going to hold on to it, or <Link href="/tracks/" className="underline">start another track</Link>.
+          </p>
+        </section>
+      )}
+
+      {startedNothing && (
+        <section className="space-y-2 rounded-lg border p-4" aria-labelledby="on-ramp-heading">
+          <h2 id="on-ramp-heading" className="text-lg font-semibold">New to algorithms?</h2>
+          <p className="text-sm text-muted-foreground">
+            Start with <Link href="/cs-fundamentals/complexity/" className="underline">Complexity &amp; Big-O</Link>: it’s the language every lesson here uses.
           </p>
         </section>
       )}

@@ -1,0 +1,56 @@
+slug: sorting-quiz
+type: quiz
+title: "Sorting — quiz"
+lessons: [sorting]
+ladderOrder: 0
+questions:
+  - id: equal-values
+    prompt: "The lesson's `quicksort`, with its random pivot, runs on four inputs of 50,000 items each. Ignoring Python's recursion limit, on which one does it make about n²/2 comparisons?"
+    choices: ["50,000 distinct values in random order", "50,000 distinct values already sorted", "50,000 copies of the value 7", "50,000 distinct values sorted in reverse"]
+    answer: 2
+    explanation: "`partition` sends every item equal to the pivot to the right, so with all values equal each call peels off only the pivot: about 1.25 billion comparisons, and 50,000 levels of recursion, which Python's limit stops first. A random pivot protects sorted and reversed input, since it rarely keeps picking an extreme. A three-way partition fixes the equal case."
+  - id: keep-order
+    prompt: "A library's loans list is already sorted by due date. You need it grouped by branch, with each branch's loans still in due-date order. Which of these does that?"
+    choices: ["`loans.sort(key=lambda l: l.branch)`", "`loans.sort(key=lambda l: l.due)`", "The lesson's `quicksort`, changed to compare branches", "`loans.sort(key=lambda l: l.branch, reverse=True)`, then `loans.reverse()`"]
+    answer: 0
+    explanation: "Python's sort is stable, so loans at the same branch keep their due-date order. The lesson's quicksort isn't stable and can scramble it. A reverse sort also keeps ties in place, so reversing the whole list afterwards leaves each branch's loans in reverse due-date order."
+  - id: vendor-claim
+    prompt: "A vendor says its comparison-based sort orders any 12 distinct items with at most 25 comparisons. There are 12! = 479,001,600 orders, and log₂ of that is about 28.8. What's the right response?"
+    choices: ["Believable: 25 comparisons can tell apart 2²⁵ ≈ 33 million orders", "Believable, since the lower bound is about the average case, not the worst", "Believable if the sort counts values instead of comparing them", "Impossible: some order of 12 items needs at least 29 comparisons"]
+    answer: 3
+    explanation: "25 yes/no answers can tell apart at most 2²⁵ = 33,554,432 orders, far fewer than 479,001,600, so some input forces at least 29 comparisons. Counting sort does escape the bound, but then the sort isn't comparison-based, as claimed."
+  - id: why-quickselect-linear
+    prompt: "Quickselect and quicksort use the same `partition`. Why is quickselect O(n) on average when quicksort is O(n log n)?"
+    choices: ["It partitions once and then reads the answer straight from index k", "It continues into one side only, so the shrinking ranges add up to O(n)", "It sorts only the first k items, which costs O(k log k)", "It keeps a heap of size k instead of recursing"]
+    answer: 1
+    explanation: "Quicksort must sort both sides, so each level of its recursion still touches about n items, over about log n levels. Quickselect drops one side each time. On average the range shrinks by a constant fraction, so n + about 3n/4 + about 9n/16 + … stays under about 4n, so O(n). One partition rarely lands exactly on k."
+  - id: counting-fits
+    prompt: "For which of these inputs does counting sort beat an O(n log n) comparison sort by the widest margin?"
+    choices: ["800 prices in cents, each up to 1,000,000,000", "50,000 surnames of up to 20 letters", "3,000,000 ages, whole numbers from 0 to 120", "10,000 sensor readings stored as floats, such as 0.318274"]
+    answer: 2
+    explanation: "Ages give k = 121 against n = 3,000,000, so counting costs about n + k ≈ 3 million steps against roughly n log₂ n ≈ 64 million comparisons. The prices would need a billion counters for 800 items, and neither surnames nor floats are small whole numbers to count."
+flashcards:
+  - id: merge-sort
+    front: "Merge sort: how, and what it costs"
+    back: "Split in half, sort each half recursively, merge. O(n log n) on every input and O(n) extra memory; stable with `<=` in the merge."
+  - id: partition
+    front: "What does partition do?"
+    back: "Rearranges a range around a pivot: smaller items first, then the pivot in its final place, then the rest. It returns the pivot's index."
+  - id: quicksort-worst
+    front: "Quicksort's worst case"
+    back: "O(n²) when pivots keep landing at an extreme. A random pivot protects sorted input; many equal values need a three-way partition."
+  - id: quickselect
+    front: "Quickselect"
+    back: "Partition, then continue only into the side that holds position k. O(n) expected, O(n²) worst case."
+  - id: stability
+    front: "Stable sort"
+    back: "Equal keys keep their original order, so sorting by a second key keeps the first order within ties. Python's sort is stable."
+  - id: counting-sort
+    front: "When does counting sort win?"
+    back: "Whole numbers in a small range 0 to k − 1: O(n + k) time and O(k) memory. Hopeless when k is huge compared with n."
+  - id: lower-bound
+    front: "The comparison-sort lower bound"
+    back: "n distinct items have n! orders, and each comparison can rule out at most half in the worst case. So log₂(n!) comparisons, which grows like n log₂ n."
+  - id: builtin-sort
+    front: "Python's sort()"
+    back: "Timsort: stable, O(n log n) worst case, about n comparisons on sorted input. `key=` is computed once per item."

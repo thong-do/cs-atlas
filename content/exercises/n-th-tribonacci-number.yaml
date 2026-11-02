@@ -1,0 +1,10 @@
+slug: n-th-tribonacci-number
+type: external-problem
+title: "N-th Tribonacci Number"
+leetcodeId: 1137
+url: https://leetcode.com/problems/n-th-tribonacci-number/
+difficulty: easy
+lessons: [recursion]
+ladderOrder: 1
+recognitionPrompt: "Return the n-th term of a sequence that starts 0, 1, 1 and adds the previous three terms each time."
+hint: "Write the plain recursion and count its calls for n = 25. Then make it remember answers, or loop upwards keeping three values."

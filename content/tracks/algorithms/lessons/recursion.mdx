@@ -4,7 +4,7 @@ title: Recursion
 prerequisites: [linked-list]
 background: [complexity]
 confusedWith: [backtracking, dp-1d]
-triggers: ["the answer for an input is built from the answer for a smaller input", "input is a ListNode or TreeNode", "nested or self-similar structure", "split the input into parts and combine their answers"]
+triggers: ["the answer for an input is built from the answer for a smaller input", "input is a TreeNode or another nested structure, or a short linked list", "nested or self-similar structure", "split the input into parts and combine their answers"]
 complexity: "Time is the work across all calls; stack space is O(depth)"
 level: beginner
 authors: [cs-atlas]
@@ -26,7 +26,7 @@ That's **recursion**: a function that solves a problem by calling itself on a sm
 
 **Why naive Fibonacci is exponential.** Each Fibonacci number is the sum of the two before it, so `fib(n)` calls `fib(n - 1)` and `fib(n - 2)`, and both of those branch again. The number of calls grows by about 1.6 times for each step up in n: `fib(20)` makes 21,891 calls and `fib(30)` makes 2,692,537. Almost all of it is repeated work: inside `fib(30)`, `fib(2)` is computed 514,229 times. Saving each answer the first time and reusing it is **memoization**, where [1-D Dynamic Programming](/algorithms/dp-1d/) begins. ([Complexity & Big-O](/cs-fundamentals/complexity/) compares exponential growth with the rest.)
 
-**Recursion vs loops.** Anything recursive can be written as a loop, with your own stack if needed. When each call makes just one call, as in `length`, a loop can usually carry the partial answer forward instead, as `length_loop` does: the same time, O(1) memory and no depth limit. Recursion earns its place when calls branch, as in trees or splitting an array in half, because a loop would have to manage that stack by hand.
+**Recursion vs loops.** Anything recursive can be written as a loop, with your own stack if needed. When each call makes just one call, as in `length`, a loop can usually carry the partial answer forward instead, as `length_loop` does: the same time, O(1) memory and no depth limit. Recursion earns its place when calls branch into different parts of the input, as in trees or the halves of an array, because a loop would have to manage that stack by hand. If the branches keep asking the same question, as in Fibonacci, memoize or build the answers upwards in a loop instead.
 
 **Stack depth limits.** Python caps the depth. `sys.getrecursionlimit()` returns 1000 by default, and a simple recursive function raises `RecursionError` a little before 1,000 levels, because a few frames are already in use. So recursing once per node of a 10,000-node linked list fails, while a balanced tree of a million nodes is only about 20 levels deep. CPython doesn't turn a call on the last line into a jump, so moving the call there doesn't help. `sys.setrecursionlimit` raises the cap, but set it too high and the interpreter can crash instead of raising an error.
 
@@ -109,7 +109,7 @@ def length_loop(head: ListNode | None) -> int:   # same answer, no stack growth
 
 **Why brute force is slow.** Following every split is correct, but a load of 10¹² tonnes with a 10-tonne limit ends as 137,438,953,472 truckloads. The recursion tree has one leaf per truck, so that's about 275 billion calls.
 
-**The key insight.** Look at the tree one level at a time. Splitting loads of k and k + 1 tonnes only ever gives halves of ⌊k/2⌋ and ⌊k/2⌋ + 1, so each level holds at most two different sizes. Billions of calls ask the same few questions. Remember each answer the first time, with `@cache` as in [1-D DP](/algorithms/dp-1d/), and the 10¹² load needs only 63 distinct computations.
+**The key insight.** Look at the tree one level at a time. Splitting loads of k and k + 1 tonnes only ever gives halves of ⌊k/2⌋ and ⌊k/2⌋ + 1, so each level holds at most two different sizes. Billions of calls ask the same few questions. Unlike merge sort, where each call gets a different slice, a call here depends only on the load's size. Remember each answer the first time, with `@cache` as in [1-D DP](/algorithms/dp-1d/), and the 10¹² load needs only 63 distinct computations.
 
 ```python
 from functools import cache
@@ -146,7 +146,7 @@ Seven trucks leave. The plain recursion makes 13 calls, one for each load in the
 
 ## Pitfalls
 
-- A base case the calls can skip past: `if n == 0` with a step of `n - 2` never stops for odd n. Use `if n <= 0`.
+- A base case the calls can skip past: `if n == 0` with a step of `n - 2` never reaches the base case for odd n, so Python raises RecursionError. Use `if n <= 0`.
 - Forgetting `return` on the recursive line: the answer is computed and dropped, the call returns `None`, and the level above fails on `1 + None`.
 - Slicing on every call: `total(nums[1:])` copies the list each time, which is O(n²) time and memory for a plain sum. Pass an index instead.
 - One call per element on long input: past about 1,000 levels Python raises `RecursionError`. Use a loop.

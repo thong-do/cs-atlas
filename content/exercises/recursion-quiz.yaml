@@ -50,7 +50,7 @@ flashcards:
     back: "`sys.getrecursionlimit()` is 1000 by default, and deeper recursion raises RecursionError. CPython doesn't optimise tail calls, so moving the call last doesn't help."
   - id: loop-or-recursion
     front: "Loop or recursion?"
-    back: "One call per step, as in walking a list: a loop can usually carry the answer forward with O(1) memory. Calls that branch, as in trees: recursion."
+    back: "One call per step: a loop can carry the answer forward in O(1) memory. Branches into different parts, as in trees: recursion, if the depth stays small. Branches that repeat inputs: memoize or loop."
   - id: slicing-cost
     front: "Why avoid `f(nums[1:])` in a recursion?"
     back: "Each slice copies the rest of the list, so a single pass becomes O(n²) time and memory. Pass an index instead."

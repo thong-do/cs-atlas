@@ -7,4 +7,4 @@ difficulty: medium
 lessons: [sorting]
 ladderOrder: 2
 recognitionPrompt: "Sort an array of integers in O(n log n) time without calling a built-in sort."
-hint: "Write merge sort from memory, then test it on an empty array and on one where every value is the same."
+hint: "Don't copy the lesson's code. Write quicksort with the three-way partition the lesson only describes (smaller, equal, larger), then test it on an empty array and on 50,000 copies of one value."

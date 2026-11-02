@@ -19,14 +19,14 @@ questions:
     answer: 0
     explanation: "If build mid fails, the first failure is at mid or earlier, so the answer lies in `[lo, mid]`, which as a half-open range is `hi = mid`. Setting `hi = mid - 1` throws mid away, which is wrong whenever mid is the first failing build, and `hi = mid + 1` can stop the range from shrinking, as when hi = lo + 1."
   - module: foundations
-    prompt: "For an array `a` of n non-negative integers and a non-negative `budget`, this finds the longest stretch whose sum is at most `budget`: `left = total = best = 0`, then for each `right` it adds `a[right]` to `total`, runs `while total > budget: total -= a[left]; left += 1`, and updates `best`. The inner loop can run many times for one `right`. What is the total running time?"
+    prompt: "A recursive quicksort in Python always takes the first item of the range as its pivot. It sorts 5,000 shuffled distinct numbers without trouble, but raises RecursionError on the same numbers already in ascending order. Why?"
     choices:
-      - "O(n²), because the inner loop can run up to n times for each of the n values of right"
-      - "O(n log n), because each run of the inner loop removes about half of the current window"
-      - "O(n) while the values stay small, but O(n²) as soon as one element is larger than the whole budget"
-      - "O(n), because left only moves forward and never passes n, so all inner passes total at most n"
+      - "On sorted input, partitioning swaps every pair of items, and each swap adds a frame to the call stack"
+      - "On sorted input, no item is smaller than the first, so the base case is never reached and the calls never end"
+      - "Python caps a recursion at 1,000 calls in total, and sorting 5,000 items always takes more calls than that"
+      - "On sorted input, every pivot is the smallest item left, so each call peels off one item and the calls nest about 5,000 deep"
     answer: 3
-    explanation: "Each pass of the inner loop moves `left` one step right, and `left` never moves back or past n, so all the inner passes together number at most n. Adding the n steps of `right` gives at most 2n steps, which is O(n)."
+    explanation: "Python's limit is on depth, about 1,000 nested calls, not on the total. With a first-item pivot, sorted input leaves an empty left side and everything else on the right, so each call nests one level deeper and the recursion goes about 5,000 deep. Shuffled input splits unevenly but never that badly, so it stays a few dozen calls deep while still making thousands of calls in all."
   - module: trees-heaps
     prompt: "A binary min-heap holds 1,000 distinct numbers in the usual array layout, with the root at index 0. Without searching, what can you say about where its largest number is?"
     choices:

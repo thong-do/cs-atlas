@@ -7,4 +7,4 @@ difficulty: medium
 lessons: [sorting]
 ladderOrder: 4
 recognitionPrompt: "Arrange a list of non-negative integers so that, written side by side, they form the biggest possible number, returned as a string."
-hint: "Plain numeric order fails. Decide which of two numbers goes first by comparing the two ways of joining them, and watch out for all zeros."
+hint: "Plain numeric order fails on 3 and 30. Find a rule that decides which of two numbers goes first by looking only at those two, apply it with `functools.cmp_to_key`, and watch out for all zeros."

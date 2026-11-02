@@ -1,18 +1,33 @@
 import { expect, test } from '@playwright/test'
 
-/** A backup with exactly one solved exercise and no placements. */
-function backupWithOneSolve(): string {
-  const at = '2026-10-20T09:00:00.000Z'
+const at = '2026-10-20T09:00:00.000Z'
+
+function backup(progress: object[], settings: object = {}): string {
   return JSON.stringify({
     app: 'leethub',
     schemaVersion: 1,
     exportedAt: at,
     data: {
-      progress: [{ slug: 'two-sum', status: 'solved', solveRating: 'alone', firstSolvedAt: at, needsResolve: false, updatedAt: at }],
-      notes: [], cards: [], reviewLogs: [], trainAttempts: [], activity: [],
-      meta: { schemaVersion: 1, settings: { desiredRetention: 0.9, theme: 'system' } },
+      progress, notes: [], cards: [], reviewLogs: [], trainAttempts: [], activity: [],
+      meta: { schemaVersion: 1, settings: { desiredRetention: 0.9, theme: 'system', ...settings } },
     },
   })
+}
+
+/** A backup with exactly one solved exercise and no placements. */
+const backupWithOneSolve = () =>
+  backup([{ slug: 'two-sum', status: 'solved', solveRating: 'alone', firstSolvedAt: at, needsResolve: false, updatedAt: at }])
+
+/** A backup with no progress at all, only a placement that passed Algorithms Foundations. */
+const backupWithPlacementOnly = () =>
+  backup([], { placements: { algorithms: { passedModules: ['foundations'], takenAt: at } } })
+
+async function importBackup(page: import('@playwright/test').Page, json: string) {
+  await page.goto('/settings/')
+  await page.getByLabel('Import backup').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(json) })
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Replace all data' }).click()
+  await expect(page.getByText('Backup restored')).toBeVisible()
 }
 
 test('a fresh guest is pointed to Complexity & Big-O on Today, above Continue', async ({ page }) => {
@@ -28,14 +43,20 @@ test('a fresh guest is pointed to Complexity & Big-O on Today, above Continue', 
 })
 
 test('the Big-O card is gone once one exercise is solved', async ({ page }) => {
-  await page.goto('/settings/')
-  await page.getByLabel('Import backup').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backupWithOneSolve()) })
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Replace all data' }).click()
-  await expect(page.getByText('Backup restored')).toBeVisible()
+  await importBackup(page, backupWithOneSolve())
 
   await page.goto('/')
   await expect(page.getByRole('region', { name: 'Continue' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'New to algorithms?' })).toHaveCount(0)
+})
+
+test('a placement alone, with nothing solved, also hides the Big-O card', async ({ page }) => {
+  await importBackup(page, backupWithPlacementOnly())
+
+  await page.goto('/')
+  // Continue skips the placed-out Foundations, which proves the placement has loaded.
+  await expect(page.getByRole('region', { name: 'Continue' })).toContainText('Trees')
+  await expect(page.getByText('Solved', { exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'New to algorithms?' })).toHaveCount(0)
 })
 

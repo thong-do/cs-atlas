@@ -1,0 +1,114 @@
+---
+slug: resilience
+title: Resilience patterns
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [load-balancing, queues-streams]
+background: [processes-threads]
+summary: "Keep one slow or failing dependency from taking the whole system down, with timeouts, deadlines, careful retries, circuit breakers, load shedding and bulkheads."
+---
+
+## Intuition
+
+You phone a busy help line. You hang up after a few minutes instead of holding all day (a **timeout**). You call back later, waiting longer each time and not on the hour like everyone else (**backoff with jitter**). If the line has been dead all morning, you stop calling for a while (a **circuit breaker**). A swamped help line says "call back tomorrow" rather than keep thousands on hold (**load shedding**).
+
+In a distributed system, **slow is worse than down**. A dependency that refuses at once costs a millisecond. One that hangs holds a thread and a connection in every caller, whose own callers then wait on them. That is how one sick service becomes an outage everywhere.
+
+**Timeouts.** Every network call needs one; Python's `requests` waits forever unless you pass `timeout`. Set it a margin above the dependency's normal p99 or p99.9: below normal latency you fail healthy calls, far above it you hold resources for nothing. Use a shorter connect timeout.
+
+**Deadline propagation.** A user gives up after, say, 2 s. If each hop sets its own timeout, an inner service can keep working after nobody is waiting. Instead the edge sets a **deadline** and every hop passes on what is left minus its own work. A request arriving with too little time left is rejected at once. gRPC sends the remaining deadline with each call (`grpc-timeout`), and its libraries can carry it into outgoing calls.
+
+**Retries.** Retry only what is safe to repeat and can succeed next time: timeouts, dropped connections, 503, and 429 after its `Retry-After`. Don't resend a 400 or 403 unchanged; it will fail the same way. Cap the attempts and space them with **exponential backoff and full jitter**, as in [rate limiting](/system-design/rate-limiting/), so clients that failed together don't retry together.
+
+**Retry amplification.** Retries multiply across layers. If each of L layers makes up to r attempts and the bottom is down, each user request can reach it **r^L** times: 3 attempts at each of 3 layers is 3³ = 27 calls. Partial failure multiplies too: if each bottom call fails independently with probability 0.9, three retrying layers average 9.4 bottom calls per request, one retrying layer 2.7 (exact formula, confirmed by simulation). So retry at **one point in the stack** and let the other layers pass errors up.
+
+**Retry storms and budgets.** In an overload, failures cause retries, retries add load, and the overload can outlast its cause. In a simple simulation (900 requests/s, capacity 1,000/s, halved for 5 s; failed requests cost nothing and retry 1 s later), 3 attempts per request pushed offered load near 2,080/s and failures went on 6 s after capacity returned. A **retry budget** caps retries at a share of normal traffic, commonly 10–20% (Google's SRE book uses 10%), so with 10% the worst case is 1.1× load, not the 3× that three attempts allow. In the same run, offered load then peaked at 990/s and failures stopped when capacity returned. Envoy (`retry_budget`) and gRPC (retry throttling) offer forms of this.
+
+**Circuit breakers.** A fuse for calls to one dependency:
+- **Closed:** calls pass; the breaker counts failures over a rolling window.
+- **Open:** once the failure rate passes a threshold (over a minimum number of calls), calls fail at once without touching the dependency, giving it room to recover. Serve a **fallback**: cached data, a default, a smaller page or a clear error.
+- **Half-open:** after a cool-down, a few trial calls go through. Success closes the breaker; a failure opens it again.
+
+**Load shedding and backpressure.** A server near its limit should reject excess work quickly, with a 503 or 429, rather than queue it: a rejection is cheap, while a request served after the client gave up wastes its capacity. Shed by concurrency or queue wait, batch work before interactive, and drop requests whose deadline has passed. **Backpressure** is the related idea between stages: a bounded queue blocks or rejects the producer instead of growing without limit (see [queues & streams](/system-design/queues-streams/)).
+
+**Bulkheads.** A ship is split into compartments so one leak cannot sink it. Give each dependency its own pool or concurrency limit, so one slow dependency cannot take every worker. Size it with Little's law: calls in flight = call rate × time per call.
+
+**Idempotency makes retries safe.** A retry resends a request that may already have worked. GET, PUT and DELETE are idempotent by HTTP's rules; a POST needs an idempotency key, so a repeat gets the stored result. The [payment system](/system-design/payment-system/) shows the mechanics.
+
+## Visual
+
+```text
+Retry amplification: up to 3 attempts at each of 3 layers, routing down
+
+  app ──► gateway ──► fare service ──► routing service
+   3   ×     3     ×        3       =  27 calls per user request
+
+Circuit breaker
+
+             failure rate over threshold, with enough calls
+  ┌────────┐ ──────────────────────────────────────────► ┌──────┐
+  │ CLOSED │                                             │ OPEN │  fail fast,
+  └────────┘                                             └──────┘  serve fallback
+       ▲                                                  │    ▲
+       │ trial calls succeed              cool-down ends  │    │ a trial call fails
+       │                                                  ▼    │
+       │                                            ┌───────────┐
+       └─────────────────────────────────────────── │ HALF-OPEN │  a few calls go through
+                                                    └───────────┘
+```
+
+## Example
+
+A ride app shows a fare estimate: app → gateway → fare service (4 instances) → routing service. Peak load is **1,200 estimates/s**, 300 per fare instance. Routing normally answers in **100 ms** on average and **150 ms** at p99, and handles about **2,000 calls/s** (illustrative).
+
+**1. The retry storm.** Today the app, the gateway and the fare service each make up to 3 attempts. Routing crashes and restarts. Every estimate now sends 3³ = 27 calls to routing, so 1,200 × 27 = 32,400 calls/s hit a service that handles 2,000. It falls over again as soon as it comes up.
+
+Fix: only the fare service retries, since it knows which routing errors are transient. With a 10% retry budget, routing sees at most 1,200 × 1.1 = 1,320 calls/s, inside its 2,000.
+
+**2. Deadlines.** The app gives up at 2 s. The gateway stamps a deadline 1.9 s out. The fare service spends about 30 ms on its own work, so 1.87 s remain. It calls routing with a 400 ms per-try timeout, about 2.7× its p99, and backoff windows of 50 ms and 100 ms. Worst case: 400 + 50 + 400 + 100 + 400 = 1,350 ms, inside 1.87 s.
+
+**3. Bulkhead.** By Little's law each fare instance normally has 300 × 0.1 = 30 routing calls in flight. If routing hangs until the timeout, that becomes 300 × 0.4 = 120 calls, before any retry. With one shared pool of 100 workers, all 100 end up waiting on routing, and endpoints that need only a local cache queue behind them. Cap routing at 60 concurrent calls per instance, twice the normal 30. Calls beyond the cap fail at once to the fallback, and 40 workers stay free for the rest.
+
+**4. Circuit breaker.** Per fare instance: open when at least half of routing calls fail over a 10 s window, with at least 20 calls. If routing goes fully down, the window still holds the last 10 s of successes, so failures reach half after about 5 s (300 × 5 failures against 300 × 5 successes). A shorter window trips sooner, but also on blips. While open, return a cached estimate for the pickup and drop-off zones, marked "approximate", and let 5 trial calls through after 15 s.
+
+**5. Idempotency.** An estimate is a read, safe to retry. Booking is a POST with an idempotency key, so a retry cannot order two cars.
+
+```python
+import random
+import time
+
+
+def call_routing(req, deadline, breaker, send, fallback, attempts=3, base=0.05):
+    for attempt in range(attempts):
+        left = deadline - time.monotonic()
+        if left <= 0 or not breaker.allow():            # out of time, or breaker open
+            return fallback(req)
+        try:
+            result = send(req, timeout=min(0.4, left))  # never wait past the deadline
+            breaker.record(ok=True)
+            return result
+        except TimeoutError:                            # retry transient errors only
+            breaker.record(ok=False)
+            if attempt + 1 < attempts:                  # windows of 50 ms, then 100 ms
+                wait = random.uniform(0, base * 2 ** attempt)
+                time.sleep(max(0.0, min(wait, deadline - time.monotonic())))
+    return fallback(req)
+```
+
+`breaker` holds the three states above; a retry budget would also guard the retry branch.
+
+## Pitfalls
+
+- **No timeout.** One hung dependency holds every caller's threads. Set one on every call.
+- **An inner timeout longer than the outer one.** The inner work runs on after the caller has given up. Propagate the deadline.
+- **Retrying at every layer.** 3 attempts at 3 layers is up to 27× load on the failing service. Retry at one point, with a budget.
+- **Retrying the wrong things.** A timed-out POST may have worked, so a retry without an idempotency key repeats it. A 400 fails again however often you send it.
+- **Unbounded queues.** Under overload a queue becomes latency, then timeouts and wasted work. Bound it and shed.
+- **A breaker with no fallback plan.** Failing fast still fails. Decide per dependency what the user sees.
+
+## Tips & tricks
+
+- **Hedged requests** cut tail latency for idempotent reads: with no answer by about the p95 time, send a second copy and use the first reply, for roughly 5% more load.
+- **Measure** timeouts, retries, breaker state and pool saturation per dependency, and shed requests.
+- **Test it:** inject latency and errors in staging, and check that breakers open and fallbacks appear.
+- Interview phrasing: "Every call has a timeout under a propagated deadline. One layer retries transient errors with jittered backoff and a 10% budget. Each dependency gets a breaker, a bulkhead and a fallback, and writes carry idempotency keys."

@@ -1,0 +1,56 @@
+slug: resilience-quiz
+type: quiz
+title: "Resilience patterns — quiz"
+lessons: [resilience]
+ladderOrder: 1
+questions:
+  - id: retry-budget
+    prompt: "A service normally receives 5,000 requests/s. Its clients make up to 4 attempts per request, but share a retry budget that allows retries of at most 20% of their normal request rate. The service starts failing every call. At most, about how many calls per second do the clients send it?"
+    choices: ["5,000", "20,000", "25,000", "6,000"]
+    answer: 3
+    explanation: "The budget allows 20% of 5,000 = 1,000 retries/s on top of the 5,000 first attempts, so about 6,000/s. Without it, every request would make all 4 attempts: 20,000/s, four times normal load on a service that is already failing."
+  - id: remaining-budget
+    prompt: "The gateway gives a request a deadline of 800 ms. A service has spent 250 ms on it when it must call the inventory service, whose client is configured with a 1 s timeout. What timeout should this call use?"
+    choices: ["1 s, the timeout the inventory client was configured with", "At most about 550 ms, less a margin to send the reply back", "800 ms, the full deadline the gateway set for the request", "None; the gateway cancels the work when its deadline passes"]
+    answer: 1
+    explanation: "Only 800 − 250 = 550 ms remain, and the reply also needs time, so waiting longer is wasted work for a caller that has gone. The gateway giving up does not stop a downstream call unless the deadline is passed along."
+  - id: half-open
+    prompt: "A circuit breaker on calls to a pricing service opened 30 s ago, and its cool-down is 30 s. A new call arrives. What does a typical breaker do?"
+    choices: ["It lets a few trial calls through, then closes or reopens on their results", "It closes and sends all traffic again, since the cool-down period has now ended", "It stays open until an operator checks the service and resets it by hand", "It replays every call that failed while it was open, to test the service"]
+    answer: 0
+    explanation: "After the cool-down the breaker goes half-open: a small number of trial calls probe the service. Sending all traffic at once could knock a recovering service straight back over."
+  - id: shared-pool
+    prompt: "A service has one shared pool of 120 worker threads. It calls a recommendations API 250 times/s, normally in about 40 ms. The API starts hanging until each call's 2 s timeout. What happens to the service?"
+    choices: ["Only pages that show recommendations slow down, while every other endpoint stays unaffected", "About 10 threads are busy at any moment, so the pool easily absorbs the slowdown", "The calls want about 500 threads, so they take all 120 and every endpoint stalls", "Nothing serious happens, because each timeout releases its thread after 2 s"]
+    answer: 2
+    explanation: "By Little's law, calls in flight = 250/s × 2 s = 500, far above 120, so the pool fills with waiting calls and every endpoint queues behind them. 10 threads is the healthy figure (250 × 0.04). A separate limit per dependency, a bulkhead, prevents this."
+  - id: safe-retry
+    prompt: "Four calls just failed. Which one should the client retry automatically?"
+    choices: ["POST /orders, which timed out and was sent without an idempotency key", "POST /payments with an idempotency key, which returned 400 Bad Request", "GET /reports/9, which returned 403 Forbidden", "PUT /users/7/email with the full new address, which returned 503"]
+    answer: 3
+    explanation: "PUT replaces the value, so a repeat leaves the same state, and 503 is a transient error worth retrying. The timed-out POST may have worked, so a retry could create a second order. A 400 or 403 will fail the same way again."
+flashcards:
+  - id: timeout-setting
+    front: "Choosing a timeout"
+    back: "Set it a margin above the dependency's normal p99 or p99.9. Too low fails healthy calls; too high holds threads and connections for nothing."
+  - id: deadline-propagation
+    front: "Deadline propagation"
+    back: "The edge sets a deadline; each hop passes on the time left minus its own work, and rejects requests that arrive with too little left."
+  - id: full-jitter
+    front: "Exponential backoff with full jitter"
+    back: "Wait a random time between 0 and min(cap, base × 2^attempt) before each retry, so clients that failed together don't retry together."
+  - id: retry-amplification
+    front: "Retry amplification"
+    back: "If each of L layers makes up to r attempts and the bottom fails, it gets r^L calls per request: 3 attempts at 3 layers is 27. Retry at one layer."
+  - id: retry-budget
+    front: "Retry budget"
+    back: "Cap retries at a share of normal requests, commonly 10–20%. With 10%, a failing dependency sees at most about 1.1× normal load instead of 3× or more."
+  - id: circuit-breaker
+    front: "Circuit breaker states"
+    back: "Closed: calls pass, failures counted. Open: fail fast with a fallback. Half-open: after a cool-down, trial calls decide whether to close or reopen."
+  - id: load-shedding
+    front: "Load shedding and backpressure"
+    back: "Near its limit a server rejects excess work quickly (503 or 429) instead of queueing it. Backpressure: a bounded queue blocks or rejects the producer."
+  - id: bulkhead
+    front: "Bulkhead"
+    back: "A separate pool or concurrency limit per dependency, sized by Little's law (rate × time per call), so one slow dependency can't take every worker."

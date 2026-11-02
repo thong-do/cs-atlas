@@ -39,13 +39,7 @@ Leader with two followers (a write to key x)
   client ◄─ "ok" returned after follower 1 confirms
 ```
 
-Sharding by `hash mod N` is easy but fragile: change N and most keys change owner. **Consistent hashing** puts nodes and keys on a ring and gives each key to the first node clockwise.
-
-<Visualizer kind="consistent-hashing" />
-
-The scenario: a ring of positions 0–99 with nodes A at 10, B at 45 and C at 80. Keys land at k1 5, k2 30, k3 50, k4 70, k5 90 and go to A, B, C, C and A (k5 wraps past 99). Then node D joins at 60 and takes over the arc (45, 60] from C. Only k3 (50) moves, C to D: 1 of 5 keys.
-
-With `hash mod N`, going from 3 to 4 servers keeps a key in place only when `h mod 3 == h mod 4`. That holds for 3 of every 12 residues (0, 1, 2), so about 3 in 4 keys move. Consistent hashing moves roughly 1/N of keys on average, here about 1 in 4 once D has joined; one small example can land above or below that. **Virtual nodes** (each server placed at many ring positions) even out arc sizes and spread a departing node's load across many neighbours.
+Sharding by `hash mod N` (N servers) is easy but fragile. Going from 3 to 4 servers keeps a key in place only when `h mod 3 == h mod 4`, which holds for 3 of every 12 residues, so about 3 in 4 keys move. Two fixes: hash into many fixed routing buckets and move whole buckets (the Example below), or use [consistent hashing](/system-design/consistent-hashing/), which moves only about 1/(N + 1) of the keys when a server joins (1 in 4 from 3 to 4 servers).
 
 ## Example
 
@@ -108,6 +102,6 @@ def recent(post_id, salted_posts, n=20):
 - Scale in order: indexes and query tuning, a bigger machine, caching, read replicas, then sharding.
 - Pick the partition key from the **most frequent query**, and check it has many distinct values with even traffic. A hot key beats any hash function.
 - Use range partitioning when range scans matter and writes are not monotonic; use hash for even spread.
-- Resharding: use many fixed logical buckets mapped to servers, or consistent hashing with virtual nodes, and move data in the background.
+- Resharding: use many fixed logical buckets mapped to servers, or [consistent hashing](/system-design/consistent-hashing/) with virtual nodes, and move data in the background.
 - Measure per-shard storage, write rate and p99 latency, plus **replication lag** per follower and alert on it. Compare the busiest shard to the median.
 - Interview phrasing: "I would shard by `post_id`, hashed into fixed buckets, replicated to three nodes across zones. Writes go to the leader, and a user's own recent reads go there too, to get read-your-writes."

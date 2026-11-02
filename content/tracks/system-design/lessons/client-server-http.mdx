@@ -184,7 +184,7 @@ else:
 - **Blindly retrying POST** after a timeout, creating duplicates. Retry only idempotent methods, or send an idempotency key.
 - **Returning 500 for bad input.** A client mistake is a 4xx. Reserve 5xx for faults the client cannot fix, so alerts mean something.
 - **Putting secrets in the URL.** URLs land in logs, history and referrers. Send credentials in headers.
-- **No timeouts.** A client waiting forever on a slow server ties up its own resources. Always set one.
+- **No timeouts.** A client waiting forever on a slow server ties up its own resources. Always set one; [resilience patterns](/system-design/resilience/) covers deadlines and retries.
 
 ## Tips & tricks
 

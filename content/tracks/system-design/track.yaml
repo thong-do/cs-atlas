@@ -8,7 +8,7 @@ modules:
     lessons: [client-server-http, dns-cdn, caching, sql-vs-nosql, estimation]
   - slug: scaling
     title: Scaling
-    lessons: [load-balancing, replication-sharding, queues-streams, rate-limiting]
+    lessons: [load-balancing, replication-sharding, consistent-hashing, queues-streams, rate-limiting, resilience]
   - slug: advanced
     title: Advanced
     lessons: [consistency-models, consensus-raft, distributed-transactions, observability]

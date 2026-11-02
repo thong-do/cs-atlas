@@ -1,0 +1,56 @@
+slug: consistent-hashing-quiz
+type: quiz
+title: "Consistent hashing — quiz"
+lessons: [consistent-hashing]
+ladderOrder: 1
+questions:
+  - id: node-leaves
+    prompt: "A ring has positions 0–359 with one position per node: P at 40, Q at 150 and R at 260. Keys sit at 10, 100, 200, 300 and 355, each owned by the first node clockwise. Node Q is removed. What changes?"
+    choices: ["The key at 100 moves to P, the nearest node counter-clockwise from it", "The keys at 100 and 200 each shift one node clockwise", "Only the key at 100 moves, from Q to R; the other keys stay put", "Every key is placed again from scratch, because the node count changed"]
+    answer: 2
+    explanation: "Q owned only the arc (40, 150], which holds the key at 100. With Q gone, the first node clockwise from 100 is R at 260. The key at 200 was already R's, and the keys at 10, 300 and 355 belong to P before and after."
+  - id: uneven-ring
+    prompt: "A cache cluster places each of its 8 servers at one ring position. One server holds about 3× the average number of keys and runs hot. Without adding servers, which change most directly evens out the load?"
+    choices: ["Give each server many ring positions, such as 100 virtual nodes", "Switch the ring's hash function to a cryptographic one such as SHA-256", "Keep a second copy of every key on the next server clockwise", "Shorten the keys so that each one hashes faster"]
+    answer: 0
+    explanation: "With one position each, arc lengths vary widely, whatever the hash function. Many positions per server make each share a sum of many small arcs, which averages out. A replica adds copies but leaves the busy server owning the same keys."
+  - id: preference-list
+    prompt: "A store keeps 3 copies of each key on a ring with virtual nodes. Walking clockwise from key k, the positions are S4#17, S4#52, S9#3, S2#88 and S9#40, in that order. Which servers hold k's copies?"
+    choices: ["S4, S4 and S9, the next three positions clockwise", "S4 only, since its two positions already count as copies", "S9, S2 and S9, the three positions after S4's two", "S4, S9 and S2, the first three different servers"]
+    answer: 3
+    explanation: "Copies go on the first 3 distinct physical servers clockwise. S4#52 repeats S4, so it is skipped; S9#3 and then S2#88 complete the list. Two copies on one server would be lost together."
+  - id: hit-ratio-after-join
+    prompt: "A cache of 7 nodes uses consistent hashing with many virtual nodes per node and runs at a 90% hit ratio, with hot keys spread like all keys. An 8th node joins. Right after the change, about what is the hit ratio?"
+    choices: ["About 77%", "About 79%", "About 90%", "About 11%"]
+    answer: 1
+    explanation: "The new node takes about 1/8 of the keys, and those miss until refilled, so about 0.9 × 7/8 ≈ 79% still hit. About 11% is what hash mod N would leave (0.9 × 1/8), and 77% uses 6/7 instead of 7/8."
+  - id: rendezvous-removal
+    prompt: "A service places keys on 12 servers with rendezvous (highest random weight) hashing. For key k the top scores are s3, then s7, then s1. Server s3 is removed. What happens?"
+    choices: ["Every key is scored again and most keys move, since the server count changed", "k goes to s1, the lowest of the three top scores", "k moves to s7, and only keys whose top score was s3 move", "k moves to whichever server follows s3 on the ring"]
+    answer: 2
+    explanation: "Each key goes to its highest-scoring server that still exists. Removing s3 changes only the keys s3 owned; each moves to its own second choice, so they spread over the remaining servers. There is no ring in rendezvous hashing."
+flashcards:
+  - id: mod-n-movement
+    front: "hash mod N when N changes"
+    back: "From N to N + 1 servers only 1 key in N + 1 keeps its server: 10 to 11 moves about 91%. Even doubling moves half."
+  - id: successor
+    front: "Successor lookup on a ring"
+    back: "A key belongs to the first server position at or after it, wrapping past the top. Binary search over sorted positions finds it in O(log P)."
+  - id: join-leave
+    front: "What moves when a ring node joins or leaves"
+    back: "A joining node takes one arc from its successor; a leaving node's arc goes to its successor. On average about 1/(N + 1) of keys move on a join."
+  - id: virtual-nodes
+    front: "Virtual nodes"
+    back: "Each server gets many ring positions, so its share sums many small arcs. Spread shrinks roughly as 1/√V; weights become position counts."
+  - id: preference-list
+    front: "Replication on the ring"
+    back: "For k copies, walk clockwise and take the first k distinct physical servers (Dynamo's preference list), skipping repeats and often repeat zones."
+  - id: rendezvous
+    front: "Rendezvous (HRW) hashing"
+    back: "Score each server with hash(server, key) and pick the top; replicas are the next k − 1. Even load with no virtual nodes; costs N hashes per lookup."
+  - id: hot-key-limit
+    front: "Does consistent hashing fix a hot key?"
+    back: "No. It evens out key counts, not traffic per key. One hot key still lives on one server: cache it closer to clients, replicate it or split it."
+  - id: bounded-loads
+    front: "Consistent hashing with bounded loads"
+    back: "Cap each server at a multiple of the average load, such as 1.25×, and send overflow to the next server clockwise. HAProxy calls it hash-balance-factor."

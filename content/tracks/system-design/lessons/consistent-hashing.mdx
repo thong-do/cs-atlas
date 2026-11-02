@@ -1,0 +1,121 @@
+---
+slug: consistent-hashing
+title: Consistent hashing
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [replication-sharding]
+summary: "Spread keys over servers so that adding or removing one moves only its fair share, keep the load even with virtual nodes, and know when rendezvous hashing or fixed buckets fit better."
+---
+
+## Intuition
+
+Delivery drivers park around a ring road, and each house is served by the first driver clockwise from it. When a new driver parks, only the houses between the new spot and the previous driver change hands. Compare dealing by number, house `h` to driver `h mod N`: hire one more driver and almost every house gets a new one.
+
+**Why `hash mod N` breaks.** With `server = hash(key) mod N`, a key keeps its server from N to N + 1 only when `h mod N == h mod (N + 1)`. Among the values 0 to N(N + 1) − 1, and in each later block of that size, it holds only for the first N, so just 1 key in N + 1 stays. From 10 to 11 servers, 10 in 11 keys (about 91%) move; 200,000 random keys measured 90.8%. Losing one is as bad: 10 to 9 moves 90%, and even doubling moves half. For a cache a moved key is a miss; for a database it is data copied over the network.
+
+**The ring.** Hash servers and keys into one space, say 0 to 2⁶⁴ − 1, bent into a circle. A key belongs to its **successor**: the first server position at or after it, wrapping past the top. With positions in a sorted array, a binary search finds it in O(log P) for P positions.
+
+**What moves.** With one position per server, a joining server takes only the arc between its predecessor and itself, all from one server, its successor; no other key changes owner. A leaving server's arc goes to its successor. With random positions, the newcomer's expected share is 1/(N + 1) of the keys, about 9% from 10 to 11. No scheme that gives the newcomer an equal share can move less.
+
+**Why virtual nodes.** With one position per server, arc lengths are very uneven. In 50 random rings of 10 servers (measured), the busiest server held on average 2.9× the mean share and the quietest 0.11×. In 200 more rings, an 11th server's share ranged from a fraction of a percent to over 30% of all keys, and a departing server handed its whole load to one neighbour.
+
+**Virtual nodes** give each server V positions (hash `A#0`, `A#1`, …), so its share sums many small arcs. Measured, 10 servers, mean of 50 rings (10 for the last row):
+
+| Positions per server | Busiest ÷ average | Quietest ÷ average |
+|---|---|---|
+| 1 | 2.90 | 0.11 |
+| 10 | 1.59 | 0.59 |
+| 100 | 1.16 | 0.86 |
+| 1,000 | 1.05 | 0.95 |
+
+The spread shrinks roughly as 1/√V: ten times the positions, about a third of the spread. Movement spreads too: when a server with 100 positions left, all 9 others took a part, the largest about a fifth on average. A server with twice the memory gets twice the positions. The cost is a larger table (1,000 entries here, trivial) and more pieces to move in a rebalance.
+
+**Replication on the ring.** For k copies, walk clockwise from the key and take the first k **distinct physical servers**, Dynamo's **preference list**. Skipping repeats matters: with 10 servers of 100 positions each, the next three belong to three different servers only about 0.9 × 0.8 = 72% of the time. Many systems also skip zones already used.
+
+**Rendezvous hashing** (highest random weight). Score every server with `hash(server, key)` and give the key to the top score; replicas are the next k − 1. A new server wins about 1/(N + 1) of keys, taken evenly from all servers, and a removed server's keys spread over all the rest. Load is even with no virtual nodes: with 10 servers and 50,000 keys the busiest held 1.03× the average. The price is N hashes per lookup: nothing for 20 servers, real work for 5,000.
+
+**Where it is used:**
+- **Cache clusters.** Many memcached clients offer a "ketama" ring, so each client picks a key's server without a coordinator.
+- **Load balancers.** nginx (`hash $key consistent`), HAProxy (`hash-type consistent`) and Envoy (`RING_HASH`) can pin a key, such as a user id, to an upstream. Envoy's `MAGLEV` option fills a fixed lookup table instead: faster to build and look up, but Envoy's docs report about twice as many keys moving when a host is removed.
+- **Dynamo-style stores.** The Dynamo paper (Amazon, 2007) used a ring with virtual nodes and preference lists, then reported moving to equal fixed partitions. Apache Cassandra places `num_tokens` positions per node on a ring.
+- **Not a ring:** Redis Cluster hashes keys into 16,384 fixed slots and moves whole slots, the fixed-bucket approach from [Replication & sharding](/system-design/replication-sharding/).
+
+## Visual
+
+The scenario: a ring of positions 0–99 with nodes A at 10, B at 45 and C at 80. Keys land at k1 5, k2 30, k3 50, k4 70, k5 90 and go to A, B, C, C and A (k5 wraps past 99). Then node D joins at 60 and takes over the arc (45, 60] from C. Only k3 (50) moves, C to D: 1 of 5 keys. D's arc is 15 of 100 positions, below the 1/4 a fourth node gets on average; one small example can land either side of it.
+
+<Visualizer kind="consistent-hashing" />
+
+```text
+The ring unrolled: 0 on the left, wrapping back to 0 after the last position.
+Servers A, B, C with 3 positions each; keep k = 2 copies.
+
+ 0 ─ A#2 ─ B#0 ─ C#1 ─ C#0 ─ A#0 ─ B#2 ─ A#1 ─ B#1 ─ C#2 ─► wrap to 0
+            x ▲
+ key x walks clockwise:  C#1 → C (copy 1)
+                         C#0 → C again, skip
+                         A#0 → A (copy 2), stop
+
+A server's share = the arcs that end at its positions.
+If B leaves, its three arcs go to the next positions: C#1, A#1 and C#2.
+```
+
+## Example
+
+A session cache: **10 nodes**, **30 M keys**, **150,000 reads/s** at a **96% hit ratio**, so the database sees 6,000 misses/s. It can take about **25,000/s** (illustrative). Traffic grows and you add an 11th node. Assume hot keys are spread like all keys.
+
+**With `hash mod N`:** 10 in 11 keys now map to a different node. The hit ratio falls to about 0.96 × 1/11 ≈ 8.7%, so misses jump to about 150,000 × 0.913 ≈ 137,000/s, five and a half times what the database takes.
+
+**With a ring of 100 positions per node:** on average 1/11 of keys move, about 2.7 M. The hit ratio becomes about 0.96 × 10/11 ≈ 87.3%, so misses are about 150,000 × 0.127 ≈ 19,100/s, which fits, and fall as the new node fills. In 200 measured rings the moved share ranged from 6.2% to 12.0%; at 12% misses are about 150,000 × (1 − 0.96 × 0.88) ≈ 23,300/s, still under 25,000.
+
+**With one position per node:** in runs of 200 rings the worst newcomer took roughly 30–50% of keys. At 45%, the hit ratio is 0.96 × 0.55 ≈ 53% and misses about 70,800/s, far over the limit.
+
+**A node dies (10 back to 9):** a tenth of keys miss, so misses rise to about 150,000 × (1 − 0.96 × 0.9) ≈ 20,400/s. With virtual nodes each survivor takes on about a ninth more load. With one position, one neighbour inherits the dead node's whole arc, about doubling its load on average.
+
+The code uses a stable hash: Python's `hash()` of a string changes between processes, so two clients would disagree. `owners(key, k=3)` returns a preference list.
+
+```python
+import bisect
+import hashlib
+
+
+def h(s):  # a stable 64-bit position
+    return int.from_bytes(hashlib.blake2b(s.encode(), digest_size=8).digest(), "big")
+
+
+class Ring:
+    def __init__(self, servers, vnodes=100):
+        self.points = sorted((h(f"{s}#{v}"), s) for s in servers for v in range(vnodes))
+        self.hashes = [p for p, _ in self.points]
+
+    def owners(self, key, k=1):
+        """The first k distinct servers clockwise from the key."""
+        i = bisect.bisect_left(self.hashes, h(key))      # first position >= key
+        found = []
+        for j in range(len(self.points)):
+            server = self.points[(i + j) % len(self.points)][1]   # wraps past the top
+            if server not in found:
+                found.append(server)
+                if len(found) == k:
+                    break
+        return found
+
+
+def rendezvous(key, servers, k=1):
+    return sorted(servers, key=lambda s: h(f"{s}|{key}"), reverse=True)[:k]
+```
+
+## Pitfalls
+
+- **`hash mod N` on a cluster that resizes.** Use a ring, rendezvous hashing or fixed buckets.
+- **One position per server.** Load varies several-fold and a departing server floods one neighbour. Use 100 or more virtual nodes, or rendezvous hashing.
+- **Clients that disagree.** A different hash, vnode naming or server list sends a key to different servers. Pin the algorithm; take membership from one source.
+- **Replicas on one machine.** Counting positions instead of servers can put two copies on the same server. Skip repeats, and repeat zones too.
+- **Expecting it to fix a hot key.** It evens out key counts, not traffic per key. One viral key still lives on one server: cache it or split it (salting, as in replication & sharding).
+- **Moving ownership before data.** In a store, stream the arc to the new node first, and keep reading from the old owner until the handoff completes.
+
+## Tips & tricks
+
+- **Choosing:** fixed buckets with a mapping table when an operator plans moves (Redis Cluster, the 64 buckets in replication & sharding); a ring with virtual nodes when clients compute placement; rendezvous hashing for a few dozen servers.
+- **Bounded loads:** cap each server at, say, 1.25× the average and send overflow to the next server clockwise. HAProxy's `hash-balance-factor` does this.
+- Interview phrasing: "Consistent hashing with 100 virtual nodes per server, so a new node takes about 1/(N + 1) of keys; three replicas on the next three distinct servers, in different zones."

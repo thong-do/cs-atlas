@@ -84,7 +84,7 @@ describe('content inventory', () => {
     const { tracks, lessons, exercises } = getCatalog()
     expect(tracks.map((t) => t.slug).slice(0, 2)).toEqual(['algorithms', 'system-design'])
     const sd = tracks[1]
-    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'estimation', 'load-balancing', 'replication-sharding', 'queues-streams', 'rate-limiting', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat', 'video-streaming', 'payment-system'])
+    expect(sd.modules.flatMap((m) => m.lessons)).toEqual(['client-server-http', 'dns-cdn', 'caching', 'sql-vs-nosql', 'estimation', 'load-balancing', 'replication-sharding', 'consistent-hashing', 'queues-streams', 'rate-limiting', 'resilience', 'consistency-models', 'consensus-raft', 'distributed-transactions', 'observability', 'url-shortener', 'news-feed', 'chat', 'video-streaming', 'payment-system'])
     expect(sd.modules.flatMap((m) => m.comingSoon)).toEqual([])
     expect(lessons.find((l) => l.slug === 'caching')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('caching')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
@@ -104,12 +104,18 @@ describe('content inventory', () => {
     expect(lessons.find((l) => l.slug === 'replication-sharding')).toMatchObject({ track: 'system-design', prerequisites: ['sql-vs-nosql'] })
     expect(getLessonDoc('replication-sharding')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('replication-sharding')).map((e) => e.slug).sort()).toEqual(['design-message-store-sharding', 'estimate-shard-count', 'replication-sharding-quiz'])
+    expect(lessons.find((l) => l.slug === 'consistent-hashing')).toMatchObject({ track: 'system-design', prerequisites: ['replication-sharding'], level: 'intermediate' })
+    expect(getLessonDoc('consistent-hashing')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('consistent-hashing')).map((e) => e.slug).sort()).toEqual(['consistent-hashing-quiz', 'design-tile-cache-placement'])
     expect(lessons.find((l) => l.slug === 'queues-streams')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'] })
     expect(getLessonDoc('queues-streams')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('queues-streams')).map((e) => e.slug).sort()).toEqual(['design-order-email-pipeline', 'queues-streams-quiz'])
     expect(lessons.find((l) => l.slug === 'rate-limiting')).toMatchObject({ track: 'system-design', prerequisites: ['load-balancing'] })
     expect(getLessonDoc('rate-limiting')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('rate-limiting')).map((e) => e.slug).sort()).toEqual(['design-api-rate-limiter', 'rate-limiting-quiz'])
+    expect(lessons.find((l) => l.slug === 'resilience')).toMatchObject({ track: 'system-design', prerequisites: ['load-balancing', 'queues-streams'], background: ['processes-threads'], level: 'intermediate' })
+    expect(getLessonDoc('resilience')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
+    expect(exercises.filter((e) => e.lessons.includes('resilience')).map((e) => e.slug).sort()).toEqual(['design-flight-search-resilience', 'resilience-quiz'])
     expect(lessons.find((l) => l.slug === 'consistency-models')).toMatchObject({ track: 'system-design', prerequisites: ['replication-sharding'] })
     expect(getLessonDoc('consistency-models')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Visual', 'Example', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('consistency-models')).map((e) => e.slug).sort()).toEqual(['consistency-models-quiz', 'design-collaborative-cart'])
@@ -138,6 +144,20 @@ describe('content inventory', () => {
     expect(getLessonDoc('payment-system')!.toc.map((t) => t.title)).toEqual(['Intuition', 'Requirements & estimates', 'Visual', 'Design walkthrough', 'Pitfalls', 'Tips & tricks'])
     expect(exercises.filter((e) => e.lessons.includes('payment-system')).map((e) => e.slug).sort()).toEqual(['design-subscription-billing', 'payment-system-quiz'])
   })
+  it('ships the consistent-hashing and resilience lessons with a 5-question quiz, 8 flashcards and a design prompt each', () => {
+    const { exercises, flashcards } = getCatalog()
+    for (const slug of ['consistent-hashing', 'resilience']) {
+      expect(exercises.find((e) => e.slug === `${slug}-quiz`), slug).toMatchObject({ type: 'quiz', lessons: [slug], ladderOrder: 1, questionCount: 5 })
+      expect((exercises.find((e) => e.slug === `${slug}-quiz`) as QuizExercise).flashcardIds, slug).toHaveLength(8)
+    }
+    for (const [slug, lesson] of [['design-tile-cache-placement', 'consistent-hashing'], ['design-flight-search-resilience', 'resilience']]) {
+      expect(exercises.find((e) => e.slug === slug), slug).toMatchObject({ type: 'design-prompt', kind: 'design', lessons: [lesson], ladderOrder: 2 })
+      expect((getExerciseDoc(slug) as DesignDoc).rubricPoints, slug).toHaveLength(5)
+    }
+    expect(flashcards['replication-sharding-quiz#routing-buckets']).toMatchObject({ lesson: 'replication-sharding' })
+    expect(flashcards['consistent-hashing-quiz#virtual-nodes']).toMatchObject({ lesson: 'consistent-hashing' })
+  })
+
   it('has the estimation lesson in System Design Foundations with its quiz', () => {
     const { lessons, exercises } = getCatalog()
     expect(lessons.find((l) => l.slug === 'estimation')).toMatchObject({ track: 'system-design', prerequisites: ['client-server-http'], level: 'beginner' })

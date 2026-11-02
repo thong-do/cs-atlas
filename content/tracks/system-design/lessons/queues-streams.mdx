@@ -111,7 +111,7 @@ Why it is safe: if a worker crashes after storing the thumbnail but before the a
 - **Poison messages without a DLQ.** One bad message retries forever and burns capacity. Cap attempts, dead-letter, and alert on DLQ depth.
 - **Relying on global order.** Only a partition or key is ordered. Use the entity id as the key (all events of one order go to one partition), and design consumers to cope with reordering where retries are involved.
 - **DB commit, then publish.** A crash between them loses the event; publishing first risks announcing something that rolled back. Use the outbox.
-- **Retry storms.** Instant retries hammer a struggling dependency. Back off with jitter.
+- **Retry storms.** Instant retries hammer a struggling dependency. Back off with jitter and cap retries; [resilience patterns](/system-design/resilience/) covers budgets and circuit breakers.
 
 ## Tips & tricks
 

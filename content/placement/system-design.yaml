@@ -46,14 +46,14 @@ questions:
     answer: 3
     explanation: "With single-leader replication the primary still executes every write and each replica replays the whole write stream, so replicas add read capacity and standby copies, not write capacity; asynchronous ones do not even make the primary wait. Spreading 9,000 inserts/s takes partitioning the data across several primaries."
   - module: scaling
-    prompt: "A Kafka topic has 8 partitions and is read by one ordinary consumer group (not a share group) of 8 consumers, which is falling behind. The team scales the same group to 12 consumers. What changes?"
+    prompt: "A mobile app makes up to 3 attempts per request, the API gateway behind it up to 2 attempts per call to the orders service, and the orders service up to 4 attempts per database query. Each count includes the first try, and each layer retries only after the layer below has given up. The database stops responding. How many queries can a single tap send to it?"
     choices:
-      - "4 consumers sit idle: each partition goes to one consumer of the group, so throughput barely moves"
-      - "Throughput rises by about half, since the 8 partitions' messages are spread evenly over 12 consumers"
-      - "Every message is now processed 12 times, since each consumer in the group reads the whole topic"
-      - "Order within a partition breaks, since some partitions are now shared and read by two consumers"
+      - "24, since each attempt at one layer repeats all the attempts below it"
+      - "9, since the attempts of the app, the gateway and the service add up"
+      - "4, since only the orders service sends queries to the database itself"
+      - "8, since the gateway's 2 attempts replace the app's 3 rather than adding to them"
     answer: 0
-    explanation: "A group assigns each partition to exactly one of its members, so with 8 partitions at most 8 consumers get work and 12 − 8 = 4 stay idle. More parallelism needs more partitions or faster consumers; it is separate groups, not members of one group, that each receive every message."
+    explanation: "Each of the app's 3 attempts reaches the gateway, which calls the orders service up to 2 times, and each of those sends up to 4 queries: 3 × 2 × 4 = 24. Retries at several layers multiply, so a struggling database gets many times its normal load; retrying at a single layer, under a budget, avoids that."
   - module: advanced
     prompt: "A settings service sends writes to a leader and serves reads from any of several asynchronously replicated followers. A user changes their delivery address and gets `204 No Content`, then reloads the page and sees the old address; a few seconds later the new one shows up. Which guarantee for that user's session would have ruled this out?"
     choices:

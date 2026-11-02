@@ -51,6 +51,6 @@ flashcards:
   - id: hot-key
     front: "Hot key (salting)"
     back: "One key takes far more traffic than its shard can handle. Route on hash(key, salt) to split it across sub-keys; reads then fan out and merge. Keep the key salted until old sub-keys are drained."
-  - id: virtual-nodes
-    front: "Virtual nodes"
-    back: "Each server sits at many ring positions in consistent hashing, evening out load and spreading a departing server's keys across many nodes."
+  - id: routing-buckets
+    front: "Fixed routing buckets"
+    back: "Hash keys into many fixed buckets (say 64) and map buckets to servers. Adding a server moves a few whole buckets to it; keys never rehash, only the table changes."

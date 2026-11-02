@@ -1,0 +1,52 @@
+slug: design-flight-search-resilience
+type: design-prompt
+title: "Design: keep a flight search up when partners fail"
+lessons: [resilience]
+ladderOrder: 2
+prompt: |
+  A flight-search page sends each search to **6 airline partner APIs** in parallel and shows whatever comes back.
+  Peak load is **1,500 searches/s** across **10 search instances**, each with **400 slots** for outbound calls.
+  Partners answer in **300 ms on average** (p99 **900 ms**), and each partner's contract allows at most
+  **2,500 calls/s** from you. The page must render within **2.5 s**. A gateway in front retries a failed search
+  up to **2 more times**, and the search service retries a failed partner call **once**.
+
+  Sometimes one partner hangs for minutes. **The other five partners' results must still appear on time, the hung
+  partner must not be hammered, and no instance may run out of slots.** Describe timeouts and deadlines, the retry
+  policy, circuit breakers, bulkheads and load shedding. Show the arithmetic.
+hint: "Use Little's law for one instance: how many calls to the hung partner are in flight at once, next to the other five?"
+rubric:
+  - id: deadlines
+    point: "Propagates the page deadline and gives each partner call a timeout a little above its 900 ms p99 (about 1–1.2 s), returning partial results when the deadline nears instead of waiting for the slowest partner."
+  - id: retry-policy
+    point: "Computes the amplification: 3 gateway attempts × 2 search attempts = 6 calls per search to a hung partner, 9,000 calls/s against a 2,500 limit, and gateway retries triple the load on healthy partners to 4,500 calls/s. Retries at one layer only, only fast failures within the remaining deadline, under a small budget."
+  - id: breakers
+    point: "Puts a circuit breaker on each partner, with a fallback of showing the other partners' results and a note, and half-open trial calls before closing."
+  - id: bulkheads
+    point: "Uses Little's law per instance: 150 calls/s × 0.3 s = 45 in flight per partner (270 total); a hung partner at a 1.2 s timeout holds 180, so 405 exceed the 400 slots; caps each partner at about 90 so the worst case is 315."
+  - id: shedding-idempotency
+    point: "Sheds new searches early (503 with Retry-After, or cached results for popular routes) when an instance saturates, and notes that searches are reads while holds or bookings need idempotency keys."
+reference: |
+  **Load per instance.** 1,500 ÷ 10 = 150 searches/s, so 150 calls/s to each partner. By Little's law, a healthy
+  partner has 150 × 0.3 = 45 calls in flight, 270 for all six, out of 400 slots.
+
+  **Deadlines and timeouts.** The gateway stamps a deadline about 2.3 s out, leaving time to render. Each partner call
+  gets a 1.2 s timeout, above the 900 ms p99. At the deadline, or once every partner has answered, the page renders
+  what it has.
+
+  **Bulkheads.** A hung partner holds 150 × 1.2 = 180 slots, so 5 × 45 + 180 = 405 > 400: the instance runs out and
+  healthy partners' calls start failing too. Cap each partner at 90 concurrent calls (twice normal); the worst case
+  is then 5 × 45 + 90 = 315. Calls beyond the cap skip that partner at once.
+
+  **Retries.** Today a hung partner sees 3 × 2 = 6 calls per search: 1,500 × 6 = 9,000 calls/s against a 2,500 limit.
+  Gateway retries also resend to all six partners, so healthy ones see 1,500 × 3 = 4,500 calls/s. Stop gateway
+  retries of searches. The search service retries only fast failures (connection refused, 503) and only if the
+  deadline leaves room: after a 1.2 s timeout a second try cannot finish. With a 5% retry budget a partner sees at
+  most 1,500 × 1.05 = 1,575 calls/s.
+
+  **Breakers.** Per partner, per instance: open when at least half of calls fail over 20 s, with at least 40 calls;
+  while open, skip the partner and show "results from this airline are unavailable"; after 30 s, let 3 trial calls
+  through.
+
+  **Shedding and safety.** If slots or CPU near their limit, reject new searches early with 503 and Retry-After, or
+  serve recently cached results for popular routes. Searches are reads, so retries are harmless; a fare hold or
+  booking is a POST with an idempotency key.

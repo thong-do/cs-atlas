@@ -19,13 +19,13 @@ rubric:
   - id: placement
     point: "Uses consistent hashing with virtual nodes (or rendezvous hashing), with every client on the same hash, vnode naming and membership list, and shows that hash mod N from 24 to 28 nodes would move about 6 in 7 tiles."
   - id: weights
-    point: "Gives each 256 GB node twice the virtual nodes of a 128 GB node, so the new nodes take 8 of 32 weight units, about 25% of the tiles."
+    point: "Gives each 256 GB node twice the virtual nodes of a 128 GB node, so the new nodes take 8 of 32 weight units, about 25% of the tiles, and notes that this also gives a big node twice the traffic, since memory adds no throughput."
   - id: gradual-growth
     point: "Computes that adding all four at once drops the hit ratio to about 73% and sends about 98,000 misses/s to renderers that manage 45,000, and instead adds one node at a time (about 37,700 misses/s per step), letting each warm up, or ramps its weight."
   - id: copies
     point: "Checks a node failure: losing one of 24 nodes gives about 25,000 misses/s, within renderer capacity, so a single copy is acceptable for a cache; a second copy would double memory and would go on a different node and zone."
   - id: hot-tiles
-    point: "Notes that consistent hashing cannot split one hot key: a venue tile at 25,000 reads/s on top of a node's normal 15,000 reaches its 40,000 limit, so hot tiles are replicated to several nodes, cached on clients or a CDN, or capped with bounded loads."
+    point: "Notes that consistent hashing cannot split one hot key: after growth a 256 GB node, holding twice the virtual nodes, already serves about 22,500 reads/s (360,000 × 2/32), so a 25,000 reads/s venue tile there reaches 47,500, over its 40,000 limit (36,250 on a 128 GB node). Hot tiles are replicated to several nodes, cached on clients or a CDN, or capped with bounded loads."
 reference: |
   **Placement.** A ring with virtual nodes: 100 positions per 128 GB node, 200 per 256 GB node. Clients share the
   hash function, the vnode names and one membership list (from config or a coordination service), or they will send
@@ -34,7 +34,7 @@ reference: |
   0.97 × 1/7 ≈ 14%, about 310,000 misses/s.
 
   **Weights and movement.** Weight units: 24 × 1 + 4 × 2 = 32. The new nodes take 8 ÷ 32 = 25% of tiles; nothing else
-  moves.
+  moves. Weighting by memory also weights traffic: a big node gets twice the reads of a small one.
 
   **Growing safely.** All four at once: hit ratio ≈ 0.97 × 0.75 ≈ 73%, so 360,000 × 0.27 ≈ 98,000 misses/s, more than
   twice what renderers manage. One 256 GB node: it takes 2 ÷ 26 ≈ 7.7%, hit ratio ≈ 0.97 × 24/26 ≈ 89.5%, about
@@ -42,9 +42,12 @@ reference: |
   Ramping a node's virtual nodes in steps gives finer control.
 
   **Copies.** Today each node serves 360,000 ÷ 24 = 15,000 reads/s. Losing one node: hit ratio ≈ 0.97 × 23/24 ≈ 93%,
-  about 25,000 misses/s, within 45,000. So one copy is enough; the renderers are the backup. If a second copy were
+  about 25,000 misses/s, within 45,000. After growth, losing a 256 GB node: 0.97 × 30/32 ≈ 90.9%, about 32,600
+  misses/s, still within. So one copy is enough; the renderers are the backup. If a second copy were
   needed, it would go on the next distinct node in another zone, at twice the memory.
 
-  **Venue tiles.** Each lives on one node, and 15,000 + 25,000 = 40,000 reads/s leaves no headroom. Replicate the
+  **Venue tiles.** After growth a 128 GB node serves 360,000 × 1/32 ≈ 11,250 reads/s and a 256 GB node twice that,
+  22,500, since memory weights traffic too. A 25,000 reads/s tile on a big node makes 47,500 reads/s, over the 40,000
+  limit; on a small one 36,250, with little headroom. Replicate the
   few hot tiles to several nodes and pick one at random, cache them on clients or a CDN with a short TTL, or use
   bounded loads so overflow goes to the next node.

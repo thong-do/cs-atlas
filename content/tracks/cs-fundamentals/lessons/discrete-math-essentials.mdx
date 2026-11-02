@@ -33,7 +33,7 @@ An implication "if P then Q" is false only when P is true and Q is false. It equ
 
 **Modular arithmetic.** a ≡ b (mod n) means n divides a − b: on a 24-hour clock, 22 + 5 = 27 ≡ 3. Languages disagree about `%` with a negative operand. Python's result takes the sign of the divisor, so `-7 % 3` is 2. C (guaranteed from C99; C89 left it to the implementation) and Java take the sign of the dividend, so `-7 % 3` is −1. So `h % n` can go negative as a bucket index; Java offers `Math.floorMod`.
 
-Hashing into buckets uses `h % n`. When `n` changes, most keys change bucket, since `h % n` and `h % n'` agree on few residues. [Replication & sharding](/system-design/replication-sharding/) covers the remedy, consistent hashing.
+Hashing into buckets uses `h % n`. When `n` changes, most keys change bucket, since `h % n` and `h % n'` agree on few residues. [Consistent hashing](/system-design/consistent-hashing/) covers the remedy.
 
 **Probability.**
 

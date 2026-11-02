@@ -17,7 +17,7 @@ Delivery drivers park around a ring road, and each house is served by the first 
 
 **What moves.** With one position per server, a joining server takes only the arc between its predecessor and itself, all from one server, its successor; no other key changes owner. A leaving server's arc goes to its successor. With random positions, the newcomer's expected share is 1/(N + 1) of the keys, about 9% from 10 to 11. No scheme that gives the newcomer an equal share can move less.
 
-**Why virtual nodes.** With one position per server, arc lengths are very uneven. In 50 random rings of 10 servers (measured), the busiest server held on average 2.9× the mean share and the quietest 0.11×. In 200 more rings, an 11th server's share ranged from 0.14% to 52% of all keys, and a departing server handed its whole load to one neighbour.
+**Why virtual nodes.** With one position per server, arc lengths are very uneven. In 50 random rings of 10 servers (measured), the busiest server held on average 2.9× the mean share and the quietest 0.11×. In 200 more rings, an 11th server's share ranged from a fraction of a percent to over 30% of all keys, and a departing server handed its whole load to one neighbour.
 
 **Virtual nodes** give each server V positions (hash `A#0`, `A#1`, …), so its share sums many small arcs. Measured, 10 servers, mean of 50 rings (10 for the last row):
 
@@ -36,7 +36,7 @@ The spread shrinks roughly as 1/√V: ten times the positions, about a third of 
 
 **Where it is used:**
 - **Cache clusters.** Many memcached clients offer a "ketama" ring, so each client picks a key's server without a coordinator.
-- **Load balancers.** nginx (`hash $key consistent`), HAProxy (`hash-type consistent`) and Envoy (`RING_HASH`) can pin a key, such as a user id, to an upstream. Envoy's `MAGLEV` option fills a fixed lookup table instead: more even, slightly more movement.
+- **Load balancers.** nginx (`hash $key consistent`), HAProxy (`hash-type consistent`) and Envoy (`RING_HASH`) can pin a key, such as a user id, to an upstream. Envoy's `MAGLEV` option fills a fixed lookup table instead: faster to build and look up, but Envoy's docs report about twice as many keys moving when a host is removed.
 - **Dynamo-style stores.** The Dynamo paper (Amazon, 2007) used a ring with virtual nodes and preference lists, then reported moving to equal fixed partitions. Apache Cassandra places `num_tokens` positions per node on a ring.
 - **Not a ring:** Redis Cluster hashes keys into 16,384 fixed slots and moves whole slots, the fixed-bucket approach from [Replication & sharding](/system-design/replication-sharding/).
 
@@ -68,7 +68,7 @@ A session cache: **10 nodes**, **30 M keys**, **150,000 reads/s** at a **96% hit
 
 **With a ring of 100 positions per node:** on average 1/11 of keys move, about 2.7 M. The hit ratio becomes about 0.96 × 10/11 ≈ 87.3%, so misses are about 150,000 × 0.127 ≈ 19,100/s, which fits, and fall as the new node fills. In 200 measured rings the moved share ranged from 6.2% to 12.0%; at 12% misses are about 150,000 × (1 − 0.96 × 0.88) ≈ 23,300/s, still under 25,000.
 
-**With one position per node:** the same 200 rings reached 52% moved. Then the hit ratio is 0.96 × 0.48 ≈ 46% and misses about 80,900/s, far over the limit.
+**With one position per node:** in runs of 200 rings the worst newcomer took roughly 30–50% of keys. At 45%, the hit ratio is 0.96 × 0.55 ≈ 53% and misses about 70,800/s, far over the limit.
 
 **A node dies (10 back to 9):** a tenth of keys miss, so misses rise to about 150,000 × (1 − 0.96 × 0.9) ≈ 20,400/s. With virtual nodes each survivor takes on about a ninth more load. With one position, one neighbour inherits the dead node's whole arc, about doubling its load on average.
 
@@ -118,4 +118,4 @@ def rendezvous(key, servers, k=1):
 
 - **Choosing:** fixed buckets with a mapping table when an operator plans moves (Redis Cluster, the 64 buckets in replication & sharding); a ring with virtual nodes when clients compute placement; rendezvous hashing for a few dozen servers.
 - **Bounded loads:** cap each server at, say, 1.25× the average and send overflow to the next server clockwise. HAProxy's `hash-balance-factor` does this.
-- Interview phrasing: "Consistent hashing with 100 virtual nodes per server, so a new node takes about 1/N of keys; three replicas on the next three distinct servers, in different zones."
+- Interview phrasing: "Consistent hashing with 100 virtual nodes per server, so a new node takes about 1/(N + 1) of keys; three replicas on the next three distinct servers, in different zones."

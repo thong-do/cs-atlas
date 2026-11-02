@@ -22,14 +22,14 @@ In a distributed system, **slow is worse than down**. A dependency that refuses 
 
 **Retry amplification.** Retries multiply across layers. If each of L layers makes up to r attempts and the bottom is down, each user request can reach it **r^L** times: 3 attempts at each of 3 layers is 3³ = 27 calls. Partial failure multiplies too: if each bottom call fails independently with probability 0.9, three retrying layers average 9.4 bottom calls per request, one retrying layer 2.7 (exact formula, confirmed by simulation). So retry at **one point in the stack** and let the other layers pass errors up.
 
-**Retry storms and budgets.** In an overload, failures cause retries, retries add load, and the overload can outlast its cause. In a simple simulation (900 requests/s, capacity 1,000/s, halved for 5 s; failed requests cost nothing), 3 attempts per request pushed offered load near 2,080/s and failures went on 6 s after capacity returned. A **retry budget** caps retries at a share of normal traffic, often about 10%, so the worst case is 1.1× load, not the 3× that three attempts allow. In the same run, offered load then peaked at 990/s and failures stopped when capacity returned. Envoy (`retry_budget`) and gRPC (retry throttling) offer forms of this.
+**Retry storms and budgets.** In an overload, failures cause retries, retries add load, and the overload can outlast its cause. In a simple simulation (900 requests/s, capacity 1,000/s, halved for 5 s; failed requests cost nothing and retry 1 s later), 3 attempts per request pushed offered load near 2,080/s and failures went on 6 s after capacity returned. A **retry budget** caps retries at a share of normal traffic, commonly 10–20% (Google's SRE book uses 10%), so with 10% the worst case is 1.1× load, not the 3× that three attempts allow. In the same run, offered load then peaked at 990/s and failures stopped when capacity returned. Envoy (`retry_budget`) and gRPC (retry throttling) offer forms of this.
 
 **Circuit breakers.** A fuse for calls to one dependency:
 - **Closed:** calls pass; the breaker counts failures over a rolling window.
 - **Open:** once the failure rate passes a threshold (over a minimum number of calls), calls fail at once without touching the dependency, giving it room to recover. Serve a **fallback**: cached data, a default, a smaller page or a clear error.
 - **Half-open:** after a cool-down, a few trial calls go through. Success closes the breaker; a failure opens it again.
 
-**Load shedding and backpressure.** A server near its limit should reject excess work quickly, with a 503 or 429, rather than queue it: a rejection is cheap, while a request served after the client gave up wastes its capacity. Shed by concurrency or queue wait, batch work before interactive, and drop requests whose deadline has passed. **Backpressure** is the same idea between stages: a bounded queue blocks or rejects the producer instead of growing without limit (see [queues & streams](/system-design/queues-streams/)).
+**Load shedding and backpressure.** A server near its limit should reject excess work quickly, with a 503 or 429, rather than queue it: a rejection is cheap, while a request served after the client gave up wastes its capacity. Shed by concurrency or queue wait, batch work before interactive, and drop requests whose deadline has passed. **Backpressure** is the related idea between stages: a bounded queue blocks or rejects the producer instead of growing without limit (see [queues & streams](/system-design/queues-streams/)).
 
 **Bulkheads.** A ship is split into compartments so one leak cannot sink it. Give each dependency its own pool or concurrency limit, so one slow dependency cannot take every worker. Size it with Little's law: calls in flight = call rate × time per call.
 
@@ -101,7 +101,7 @@ def call_routing(req, deadline, breaker, send, fallback, attempts=3, base=0.05):
 
 - **No timeout.** One hung dependency holds every caller's threads. Set one on every call.
 - **An inner timeout longer than the outer one.** The inner work runs on after the caller has given up. Propagate the deadline.
-- **Retrying at every layer.** 3 attempts at 3 layers is 27× load on the failing service. Retry at one point, with a budget.
+- **Retrying at every layer.** 3 attempts at 3 layers is up to 27× load on the failing service. Retry at one point, with a budget.
 - **Retrying the wrong things.** A timed-out POST may have worked, so a retry without an idempotency key repeats it. A 400 fails again however often you send it.
 - **Unbounded queues.** Under overload a queue becomes latency, then timeouts and wasted work. Bound it and shed.
 - **A breaker with no fallback plan.** Failing fast still fails. Decide per dependency what the user sees.

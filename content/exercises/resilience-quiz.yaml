@@ -44,7 +44,7 @@ flashcards:
     back: "If each of L layers makes up to r attempts and the bottom fails, it gets r^L calls per request: 3 attempts at 3 layers is 27. Retry at one layer."
   - id: retry-budget
     front: "Retry budget"
-    back: "Cap retries at a share of normal requests, often about 10%, so a failing dependency sees at most about 1.1× normal load instead of 3× or more."
+    back: "Cap retries at a share of normal requests, commonly 10–20%. With 10%, a failing dependency sees at most about 1.1× normal load instead of 3× or more."
   - id: circuit-breaker
     front: "Circuit breaker states"
     back: "Closed: calls pass, failures counted. Open: fail fast with a fallback. Half-open: after a cool-down, trial calls decide whether to close or reopen."

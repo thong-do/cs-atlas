@@ -39,7 +39,7 @@ Leader with two followers (a write to key x)
   client ◄─ "ok" returned after follower 1 confirms
 ```
 
-Sharding by `hash mod N` (N servers) is easy but fragile. Going from 3 to 4 servers keeps a key in place only when `h mod 3 == h mod 4`, which holds for 3 of every 12 residues, so about 3 in 4 keys move. Two fixes: hash into many fixed routing buckets and move whole buckets (the Example below), or use [consistent hashing](/system-design/consistent-hashing/), which moves only about 1/N of the keys when a server joins.
+Sharding by `hash mod N` (N servers) is easy but fragile. Going from 3 to 4 servers keeps a key in place only when `h mod 3 == h mod 4`, which holds for 3 of every 12 residues, so about 3 in 4 keys move. Two fixes: hash into many fixed routing buckets and move whole buckets (the Example below), or use [consistent hashing](/system-design/consistent-hashing/), which moves only about 1/(N + 1) of the keys when a server joins (1 in 4 from 3 to 4 servers).
 
 ## Example
 

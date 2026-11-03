@@ -30,10 +30,14 @@ export default function PrivacyPage() {
 
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">What we don&apos;t do</h2>
-        <p>No ads, no third-party analytics or trackers, and no selling or sharing your data.</p>
         <p>
-          We compute anonymous, aggregate usage figures, such as how many learners are still active after four weeks, from
-          synced activity counts. They never identify you, and groups smaller than five learners are merged.
+          No ads, no third-party trackers, and no selling or sharing your data. We count page views with Vercel Web
+          Analytics, built into our host, which uses no cookies and stores no personal identifiers.
+        </p>
+        <p>
+          From synced data we compute anonymous, aggregate figures: how many learners are active each week, how often due
+          reviews are done on time, and how many are still active after four weeks. They never identify you, and small
+          groups are merged wherever a figure could describe one person.
         </p>
       </section>
 
@@ -52,7 +56,7 @@ export default function PrivacyPage() {
         </ul>
       </section>
 
-      <p className="text-sm text-muted-foreground"><em>Last updated: 11 October 2026.</em></p>
+      <p className="text-sm text-muted-foreground"><em>Last updated: 3 November 2026.</em></p>
     </div>
   )
 }

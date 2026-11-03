@@ -95,6 +95,17 @@ describe('parseExport', () => {
     expect(r.ok && r.file.data.reviewLogs[0].kind).toBe('solve')
   })
 
+  it('imports old backups without dueAt and keeps it when present', () => {
+    const old = parseExport(JSON.stringify(buildExport(sample(), new Date(t(2)))))
+    expect(old.ok && old.file.data.reviewLogs[0]).not.toHaveProperty('dueAt')
+    const file = buildExport(sample(), new Date(t(2)))
+    file.data.reviewLogs[0].dueAt = '2026-10-01T09:00:00+07:00'
+    const r = parseExport(JSON.stringify(file))
+    expect(r.ok && r.file.data.reviewLogs[0].dueAt).toBe('2026-10-01T02:00:00.000Z')
+    file.data.reviewLogs[0].dueAt = 'soon'
+    expect(parseExport(JSON.stringify(file)).ok).toBe(false)
+  })
+
   it('rejects out-of-range settings', () => {
     const file = buildExport(sample(), new Date(t(2)))
     file.data.meta.settings.desiredRetention = 1.5

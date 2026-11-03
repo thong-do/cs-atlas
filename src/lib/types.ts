@@ -76,6 +76,8 @@ export interface ReviewLog {
   reviewedAt: string
   /** 'solve' for the initial solve; absent (legacy data) means a regular review. */
   kind?: 'solve' | 'review'
+  /** The card's due date when this review happened; absent for first solves and legacy logs. */
+  dueAt?: string
 }
 
 export interface TrainAttempt {

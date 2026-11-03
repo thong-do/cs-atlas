@@ -38,7 +38,8 @@ export function solveWrites(
     progress: { slug, status: 'solved', solveRating, firstSolvedAt: prev.progress?.firstSolvedAt ?? at, needsResolve: false, updatedAt: at },
     note: { ...(prev.note ?? emptyNote(slug)), insight: text, updatedAt: at },
     cards: [{ slug, card, due: card.due, updatedAt: at }],
-    log: { id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'solve' },
+    // A re-solve of a scheduled card still completes that due item, so it carries the due date too.
+    log: { id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'solve', ...(prev.card ? { dueAt: prev.card.due } : {}) },
     bump: { date: localDate(now), field: 'solves' },
   }
 }
@@ -52,7 +53,7 @@ export function reviewWrites(
   const card = scheduleReview(prev.card.card, rating, now, desiredRetention)
   return {
     cards: [{ slug, card, due: card.due, updatedAt: at }],
-    log: { id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'review' },
+    log: { id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: 'review', dueAt: prev.card.due },
     ...(prev.progress ? { progress: { ...prev.progress, needsResolve: rating === 'again', updatedAt: at } } : {}),
     bump: { date: localDate(now), field: 'reviews' },
   }
@@ -86,7 +87,7 @@ function scoredWrites(
   return {
     progress: { slug, status: 'solved', solveRating, firstSolvedAt: prev.progress?.firstSolvedAt ?? at, needsResolve: false, updatedAt: at },
     cards: [{ slug, card, due: card.due, updatedAt: at }],
-    log: { id: crypto.randomUUID(), slug, rating, reviewedAt: at, kind: first ? 'solve' : 'review' },
+    log: { id: crypto.randomUUID(), slug, rating, reviewedAt: at, ...(first ? { kind: 'solve' } : { kind: 'review', dueAt: prev.card!.due }) },
     bump: { date: localDate(now), field: first ? 'solves' : 'reviews' },
   }
 }

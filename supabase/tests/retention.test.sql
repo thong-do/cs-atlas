@@ -44,8 +44,9 @@ select results_eq(
 
 -- The output carries no user ids.
 select is(
-  (select array_agg(parameter_name::text order by ordinal_position) from information_schema.parameters
-   where specific_schema = 'report' and parameter_mode = 'OUT'),
+  (select array_agg(parameter_name::text order by ordinal_position) from information_schema.parameters p
+   join information_schema.routines r using (specific_schema, specific_name)
+   where r.routine_schema = 'report' and r.routine_name = 'retention_w4' and p.parameter_mode = 'OUT'),
   array['cohort', 'users', 'retained', 'pct'],
   'returns only cohort, users, retained and pct'
 );

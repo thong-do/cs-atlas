@@ -1,5 +1,5 @@
 begin;
-select plan(29);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'ann@example.com'),
@@ -37,6 +37,11 @@ select is((select reviews from public.activity where date = '2026-10-03'), 2, 'n
 select public.apply_changes('{"review_logs":[{"id":"log-1","slug":"two-sum","rating":"again","reviewed_at":"2026-10-04T02:00:00Z","kind":"review"}]}'::jsonb);
 select is((select rating from public.review_logs where id = 'log-1'), 'good', 'duplicate log ignored');
 
+-- due_at round-trips; payloads without it (first solves, older clients) still apply with a null due_at.
+select is((select due_at from public.review_logs where id = 'log-1'), null::timestamptz, 'log without due_at stored as null');
+select public.apply_changes('{"review_logs":[{"id":"log-2","slug":"two-sum","rating":"good","reviewed_at":"2026-10-06T02:00:00Z","kind":"review","due_at":"2026-10-05T02:00:00Z"}]}'::jsonb);
+select is((select due_at from public.review_logs where id = 'log-2'), '2026-10-05T02:00:00Z'::timestamptz, 'apply_changes stores due_at');
+
 -- Atomicity: a bad row late in the call (cards run after notes) rolls back the earlier writes too.
 select throws_ok($$ select public.apply_changes('{
   "notes": [{"slug":"atomic","insight":"x","updated_at":"2026-10-03T02:00:00Z"}],
@@ -51,11 +56,13 @@ select is((select settings ->> 'theme' from public.profiles), 'dark', 'settings 
 -- replace_all replaces only the caller's rows, including append-only tables.
 select public.replace_all('{
   "progress": [{"user_id":"22222222-2222-2222-2222-222222222222","slug":"valid-anagram","status":"solved","solve_rating":"hint","needs_resolve":false,"updated_at":"2026-10-06T02:00:00Z"}],
+  "review_logs": [{"id":"log-r","slug":"valid-anagram","rating":"hard","reviewed_at":"2026-10-06T02:00:00Z","kind":"review","due_at":"2026-10-04T02:00:00Z"}],
   "activity": [{"date":"2026-10-06","reviews":0,"solves":1,"trains":0}],
   "profile": {"settings":{"desiredRetention":0.9,"theme":"light"}}
 }'::jsonb);
 select is((select array_agg(slug) from public.progress), array['valid-anagram'], 'ann progress replaced');
-select is((select count(*) from public.review_logs)::int, 0, 'ann logs cleared by replace_all');
+select is((select array_agg(id) from public.review_logs), array['log-r'], 'ann logs replaced by replace_all');
+select is((select due_at from public.review_logs where id = 'log-r'), '2026-10-04T02:00:00Z'::timestamptz, 'replace_all stores due_at');
 
 reset role;
 select is((select count(*) from public.progress where user_id = '22222222-2222-2222-2222-222222222222')::int, 1, 'replace_all left bob progress alone');

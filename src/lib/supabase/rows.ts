@@ -22,7 +22,7 @@ export interface ProfileRow { display_name: string | null; avatar_url: string | 
 export interface ProgressRow { slug: string; status: 'unsolved' | 'solved'; solve_rating: SolveRating | null; first_solved_at: string | null; needs_resolve: boolean; updated_at: string }
 export interface NoteRow { slug: string; insight: string; approach: string; complexity: string; mistakes: string; code: string; updated_at: string }
 export interface CardRow { slug: string; card: StoredCard; due: string; updated_at: string }
-export interface ReviewLogRow { id: string; slug: string; rating: ReviewRating; reviewed_at: string; kind: 'solve' | 'review' | null }
+export interface ReviewLogRow { id: string; slug: string; rating: ReviewRating; reviewed_at: string; kind: 'solve' | 'review' | null; due_at: string | null }
 export interface TrainAttemptRow { id: string; problem_slug: string; correct_pattern: string; chosen_pattern: string; correct: boolean; at: string }
 export interface ActivityRow { date: string; reviews: number; solves: number; trains: number }
 
@@ -46,7 +46,7 @@ const noteToRow = (n: Note) => ({
   slug: n.slug, insight: n.insight, approach: n.approach, complexity: n.complexity, mistakes: n.mistakes, code: n.code, updated_at: n.updatedAt,
 })
 const cardToRow = (c: ReviewCard) => ({ slug: c.slug, card: c.card, due: c.due, updated_at: c.updatedAt })
-const logToRow = (l: ReviewLog) => ({ id: l.id, slug: l.slug, rating: l.rating, reviewed_at: l.reviewedAt, kind: l.kind ?? null })
+const logToRow = (l: ReviewLog) => ({ id: l.id, slug: l.slug, rating: l.rating, reviewed_at: l.reviewedAt, kind: l.kind ?? null, due_at: l.dueAt ?? null })
 const attemptToRow = (a: TrainAttempt) => ({
   id: a.id, problem_slug: a.problemSlug, correct_pattern: a.correctPattern, chosen_pattern: a.chosenPattern, correct: a.correct, at: a.at,
 })
@@ -96,6 +96,7 @@ export function fromRows(rows: RemoteRows): UserData {
     cards: rows.cards.map((r): ReviewCard => ({ slug: r.slug, card: r.card, due: iso(r.due), updatedAt: iso(r.updated_at) })),
     reviewLogs: rows.review_logs.map((r): ReviewLog => ({
       id: r.id, slug: r.slug, rating: r.rating, reviewedAt: iso(r.reviewed_at), ...(r.kind ? { kind: r.kind } : {}),
+      ...(r.due_at ? { dueAt: iso(r.due_at) } : {}),
     })),
     trainAttempts: rows.train_attempts.map((r): TrainAttempt => ({
       id: r.id, problemSlug: r.problem_slug, correctPattern: r.correct_pattern, chosenPattern: r.chosen_pattern, correct: r.correct, at: iso(r.at),

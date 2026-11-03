@@ -44,7 +44,7 @@ const exportFileSchema = z.object({
     })),
     reviewLogs: z.array(z.object({
       id: z.string(), slug: z.string(), rating: z.enum(['again', 'hard', 'good', 'easy']), reviewedAt: iso,
-      kind: z.enum(['solve', 'review']).optional(),
+      kind: z.enum(['solve', 'review']).optional(), dueAt: iso.optional(),
     })),
     trainAttempts: z.array(z.object({
       id: z.string(), problemSlug: z.string(), correctPattern: z.string(), chosenPattern: z.string(),

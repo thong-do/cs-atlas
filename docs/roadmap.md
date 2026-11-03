@@ -53,7 +53,7 @@ Our edge stays the same as v1: **learning that lasts.** Every track gets the par
 - **Known gaps** (from the audit of 2026-10-31):
   - Algorithms has no quizzes, flashcards or worked examples, and its lessons run 400–950 words against about 1,400 in the other tracks.
   - Beginners land on Arrays & Hashing, which assumes Big-O, and recursion and sorting aren't taught anywhere.
-  - Only 4-week retention can be measured, and only for signed-in learners.
+  - Only 4-week retention could be measured, and only for signed-in learners. Phase Q #7 added weekly active learners and review completion, still for signed-in learners only.
 
 ## 3. Guiding principles
 
@@ -193,6 +193,7 @@ New pieces for this track:
   - It covers signed-in learners only, because guest progress never leaves the browser. Phase 4 compares against the same function.
   - First production run, 2026-10-28: no cohort was complete. Only one signed-in learner had synced activity, first active 2026-10-15; their cohort (week of 2026-10-12) completes on 2026-11-14.
   - The baseline is recorded once at least one complete cohort has 5 or more learners. Until then the figure would describe individuals, not a baseline.
+  - Weekly active learners and review completion joined it in Phase Q #7 (see section 6).
 
 ### Phase Q — Quality first (in progress)
 
@@ -208,7 +209,7 @@ New pieces for this track:
 | 4 | **Algorithms up to the bar:** a quiz and flashcards for all 18 lessons, worked examples, a deeper Foundations module | Next |
 | 5 | **Beginner on-ramp:** Big-O reachable from the first lesson, and new Recursion and Sorting lessons | Planned |
 | 6 | **Coverage gaps:** rate-limiter case study, consistent hashing lesson, how hash tables and trees work underneath, how a CPU runs a program | Planned |
-| 7 | **Minimum measurement:** cookieless page analytics, a weekly-active-learners query, the due date stored on review logs | Planned |
+| 7 | **Minimum measurement:** cookieless page analytics, a weekly-active-learners query, the due date stored on review logs | Done |
 | 8 | **Try it with people:** 5–10 real learners and 1–2 contributors, with an "Improve this page" link for reports | Planned |
 
 **Exit criteria**
@@ -279,18 +280,25 @@ The first plan for this phase also had roles, a review queue with SLAs, a blog a
 
 ## 6. Success metrics
 
-Percentage targets are on hold until there are about 30 active learners, because below that they would describe individuals. Phase Q #7 adds what's missing.
+Percentage targets are on hold until there are about 30 active learners, because below that they would describe individuals. Phase Q #7 added what was missing.
 
 | Metric | Why it matters | Measurable today? | Target once there's an audience |
 |---|---|---|---|
-| **North Star: weekly active learners** who complete a lesson or a review session | Measures real learning, not page views | No. Activity exists for signed-in learners but nothing queries it, "completes a lesson" isn't defined, and guests aren't visible | +20% a quarter |
-| Review completion rate (due items reviewed within 48h) | Measures whether learning lasts | No. Review logs don't store the due date | ≥ 60% |
+| **North Star: weekly active learners** who complete a lesson or a review session | Measures real learning, not page views | Yes, signed-in learners only: `report.weekly_active()`. Active means any solve, review or training that week; guests aren't visible | +20% a quarter |
+| Review completion rate (due items reviewed within 48h) | Measures whether learning lasts | Yes, for reviews logged after Phase Q #7: `report.review_completion()`. Early reviews count as on time, and a card left unreviewed counts as late | ≥ 60% |
 | 4-week retention of new sign-ups | Measures whether the product is fun | Yes, signed-in learners only: `report.retention_w4()` | ≥ 25% |
 | Accepted contributions per month | Measures whether the community is healthy | Yes, from GitHub. Currently no outside ones | Set after Phase 3 |
 | Median time to review a submission | Measures contributor experience | Yes, from GitHub. Nothing to measure yet | < 72h |
 | Lessons meeting the quality bar | Measures content depth | Partly. CI checks required sections, not whether each lesson has a quiz | 100% of published lessons |
 
-**Analytics:** privacy-friendly (e.g. Plausible or Umami with no third-party cookies), added in Phase Q.
+**Caveats on the new reports:**
+- `report.weekly_active()` totals are raw counts. Small weeks are not merged, but no row names anyone.
+- `report.review_completion()` merges weeks under 5 learners into 'other', and logs for the same card and due date count once. Some effects are definitional:
+  - an off-schedule early retake or re-solve records a due that may be weeks away, and counts as on time when that date comes round;
+  - an 'again' left undone (its due is minutes away) counts as late;
+  - a content key change (renamed slug or flashcard id) leaves cards that can never be reviewed, and they count as late.
+
+**Analytics:** Vercel Web Analytics (our host) counts page views on the production site only. It sets no cookies, stores no personal identifiers and records no custom events.
 
 ## 7. Key risks
 

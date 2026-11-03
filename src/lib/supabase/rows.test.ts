@@ -40,6 +40,16 @@ describe('rows', () => {
     expect(back.meta.schemaVersion).toBe(SCHEMA_VERSION)
   })
 
+  it('maps dueAt to due_at both ways, null when absent', () => {
+    const logs = [{ id: 'l3', slug: 'a', rating: 'good' as const, reviewedAt: '2026-10-06T12:00:00.000Z', kind: 'review' as const, dueAt: '2026-10-05T00:00:00.000Z' }]
+    const p = toApplyPayload({ reviewLogs: [...fixture.reviewLogs, ...logs] }) as unknown as P
+    expect(p.review_logs.map((r) => r.due_at)).toEqual([null, null, '2026-10-05T00:00:00.000Z'])
+    const rows = asRows(toReplacePayload({ ...fixture, reviewLogs: logs }))
+    rows.review_logs[0].due_at = '2026-10-05T00:00:00+00:00'
+    expect(fromRows(rows).reviewLogs).toEqual(logs)
+    expect(fromRows(asRows(toReplacePayload(fixture))).reviewLogs[0]).not.toHaveProperty('dueAt')
+  })
+
   it('uses snake_case keys', () => {
     const p = toApplyPayload({ trainAttempts: fixture.trainAttempts }) as unknown as P
     expect(Object.keys(p.train_attempts[0]).sort()).toEqual(['at', 'chosen_pattern', 'correct', 'correct_pattern', 'id', 'problem_slug'])

@@ -14,6 +14,7 @@ describe('mutations', () => {
     expect(w.note).toMatchObject({ slug: 'two-sum', insight: 'map value to index', approach: '', updatedAt: now.toISOString() })
     expect(Date.parse(w.cards![0].due)).toBeGreaterThan(now.getTime())
     expect(w.log).toMatchObject({ slug: 'two-sum', kind: 'solve', reviewedAt: now.toISOString() })
+    expect(w.log).not.toHaveProperty('dueAt')
     expect(w.bump).toEqual({ date: localDate(now), field: 'solves' })
   })
 
@@ -36,9 +37,15 @@ describe('mutations', () => {
     const solved = solveWrites({}, 's', 'alone', 'insight', now, 0.9)
     const later = new Date(2026, 9, 20, 9)
     const w = reviewWrites({ progress: solved.progress, card: solved.cards![0] }, 's', 'again', later, 0.9)
-    expect(w.log).toMatchObject({ kind: 'review', rating: 'again' })
+    expect(w.log).toMatchObject({ kind: 'review', rating: 'again', dueAt: solved.cards![0].due })
     expect(w.progress?.needsResolve).toBe(true)
     expect(w.bump).toEqual({ date: localDate(later), field: 'reviews' })
+  })
+
+  it('solveWrites on a scheduled card records the due date it completed', () => {
+    const first = solveWrites({}, 's', 'hint', 'insight', now, 0.9)
+    const w = solveWrites({ progress: first.progress, card: first.cards![0] }, 's', 'alone', 'insight', new Date(2026, 9, 20, 9), 0.9)
+    expect(w.log).toMatchObject({ kind: 'solve', dueAt: first.cards![0].due })
   })
 
   it('reviewWrites throws without a card', () => {
@@ -98,6 +105,7 @@ describe('quizWrites', () => {
     expect(w.progress).toMatchObject({ slug: 'caching-quiz', status: 'solved', solveRating: 'alone', needsResolve: false })
     expect(w.cards!.map((c) => c.slug)).toEqual(['caching-quiz', flashcardKey('caching-quiz', 'ttl'), flashcardKey('caching-quiz', 'lru')])
     expect(w.log).toMatchObject({ slug: 'caching-quiz', kind: 'solve' })
+    expect(w.log).not.toHaveProperty('dueAt')
     expect(w.bump).toEqual({ date: localDate(now), field: 'solves' })
   })
   it('retake: reviews the quiz card, never duplicates flashcards, bumps reviews', () => {
@@ -106,7 +114,7 @@ describe('quizWrites', () => {
     const prev = { progress: first.progress, card: first.cards![0], existingCardKeys: new Set(['q#a', 'q#b']) }
     const w = quizWrites(prev, 'q', ['a', 'b', 'c'], { correct: 5, total: 5 }, later, 0.9)
     expect(w.cards!.map((c) => c.slug)).toEqual(['q', 'q#c'])
-    expect(w.log).toMatchObject({ kind: 'review', rating: 'easy' })
+    expect(w.log).toMatchObject({ kind: 'review', rating: 'easy', dueAt: first.cards![0].due })
     expect(w.progress?.firstSolvedAt).toBe(first.progress?.firstSolvedAt)
     expect(w.bump?.field).toBe('reviews')
   })

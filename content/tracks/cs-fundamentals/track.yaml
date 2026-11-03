@@ -5,7 +5,7 @@ order: 3
 modules:
   - slug: foundations
     title: Foundations
-    lessons: [complexity, data-in-memory]
+    lessons: [complexity, data-in-memory, hash-tables-trees]
   - slug: operating-systems
     title: Operating systems
     lessons: [processes-threads, cpu-scheduling, virtual-memory, concurrency-primitives]
@@ -17,4 +17,4 @@ modules:
     lessons: [indexes-btrees, transactions-isolation, query-planning]
   - slug: machine-math
     title: Machine & math
-    lessons: [memory-hierarchy, number-representation, discrete-math-essentials]
+    lessons: [cpu-execution, memory-hierarchy, number-representation, discrete-math-essentials]

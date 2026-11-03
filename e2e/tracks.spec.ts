@@ -45,6 +45,8 @@ test('the CS Fundamentals home shows all five modules with every lesson linked, 
     await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
   }
   await expect(page.getByText('Coming soon')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Hash tables & trees under the hood/ })).toHaveAttribute('href', '/cs-fundamentals/hash-tables-trees/')
+  await expect(page.getByRole('link', { name: /How a CPU runs your code/ })).toHaveAttribute('href', '/cs-fundamentals/cpu-execution/')
   await expect(page.getByRole('link', { name: /The memory hierarchy/ })).toHaveAttribute('href', '/cs-fundamentals/memory-hierarchy/')
   await expect(page.getByRole('link', { name: /Number representation/ })).toHaveAttribute('href', '/cs-fundamentals/number-representation/')
   await expect(page.getByRole('link', { name: /Discrete math essentials/ })).toHaveAttribute('href', '/cs-fundamentals/discrete-math-essentials/')

@@ -1,0 +1,97 @@
+---
+slug: cpu-execution
+title: How a CPU runs your code
+level: intermediate
+authors: [cs-atlas]
+prerequisites: [data-in-memory]
+summary: "Follow your code from source to machine instructions, and see how pipelining, branch prediction, SIMD and multiple cores decide how fast those instructions run."
+---
+
+## Intuition
+
+A laundromat with one washer, one dryer and one folding table does not wait for your first load to be folded before washing the second. Each machine works on a different load at once. A CPU core runs instructions the same way: an assembly line of stages, each busy with a different instruction.
+
+**From source to machine code.** A CPU executes only **machine code**: binary instructions for its architecture (x86-64, ARM64). What differs between languages is when your code becomes machine code.
+
+- **Compiled** (C, C++, Rust, Go): a compiler translates ahead of time. Clang turns `return a + b * c;` into one ARM64 instruction, `madd x0, x2, x1, x0` (multiply and add), or into `imul` plus `lea` on x86-64.
+- **Interpreted** (CPython): source is compiled to **bytecode**, simple instructions for a virtual machine. CPython 3.12's `dis` shows `if x >= 128:` as `LOAD_FAST`, `LOAD_CONST`, `COMPARE_OP`, `POP_JUMP_IF_TRUE`. An interpreter loop, itself machine code, reads each bytecode and runs dozens of machine instructions to carry it out. CPython 3.13 added an experimental JIT, off by default.
+- **Bytecode plus JIT** (Java, C#, JavaScript in V8): the runtime starts with a quick, unoptimised version (HotSpot and V8 interpret; .NET compiles each method fast on its first call), counts which methods run hot, and compiles those to optimised machine code while the program runs, using the types it has actually seen. Early requests are slower until this **warm-up** finishes.
+
+**Instructions and registers.** One instruction does one small thing: load a value from memory, add two values, compare them, jump elsewhere, store a result. Instructions work on **registers**, a few dozen named slots inside the core: 16 general-purpose ones on x86-64, 31 on ARM64. A special register, the **program counter**, holds the address of the next instruction.
+
+**Fetch, decode, execute.** The core repeats one loop: fetch the instruction at the program counter, decode what it asks for, execute it, write the result, and move the counter on (or somewhere else, for a jump).
+
+**Clock rate times IPC.** The clock ticks billions of times a second, and a modern core completes several instructions per tick on good code. So
+
+time = instructions ÷ (IPC × clock rate),
+
+where IPC is instructions per cycle. A 3 GHz core at an IPC of 4 beats a 4 GHz core at an IPC of 2. Clock rate alone is not speed.
+
+**Pipelining.** Splitting each instruction into stages lets a new one start every cycle while earlier ones finish. Wide cores go further: they run several pipelines, and execute instructions **out of order**, as soon as their inputs are ready. That only works when instructions are independent. If each one needs the previous one's result, they queue, however wide the core. On our Apple M2 (clang 21, `-O2`), a C loop summing 16,384 floats into one variable took 2.95 cycles per addition, the latency of one floating-point add. Splitting it into four running sums took 0.73 cycles per addition, 4.0 times faster. The compiler will not make that change for you, because reordering float additions can change the rounded result.
+
+**Branch prediction.** An `if` compiles to a conditional jump. The pipeline must fetch the next instructions long before the comparison finishes, so the core *guesses* the outcome from the branch's history. A correct guess costs nothing extra. A wrong one throws away the work done on the wrong path and refills the pipeline: typically 10 to 20 cycles on current desktop and phone cores. Predictors learn biased branches and short repeating patterns; a branch decided by random 50/50 data defeats them about half the time. Compilers can also remove the branch, computing both outcomes and selecting one with an instruction such as `csel` (ARM64) or `cmov` (x86-64), so there is nothing to mispredict.
+
+**SIMD.** One instruction can work on several values at once: a 128-bit NEON register on ARM64 holds 4 floats, a 256-bit AVX/AVX2 register on x86-64 holds 8. Compilers **auto-vectorise** simple loops, and NumPy's compiled loops use SIMD where they can. The float sum above, built with `-ffast-math` so the compiler was allowed to reorder additions, became vector code and took 0.053 ns per addition against 0.85 ns, 16 times faster: 4 lanes per instruction, times the four independent running sums the compiler also created.
+
+**Cores and hardware threads.** A **core** has its own pipelines, execution units and small caches. **Simultaneous multithreading** (SMT; Intel calls it Hyper-Threading) lets one core hold two instruction streams and feed both into the same execution units, filling slots one stream leaves idle while it waits. The operating system shows each stream as a CPU, so a "16-CPU" machine may have 8 cores. Two threads on one core usually add much less than a second core would; how much depends on the workload, and it can be nothing. Our M2 has 8 cores (4 performance, 4 efficiency) and no SMT. Loads that miss the caches are another story, told in [The memory hierarchy](/cs-fundamentals/memory-hierarchy/).
+
+## Visual
+
+A five-stage pipeline (fetch, decode, execute, memory, write-back), one instruction per row:
+
+```text
+cycle        1   2   3   4   5   6   7   8   9
+add          F   D   E   M   W
+load             F   D   E   M   W
+cmp                  F   D   E   M   W
+b.lt (guess)             F   D   E                <- resolves here: guess was wrong
+sub (wrong path)             F   D   x                flushed
+mul (wrong path)                 F   x                flushed
+str (right path)                     F   D   E ...    restart: 2 cycles lost
+```
+
+Once full, the pipeline finishes one instruction per cycle. A mispredict empties it; deeper pipelines lose more cycles per mistake.
+
+## Example
+
+**Does sorting the data speed up a filter?** This C function adds the elements of an array that are at least 128:
+
+```c
+long long count_big(const int *a, int n) {
+    long long sum = 0;
+    for (int i = 0; i < n; i++)
+        if (a[i] >= 128) sum += a[i];
+    return sum;
+}
+```
+
+We filled an array with 16,777,216 random ints from 0 to 255, made a sorted copy, and timed the function on each: Apple M2, macOS, clang 21, best of 7 runs after warm-up, on mains power. Your numbers will differ.
+
+| Build | Unsorted | Sorted |
+|---|---|---|
+| `-O2` as written | 1.2 ms | 1.2 ms |
+| `-O2`, branch forced (empty `asm volatile` inside the `if`) | 49.6 ms | 5.0 ms |
+
+As written, clang vectorised the loop: it compares 16 elements per iteration, masks out the small ones and adds the rest, with no branch at all. Order cannot matter, and both runs take 1.2 ms ÷ 16,777,216 ≈ 0.07 ns per element. At `-O1` it used `csel` instead, also branch-free, and both took 5.5 ms.
+
+With a real branch, sorted data gives a predictor a long run of "skip" followed by a long run of "add". Random values cross 128 unpredictably, so about half the guesses are wrong:
+
+- extra time: 49.6 − 5.0 = 44.6 ms, or 44.6 ms ÷ 16,777,216 ≈ 2.66 ns per element
+- mispredicts: about 16,777,216 ÷ 2 ≈ 8.4 million, assuming half the guesses miss (macOS gave us no branch-miss counter to check)
+- cost of each: 44.6 ms ÷ 8.4 million ≈ 5.3 ns; at the 3.46 GHz we measured with a chain of dependent adds, about 18 cycles
+
+That lands in the typical 10 to 20 cycle range. The same filter in CPython 3.12, over 2,000,000 values, took 40 ms unsorted and 25 ms sorted on this machine: a real effect too, but each element costs 12 to 20 ns of interpreter work against 0.07 ns for the vectorised C.
+
+## Pitfalls
+
+- **Comparing CPUs by GHz.** IPC differs by design and by workload. Fix: compare benchmarks of your own workload.
+- **Benchmarking unoptimised builds.** At `-O0` our filter showed a 3.7× sorted-versus-unsorted gap that vanished at `-O1`. Fix: measure the build you ship.
+- **Sorting data to help a branch that isn't there.** Fix: read the compiler's output (`cc -O2 -S`, or Compiler Explorer) or count branch misses before restructuring code.
+- **Timing a JIT before it warms up.** The first calls are interpreted. Fix: warm up, repeat, and use a harness such as JMH for Java.
+- **Counting hardware threads as cores.** Two threads on one core share its execution units. Fix: check `lscpu` (threads per core) or your cloud provider's vCPU definition.
+
+## Tips & tricks
+
+- **Rules of thumb:** independent work overlaps and dependent work queues; an unpredictable branch costs a pipeline refill; hand bulk number-crunching to vectorised libraries.
+- **Interview phrasing:** "Run time is instructions over IPC times clock. Sorting can speed up a branchy filter because the predictor stops missing, unless the compiler already made it branch-free."
+- **What to measure:** on Linux, `perf stat` reports instructions, cycles, IPC and branch misses (event names vary by CPU).

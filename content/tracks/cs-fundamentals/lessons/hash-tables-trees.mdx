@@ -1,0 +1,100 @@
+---
+slug: hash-tables-trees
+title: Hash tables & trees under the hood
+level: beginner
+authors: [cs-atlas]
+prerequisites: [data-in-memory]
+summary: "See how hash tables, balanced search trees and heaps are built from arrays and pointers, what each operation really costs, and when a hash table's O(1) stops being true."
+---
+
+## Intuition
+
+A cloakroom works because your ticket number tells the attendant which hook to walk to. A **hash table** does the same with an array. A **hash function** turns a key into a number, and that number modulo the array size picks a slot, or **bucket**. One calculation gets you to the right bucket, whatever the size of the table.
+
+**What a hash function must do:**
+
+- **Equal keys give equal hashes**, at least within one run: if `a == b` then `hash(a) == hash(b)`, or a lookup visits the wrong bucket. That is why Python refuses lists as dict keys; a list changed after storing would change its hash.
+- **Be cheap**, since every lookup pays for it.
+- **Spread keys evenly.** It cannot be unique: there are far more possible keys than buckets, so different keys sometimes share one. That is a **collision**.
+
+**Two ways to handle collisions.**
+
+- **Chaining:** each bucket holds a small list that colliding keys share. A lookup hashes, then compares keys along that one list.
+- **Open addressing:** entries live in the array itself. On a collision, try the next slot, and the next (**linear probing**), until you find the key or an empty slot.
+
+Deleting from open addressing has a catch. Emptying the slot would cut a probe chain: lookups stop at the first empty slot, so a key stored further along becomes unreachable. Deletion leaves a **tombstone** instead, a marker meaning "something was here, keep looking". Lookups skip it and inserts may reuse it, but tombstones still lengthen probe chains, so a table must count them when deciding to rebuild.
+
+**Load factor** α = entries ÷ slots decides speed. With chaining and a good hash, the average chain holds α entries. Linear probing slows sharply as the array fills, worst for a missing key, which only an empty slot stops. Knuth's estimates for linear probing, ½(1 + 1/(1 − α)) and ½(1 + 1/(1 − α)²), matched our simulation on a 262,144-slot table with random hashes to within 0.25 probes:
+
+| α | Probes to find a stored key | Probes to report a missing key |
+|---|---|---|
+| 0.5 | 1.5 | 2.5 |
+| 0.75 | 2.5 | 8.5 |
+| 0.9 | 5.5 | 50.5 |
+
+So tables **resize** before they fill: allocate an array typically twice the size and re-insert every entry, since each key's slot depends on the array size. Java's `HashMap` resizes past α = 0.75; CPython's dict past about two thirds (in 3.12, `sys.getsizeof` jumps at 6, 11, 22 and 43 entries). One resize costs O(n), yet inserts stay **O(1) amortised**, as the Example shows.
+
+**The worst case is O(n).** If many keys land in one bucket, a lookup scans them all. That takes bad luck, a bad hash, or an attacker who sends keys chosen to collide, so n inserts cost O(n²): **hash flooding**. (Java 8+ `HashMap` limits the damage by turning crowded buckets into small balanced trees.) Since 3.3, Python salts `str` and `bytes` hashes with a random per-process seed: run `python3 -c "print(hash('apple'))"` twice and you get two numbers, unless `PYTHONHASHSEED=0` is set. Integers are *not* salted: `hash(5)` is 5.
+
+**Iteration order.** Since Python 3.7, a dict iterating in insertion order is a language guarantee; overwriting a value keeps the key's place, while deleting and re-inserting moves it to the end. Sets promise no order, and with salted string hashes it can differ between runs. Go randomises map iteration order on purpose, and Java's `HashMap` leaves it unspecified.
+
+**Balanced search trees.** A binary search tree keeps smaller keys left and larger keys right, so a search walks one root-to-leaf path. Fed keys in sorted order, a plain BST degenerates into a chain of height n. A **balanced** tree (red-black, AVL) rotates nodes on insert and delete to keep the height O(log n): at 1,000,000 keys a perfect tree has 20 levels and a red-black tree is guaranteed under 40. Besides that guarantee, a tree gives **order**: an in-order walk yields sorted keys in O(n), and "all keys between x and y" costs O(log n + k) for k results. A hash table must scan every entry for a range, and sort to get order. Databases use the wide cousin, the B-tree ([Indexes & B-trees](/cs-fundamentals/indexes-btrees/)).
+
+**Heaps as arrays.** A binary heap is a tree with no pointers. Filled level by level, it packs into an array: index i has children at 2i + 1 and 2i + 2 and its parent at (i − 1) // 2. A min-heap only promises each parent ≤ its children, so the minimum sits at index 0, push and pop sift along one path in O(log n), and finding any other value means scanning. Python's `heapq` works on a plain list this way.
+
+## Visual
+
+Eight slots, keys `ant`, `bee` and `dog` all hash to 3, `cat` hashes to 5:
+
+```text
+Chaining                      Linear probing (insert ant, bee, cat, dog)
+slot 3: ant -> bee -> dog     slot: 3    4    5    6
+slot 5: cat                         ant  bee  cat  dog   dog tried 3, 4, 5, then 6
+
+Delete bee by emptying slot 4:    ant  ___  cat  dog   find dog: 3 ant, 4 empty -> "absent" (wrong)
+Delete bee with a tombstone:      ant  [T]  cat  dog   find dog: 3, 4 skip, 5, 6 found
+
+Min-heap as an array                 [2, 5, 3, 9, 6, 8, 4]
+                                      0  1  2  3  4  5  6
+          2           index 1 (5): children at 3 and 4 -> 9, 6
+       5     3        index 2 (3): children at 5 and 6 -> 8, 4
+      9 6   8 4       index 6 (4): parent at (6 - 1) // 2 = 2 -> 3
+```
+
+**Operation costs** (n items, average case unless marked):
+
+| Operation | Dynamic array | Linked list | Hash table | Balanced BST | Binary heap |
+|---|---|---|---|---|---|
+| Read item by position | O(1) | O(n) | n/a | O(n), or O(log n) with subtree sizes | n/a |
+| Find by key or value | O(n); O(log n) if sorted | O(n) | O(1); worst O(n) | O(log n) | O(n) |
+| Insert | O(1) amortised at end, else O(n) | O(1) at a node you hold | O(1) amortised; worst O(n) | O(log n) | O(log n) |
+| Delete | O(1) at end, else O(n) | O(1) given the previous node | O(1); worst O(n) | O(log n) | O(log n) for the min |
+| Min or max | O(n); O(1) if sorted | O(n) | O(n) | O(log n) | O(1) to peek |
+| All items in order | O(n log n) sort | O(n log n) sort | O(n log n) sort | O(n) | O(n log n) |
+
+## Example
+
+**What does growing to 1,000,000 keys cost?** Take an open-addressing table that starts with 8 slots and doubles whenever an insert would push it past α = 0.75.
+
+It resizes when it holds 6, 12, 24, …, 786,432 entries: 6 × 2ᵏ for k = 0 to 17, so 18 resizes. Each resize re-inserts every entry present, so the total moved is
+
+6 + 12 + 24 + … + 786,432 = 6 × (2¹⁸ − 1) = 1,572,858.
+
+In general each term is half the next, so the sum stays below twice the last term (2 × 786,432 = 1,572,864), and the last resize happens before the table holds n entries. Moves stay below 2n, so 1,000,000 inserts cost under 3,000,000 slot writes: O(1) amortised. Our simulation of this policy gave the same 1,572,858. [Complexity & Big-O](/cs-fundamentals/complexity/) does the same sum for dynamic arrays.
+
+The average hides a spike: insert number 786,433 alone moves 786,432 entries. If one slow call would break a latency budget, size the table up front, or use one that migrates entries a few at a time.
+
+**How full does it end up?** The final array has 2,097,152 slots, so α = 1,000,000 ÷ 2,097,152 ≈ 0.48. Then 1 − α ≈ 0.523, and from the formulas a stored key takes about ½(1 + 1/0.523) ≈ 1.46 probes and a missing key about ½(1 + 1/0.523²) ≈ 2.33. Cram the same keys into 1,111,112 slots (α = 0.9) and memory drops by about 47%, but a missing-key lookup averages 50.5 probes, about 22 times more. How full you let the table get sets that trade: a higher threshold saves memory on average but lets α climb closer to it before each resize.
+
+## Pitfalls
+
+- **Mutating a key after storing it.** If the hash depends on a field you change, the entry sits in a bucket its new hash never visits. Fix: hash only immutable fields (a tuple, a frozen dataclass).
+- **Emptying slots on delete in an open-addressing table.** Lookups stop early and stored keys vanish. Fix: tombstones or backward-shift deletion, and count tombstones when deciding to rebuild.
+- **Trusting integer keys from untrusted input.** CPython's int hash is unsalted: for non-negative `k` it is `k` modulo 2⁶¹ − 1, so multiples of 2⁶¹ − 1 all hash to 0. On our Apple M2 with CPython 3.12.2, adding 8,000 of them to a set took 261 ms against 0.12 ms for 8,000 ordinary ints, and going from 4,000 to 8,000 quadrupled the time, the O(n²) signature. Fix: cap request sizes, or key by strings.
+- **Using a hash table when you need order.** "Everything between two dates" means scanning the whole table each time, and sorting if you want the results in order. Fix: a balanced tree or sorted array.
+
+## Tips & tricks
+
+- **Choosing:** membership or counts, hash table; order or ranges, balanced tree; repeatedly the smallest or largest, heap; dense integer positions, plain array.
+- **Interview phrasing:** "Average O(1) assumes a good spread and a bounded load factor; doubling keeps total moves under 2n. With attacker-chosen keys the worst case is O(n) per operation, which is why runtimes salt string hashes."
+- **What to measure:** in a hand-written table, probes per lookup and tombstone count, not just time.

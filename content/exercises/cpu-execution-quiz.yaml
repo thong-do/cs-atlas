@@ -1,0 +1,56 @@
+slug: cpu-execution-quiz
+type: quiz
+title: "How a CPU runs your code — quiz"
+lessons: [cpu-execution]
+ladderOrder: 1
+questions:
+  - id: clock-times-ipc
+    prompt: "A batch job executes 18 × 10⁹ instructions. On laptop A, which runs at 4.5 GHz, it averages 1.2 instructions per cycle. On server B, at 2.4 GHz, the same build averages 3.0 instructions per cycle. Which finishes first, and roughly in how long?"
+    choices: ["A, in about 4 s against about 7.5 s for B, because each instruction takes one tick of the clock", "They take about the same time, because a higher IPC exists to make up for a slower clock", "B, in about 2.5 s against about 3.3 s for A, since it completes more instructions each second", "A, in about 3.3 s against about 6.3 s for B, since one build runs at the same IPC on every CPU"]
+    answer: 2
+    explanation: "Time is instructions ÷ (IPC × clock). A completes 1.2 × 4.5 × 10⁹ = 5.4 × 10⁹ instructions per second, so 18 ÷ 5.4 ≈ 3.3 s; B completes 3.0 × 2.4 × 10⁹ = 7.2 × 10⁹, so 2.5 s. Counting one instruction per tick ignores IPC, IPC depends on the core as well as the code, and nothing makes the two products equal."
+  - id: int-vs-float-sum
+    prompt: "Compiled with clang `-O2` and no `-ffast-math`, a loop that sums 1,000,000 `int64` values into one variable already runs as vector code. The same loop over `double` values runs one addition at a time, each waiting for the previous one, until a programmer splits it into four running sums by hand. Why does the compiler treat the two differently?"
+    choices: ["Integer addition gives the same result in any order, so the compiler may regroup it; reordering double additions can change the rounded sum", "The vector registers can hold integers but not doubles, so no amount of rewriting lets a double loop use SIMD instructions", "The double loop has a hidden branch per element that checks for overflow, and that branch stops the compiler from vectorising", "Doubles are 8 bytes and int64 values only 4, so twice as many integers fit in each register and the compiler only vectorises the narrower type"]
+    answer: 0
+    explanation: "Wrapping integer addition is associative, so splitting the sum into lanes and combining them later gives exactly the same answer. Floating-point addition rounds after every step, so a different grouping can give a different result, and the compiler keeps the written order unless told it may reassociate. Vector registers do hold doubles, there is no overflow branch, and int64 is 8 bytes too."
+  - id: no-branch-to-predict
+    prompt: "A Rust service filters 50 million readings with `if r > limit { total += r }`. A teammate sorts the readings first, expecting fewer branch mispredictions, but the filter's time does not change. The hot loop's disassembly shows a compare followed by `cmov`, and no conditional jump for the test. What is the best explanation?"
+    choices: ["The predictor had already learned the random sequence after a warm-up pass, so it was guessing right before the sort", "Sorting left the readings in cache, which saved exactly as much time as the predictor then lost on the sorted order", "Rust's bounds check on each read takes far longer than any mispredict, so the cost of branching never shows up", "The compiler made the test branch-free, so there was nothing to mispredict, and data order cannot change its cost"]
+    answer: 3
+    explanation: "`cmov` picks one of two values without jumping, so the pipeline never has to guess the outcome and the cost is the same for sorted and random data. Predictors cannot learn a random sequence, sorting makes the branch easier rather than harder to predict, and a bounds check is a branch that is almost never taken, so it is predicted well and costs little."
+  - id: jit-warm-up
+    prompt: "A Java pricing service is redeployed. With steady traffic, its first few minutes show a median latency near 8 ms, which then settles at 1.5 ms. Garbage-collection logs look normal, its data caches are loaded before traffic starts, and clients reuse connections that were already open. What most likely explains the slow start?"
+    choices: ["The CPU's branch predictor needs several minutes of history before it guesses the service's branches well", "The JVM interprets bytecode at first and compiles the hot methods to machine code once they have run often enough", "The operating system lowers the clock rate of a newly started process until it has used a minute of CPU time", "Java recompiles each .java source file the first time one of its classes is used, and requests wait for that"]
+    answer: 1
+    explanation: "A JIT runtime starts by interpreting and spends compile time only on code that proves hot, so early requests run slower bytecode until the compiled versions take over. Branch predictors adapt within microseconds, operating systems do not throttle new processes this way, and javac runs before deployment, not at run time."
+  - id: simd-lanes
+    prompt: "A C loop adds two arrays of 1,000 `float` values element by element. With 256-bit AVX/AVX2 registers, about how many vector add instructions does the vectorised loop need, and how fast should it be compared with the scalar loop?"
+    choices: ["About 250, because a 256-bit register holds 4 floats, so the loop should be about 4 times faster", "1,000, because SIMD makes each addition faster rather than fewer, so the speed-up comes from a shorter cycle", "About 125, because a register holds 8 floats, so the loop should be exactly 8 times faster in every case", "About 125, because a register holds 8 floats, though loading and storing the data often keeps the gain below 8 times"]
+    answer: 3
+    explanation: "A float is 32 bits, so a 256-bit register holds 8 and 1,000 ÷ 8 = 125 vector adds. The adds are no longer the only cost: each step still loads two vectors and stores one, and for arrays that do not fit in cache memory bandwidth can set the pace, so the measured gain is often below 8 times. 4 lanes would be doubles, and SIMD reduces the number of instructions, not the length of a cycle."
+flashcards:
+  - id: three-ways-to-run
+    front: "Compiled vs interpreted vs JIT"
+    back: "Compiled: machine code made ahead of time. Interpreted: a loop runs bytecode one instruction at a time. JIT: starts interpreted or quickly compiled, then optimises hot code at run time."
+  - id: registers
+    front: "What are registers?"
+    back: "A few dozen named storage slots inside a core (16 general-purpose on x86-64, 31 on ARM64). Instructions work on them; loads and stores move data between them and memory."
+  - id: fetch-decode-execute
+    front: "Fetch, decode, execute"
+    back: "The core reads the instruction at the program counter, works out what it asks for, carries it out, writes the result and moves the counter on, or elsewhere for a jump."
+  - id: time-equation
+    front: "Run time from clock rate and IPC"
+    back: "time = instructions ÷ (IPC × clock rate). A 3 GHz core at IPC 4 beats a 4 GHz core at IPC 2, so clock rate alone is not speed."
+  - id: pipelining
+    front: "What does pipelining buy, and what limits it?"
+    back: "Stages overlap, so a new instruction can start every cycle. Instructions that each need the previous result must wait, so long dependency chains run at latency, not throughput."
+  - id: branch-mispredict
+    front: "Cost of a branch misprediction"
+    back: "The core guesses a branch's outcome to keep the pipeline full. A wrong guess discards the speculative work and refills it, typically 10 to 20 cycles on current cores."
+  - id: simd
+    front: "What is SIMD?"
+    back: "One instruction applied to several values at once: 4 floats in a 128-bit NEON register, 8 in a 256-bit AVX/AVX2 register. Compilers auto-vectorise simple loops."
+  - id: cores-vs-smt
+    front: "Cores vs hardware threads (SMT)"
+    back: "A core has its own pipelines and execution units. SMT runs two instruction streams on one core, sharing those units, so the second thread usually adds much less than another core."

@@ -18,6 +18,15 @@ questions:
       - "Array elements are contiguous and equal-sized, so element i's address is computed; node i takes i pointer hops"
     answer: 3
     explanation: "With elements packed back to back, the address of element i is the start address plus i times the element size, one calculation whatever i is. A singly linked list stores only each node's successor, so reaching node i means following i pointers, O(i)."
+  - module: foundations
+    prompt: "A service stores login events keyed by timestamp. Events from offline devices often arrive minutes late and out of order, and it must list every login between two timestamps in time that grows with log n plus the number of results. Which structure fits?"
+    choices:
+      - "A hash map, since its O(1) lookups reach each timestamp in the range directly"
+      - "A binary min-heap, since the earliest timestamp always sits at its root"
+      - "A balanced search tree: find the start in O(log n), then walk in order"
+      - "An unsorted dynamic array, since appends are O(1) amortised and one pass finds the range"
+    answer: 2
+    explanation: "A balanced tree keeps keys in order with O(log n) height, so it finds the first timestamp at or after the start and walks forward one result at a time. A hash map scatters timestamps, so it can only check the times you name; a heap orders only its minimum; an unsorted array needs an O(n) scan."
   - module: operating-systems
     prompt: "One program runs as two threads in a single process; another runs as two separate processes. What do the two threads share that the two processes do not share by default?"
     choices:
@@ -100,11 +109,11 @@ questions:
     answer: 3
     explanation: "0.1 = 1/10, and 10 is not a power of two, so 0.1 has no finite binary expansion (0.000110011…₂ repeats forever) and is stored slightly off, as are 0.2 and 0.3. The computed sum rounds to 0.30000000000000004, the double just above the one nearest 0.3 (0.29999999999999998…)."
   - module: machine-math
-    prompt: "A field is stored as a 16-bit integer. How many distinct bit patterns can it hold, and what range does it cover when read as signed two's complement?"
+    prompt: "Why does a modern CPU core guess which way a conditional branch will go, instead of waiting until the comparison has been computed?"
     choices:
-      - "65,535 patterns; signed range −32,767 to 32,767, with one pattern kept for negative zero"
-      - "65,536 patterns; signed range −32,767 to 32,768, since the extra pattern goes to the positives"
-      - "65,536 patterns; signed range −32,768 to 32,767, one more negative value than positive ones"
-      - "32,768 patterns; signed range −16,384 to 16,383, since one of the 16 bits is spent on the sign"
-    answer: 2
-    explanation: "16 bits give 2¹⁶ = 65,536 patterns. Two's complement gives the top bit weight −2¹⁵ = −32,768, so the range is −32,768 to 2¹⁵ − 1 = 32,767: 32,768 negatives + zero + 32,767 positives = 65,536."
+      - "Its pipeline fetches the following instructions before the comparison finishes, so waiting would leave stages idle"
+      - "Comparisons are carried out by the operating system, which takes microseconds, so guessing saves a system call on every branch"
+      - "A confident guess lets the core skip the comparison entirely, so a well-predicted branch costs nothing at all to run"
+      - "Branches are rare in compiled code, so the core guesses only to save power, and the speed of the program is unaffected"
+    answer: 0
+    explanation: "A pipelined core starts later instructions every cycle, long before an earlier comparison has a result, so stalling at each branch would waste most of its capacity. It predicts from the branch's history, still checks the comparison, and on a wrong guess discards the speculative work, typically 10 to 20 cycles on current cores."

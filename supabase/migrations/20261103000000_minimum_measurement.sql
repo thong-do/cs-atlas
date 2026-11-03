@@ -132,7 +132,8 @@ end $$;
 
 -- Learners with any solve, review or training in each of the last `weeks` weeks (Monday start) up to and
 -- including the week of as_of. Empty weeks show 0. activity.date is the learner's local date.
-create or replace function report.weekly_active(weeks int default 12, as_of date default current_date)
+-- Totals are raw counts: small weeks are not merged, but no row names anyone.
+create or replace function report.weekly_active(weeks int default 12, as_of date default (now() at time zone 'UTC')::date)
 returns table (week date, learners int)
 language sql
 stable
@@ -156,10 +157,14 @@ grant execute on function report.weekly_active(int, date) to service_role;
 -- How often due reviews get done on time. A due item is either a review log whose due_at fell in the window
 -- (on time when reviewed no later than 48 hours after it was due; early counts as on time), or a card whose
 -- current due is in the window: reviewing a card moves its due, so it has not been reviewed since and is late.
--- The window is [as_of - 30 days, as_of - 2 days) in UTC, so every item in it has had its full 48 hours.
--- Rows are weeks (Monday, UTC) of the due date; weeks under 5 learners merge into 'other'; 'all' gives totals.
--- Logs written before due_at existed are not counted.
-create or replace function report.review_completion(as_of date default current_date)
+-- Logs for the same (user, slug, due_at), e.g. two offline devices reviewing one due card, count once, by the
+-- earliest review. The window is [as_of - 30 days, as_of - 2 days) in UTC, so every item in it has had its full
+-- 48 hours. Rows are weeks (Monday, UTC) of the due date; weeks under 5 learners merge into 'other'; 'all' gives
+-- totals ('other' and 'all' can still cover fewer than 5 learners). Logs written before due_at existed are not counted.
+-- Caveats: an off-schedule early retake or re-solve records a due that may be weeks away and counts as on time
+-- when it reaches the window; an 'again' left undone (its due is minutes away) counts as late; and a content key
+-- change (renamed slug or flashcard id) leaves a card that can never be reviewed, which counts as late.
+create or replace function report.review_completion(as_of date default (now() at time zone 'UTC')::date)
 returns table (week text, due int, on_time int, pct numeric)
 language sql
 stable
@@ -169,9 +174,10 @@ as $$
     select (as_of - 30)::timestamp at time zone 'UTC' as lo, (as_of - 2)::timestamp at time zone 'UTC' as hi
   ),
   items as (
-    select l.user_id, l.due_at as due_at, l.reviewed_at <= l.due_at + interval '48 hours' as done
+    select l.user_id, l.due_at, min(l.reviewed_at) <= l.due_at + interval '48 hours' as done
     from public.review_logs l, bounds b
     where l.due_at >= b.lo and l.due_at < b.hi
+    group by l.user_id, l.slug, l.due_at
     union all
     select c.user_id, c.due, false
     from public.cards c, bounds b

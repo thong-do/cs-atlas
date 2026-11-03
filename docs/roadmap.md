@@ -291,6 +291,13 @@ Percentage targets are on hold until there are about 30 active learners, because
 | Median time to review a submission | Measures contributor experience | Yes, from GitHub. Nothing to measure yet | < 72h |
 | Lessons meeting the quality bar | Measures content depth | Partly. CI checks required sections, not whether each lesson has a quiz | 100% of published lessons |
 
+**Caveats on the new reports:**
+- `report.weekly_active()` totals are raw counts. Small weeks are not merged, but no row names anyone.
+- `report.review_completion()` merges weeks under 5 learners into 'other', and logs for the same card and due date count once. Some effects are definitional:
+  - an off-schedule early retake or re-solve records a due that may be weeks away, and counts as on time when that date comes round;
+  - an 'again' left undone (its due is minutes away) counts as late;
+  - a content key change (renamed slug or flashcard id) leaves cards that can never be reviewed, and they count as late.
+
 **Analytics:** Vercel Web Analytics (our host) counts page views on the production site only. It sets no cookies, stores no personal identifiers and records no custom events.
 
 ## 7. Key risks

@@ -26,18 +26,21 @@ export default function PrivacyPage() {
         <p>
           Supabase (Postgres) in <strong>Singapore (ap-southeast-1)</strong>. Data is encrypted in transit, and row-level security lets only you read or change your rows.
         </p>
+        <p>Page-view analytics are processed by Vercel, our host.</p>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">What we don&apos;t do</h2>
         <p>
           No ads, no third-party trackers, and no selling or sharing your data. We count page views with Vercel Web
-          Analytics, built into our host, which uses no cookies and stores no personal identifiers.
+          Analytics, built into our host, which records the page, referrer, country and browser/device type, uses no
+          cookies, and doesn&apos;t store your IP address.
         </p>
         <p>
-          From synced data we compute anonymous, aggregate figures: how many learners are active each week, how often due
-          reviews are done on time, and how many are still active after four weeks. They never identify you, and small
-          groups are merged wherever a figure could describe one person.
+          From synced data we compute aggregate figures: weekly active learners, how often due reviews are done on time,
+          and 4-week retention. They contain only counts and percentages, never names, emails or user ids. In the
+          retention and review reports, a cohort or week that would describe fewer than five learners is merged with
+          others.
         </p>
       </section>
 

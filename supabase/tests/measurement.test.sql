@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(21);
 
 insert into auth.users (id, email)
 select ('00000000-0000-0000-0000-00000000000' || n)::uuid, 'u' || n || '@example.com' from generate_series(1, 7) n;
@@ -71,6 +71,50 @@ select results_eq(
   $$ values ('all', 0, 0, null::numeric) $$,
   'nothing due gives an empty total'
 );
+
+-- A card and its log for the same (user, slug). as_of 2026-11-03 again; every learner here is in 'other'.
+delete from public.review_logs;
+delete from public.cards;
+-- Reviewed late on 2026-10-15; the new due is outside the window: one late item.
+insert into public.review_logs (user_id, id, slug, rating, reviewed_at, kind, due_at) values
+  ('00000000-0000-0000-0000-000000000001', 'x1', 'x', 'good', '2026-10-15T00:00:00Z', 'review', '2026-10-10T00:00:00Z');
+insert into public.cards (user_id, slug, card, due, updated_at) values
+  ('00000000-0000-0000-0000-000000000001', 'x', '{}', '2026-11-20T00:00:00Z', '2026-10-15T00:00:00Z');
+select results_eq(
+  $$ select week, due, on_time from report.review_completion('2026-11-03') $$,
+  $$ values ('other', 1, 0), ('all', 1, 0) $$,
+  'a late review whose new due is outside the window is one late item'
+);
+-- Same, but the new due is inside the window and still unreviewed: two late items.
+insert into public.review_logs (user_id, id, slug, rating, reviewed_at, kind, due_at) values
+  ('00000000-0000-0000-0000-000000000002', 'y1', 'y', 'again', '2026-10-15T00:00:00Z', 'review', '2026-10-10T00:00:00Z');
+insert into public.cards (user_id, slug, card, due, updated_at) values
+  ('00000000-0000-0000-0000-000000000002', 'y', '{}', '2026-10-20T00:00:00Z', '2026-10-15T00:00:00Z');
+select results_eq(
+  $$ select week, due, on_time from report.review_completion('2026-11-03') $$,
+  $$ values ('other', 3, 0), ('all', 3, 0) $$,
+  'a late review whose new due is inside the window and unreviewed adds two late items'
+);
+-- Two devices reviewed the same due: one item, judged by the earliest review (on time).
+insert into public.review_logs (user_id, id, slug, rating, reviewed_at, kind, due_at) values
+  ('00000000-0000-0000-0000-000000000003', 'z1', 'z', 'good', '2026-10-20T00:00:00Z', 'review', '2026-10-12T00:00:00Z'),
+  ('00000000-0000-0000-0000-000000000003', 'z2', 'z', 'good', '2026-10-13T00:00:00Z', 'review', '2026-10-12T00:00:00Z');
+select results_eq(
+  $$ select week, due, on_time from report.review_completion('2026-11-03') $$,
+  $$ values ('other', 4, 1), ('all', 4, 1) $$,
+  'duplicate logs for one due count once, by the earliest review'
+);
+-- With an explicit as_of the window is UTC whatever the session timezone: 2026-10-03T20:00Z is
+-- 2026-10-04 03:00 in Ho Chi Minh City but still before the UTC window start.
+insert into public.review_logs (user_id, id, slug, rating, reviewed_at, kind, due_at) values
+  ('00000000-0000-0000-0000-000000000004', 'w1', 'w', 'good', '2026-10-04T00:00:00Z', 'review', '2026-10-03T20:00:00Z');
+set local timezone = 'Asia/Ho_Chi_Minh';
+select results_eq(
+  $$ select week, due, on_time from report.review_completion('2026-11-03') $$,
+  $$ values ('other', 4, 1), ('all', 4, 1) $$,
+  'the window and weeks do not depend on the session timezone'
+);
+reset timezone;
 
 -- Counts only, and only service_role may run either report.
 select is(

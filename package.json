@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "check:deploy": "node scripts/check-deploy.mjs",
-    "check:solutions": "velite build && python3 scripts/check-solutions.py .velite/solutions.json",
+    "check:solutions": "velite build --strict && python3 scripts/check-solutions.py .velite/solutions.json",
     "db:start": "supabase start -x studio,imgproxy,edge-runtime,logflare,vector,storage-api,mailpit,supavisor",
     "db:test": "supabase test db"
   },

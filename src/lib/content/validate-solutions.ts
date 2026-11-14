@@ -86,6 +86,9 @@ export function validateSolutions(solutions: SolutionInput[], { exercises }: Con
     if (s.harness !== 'custom' && s.check) err('only harness "custom" may have a check')
     if (s.harness !== 'function' && s.large) err('only harness "function" may have large')
 
+    const lines = s.raw.split('\n')
+    const first = lines.findIndex((l) => l.startsWith('## '))
+    if (lines.slice(0, Math.max(first, 0)).some((l) => l.trim() !== '')) err('nothing may come before "## Intuition"; it would show before any step is opened')
     const secs = sections(s.raw)
     const titles = secs.map((x) => x.title)
     if (!SHAPES.some((shape) => shape.join('\n') === titles.join('\n'))) {

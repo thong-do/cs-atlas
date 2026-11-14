@@ -3,17 +3,30 @@ import { SECTION_STEPS } from './solution-sections'
 
 const text = (n: RootContent): string =>
   n.type === 'text' ? n.value : 'children' in n ? (n.children as RootContent[]).map(text).join('') : ''
+const STEPS = Object.keys(SECTION_STEPS).map((t) => `"${t}"`).join(', ')
 
-/** Wraps each top-level `h2` and the siblings after it, up to the next `h2`, in `<section data-step>`. */
+/**
+ * Wraps each top-level `h2` and the siblings after it, up to the next `h2`, in `<section data-step>`.
+ * Throws (failing the Velite build) when the rendered structure would hide or show text wrongly:
+ * an `h2` that isn't a step (setext, indented or JSX headings slip past V18's line check), or content before the first one.
+ */
 export function rehypeSolutionSections() {
-  return (tree: Root) => {
+  return (tree: Root, file?: { path?: string }) => {
+    const fail = (message: string): never => {
+      throw new Error(`${file?.path ?? 'solution'}: ${message}`)
+    }
     const children: RootContent[] = []
     let section: Element | undefined
     for (const node of tree.children) {
+      const jsx = node as { type: string; name?: string | null }
+      if (jsx.type === 'mdxJsxFlowElement' && jsx.name === 'h2') fail('use a "## " heading, not <h2>')
       if (node.type === 'element' && node.tagName === 'h2') {
-        const step = SECTION_STEPS[text(node).trim()]
-        section = { type: 'element', tagName: 'section', properties: step ? { dataStep: step } : {}, children: [] }
+        const title = text(node).trim()
+        const step = SECTION_STEPS[title] ?? fail(`heading "${title}" is not a step (${STEPS})`)
+        section = { type: 'element', tagName: 'section', properties: { dataStep: step }, children: [] }
         children.push(section)
+      } else if (!section && !(node.type === 'text' && node.value.trim() === '')) {
+        fail('content before the first "## " heading would show before any step is opened')
       }
       if (section) section.children.push(node as ElementContent)
       else children.push(node)

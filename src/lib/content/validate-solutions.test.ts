@@ -74,6 +74,10 @@ describe('validateSolutions', () => {
     expect(one(sol({ raw: raw(intuition(), approach('Brute force'), approach('Optimal'), approach('Better')) }))).toContain('found "Intuition", "Brute force", "Optimal", "Better"')
     expect(one(sol({ raw: raw(intuition(), approach('Brute force'), approach('Optimal'), approach('Optimal')) }))).toContain('sections must be')
   })
+  it('rejects content before the first section, but not blank lines', () => {
+    expect(one(sol({ raw: 'An intro.\n\n' + valid() }))).toContain('nothing may come before "## Intuition"')
+    expect(validateSolutions([sol({ raw: '\n\n' + valid() })], content())).toEqual([])
+  })
   it('ignores ## lines inside code blocks', () => {
     const code = 'class Solution:\n    pass\n## Notes'
     expect(validateSolutions([sol({ raw: raw(intuition(), approach('Brute force', { code }), approach('Optimal')) })], content())).toEqual([])

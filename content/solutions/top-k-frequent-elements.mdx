@@ -100,7 +100,7 @@ The answer is the values in `heap`, `[7, 5]`.
 Put each value on a shelf numbered by its count, then read the shelves from the highest count down until `k` values are picked (bucket sort).
 
 1. Count how often each value appears, in a map `count`.
-2. Make shelves `buckets[0]` to `buckets[n]`, and put each value `x` on `buckets[f]`, where `f` is its count.
+2. Put each value `x` on the shelf `buckets[f]`, where `f` is its count.
 3. Walk `f` down from n to 1, adding the values on each shelf to `result`.
 4. Stop as soon as `result` holds `k` values.
 

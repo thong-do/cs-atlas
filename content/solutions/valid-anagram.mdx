@@ -33,7 +33,7 @@ Take the letters of `t` as a pile, and cross off one matching letter for each le
 
 1. If the strings have different lengths, return `False`.
 2. Put the letters of `t` in a list, `remaining`.
-3. For each letter `ch` of `s`, remove one `ch` from `remaining`, or return `False` if there is none.
+3. For each letter `ch` of `s`, cross one `ch` off `remaining`; if none is left, return `False`.
 4. If every letter found a match, return `True`.
 
 ```python
@@ -86,14 +86,16 @@ class Solution:
 
 Trace for `s = "aab"`, `t = "aba"`:
 
-| letter of | ch | count afterwards |
-|---|---|---|
-| `s` | a | `{'a': 1}` |
-| `s` | a | `{'a': 2}` |
-| `s` | b | `{'a': 2, 'b': 1}` |
-| `t` | a | `{'a': 1, 'b': 1}` |
-| `t` | b | `{'a': 1, 'b': 0}` |
-| `t` | a | `{'a': 0, 'b': 0}` |
+| ch | count afterwards |
+|---|---|
+| `for ch in s:` | |
+| a | `{'a': 1}` |
+| a | `{'a': 2}` |
+| b | `{'a': 2, 'b': 1}` |
+| `for ch in t:` | |
+| a | `{'a': 1, 'b': 1}` |
+| b | `{'a': 1, 'b': 0}` |
+| a | `{'a': 0, 'b': 0}` |
 
 Every tally is zero, so the answer is `True`. Different lengths need no special check: the extra letters leave some tally above or below zero.
 

@@ -25,7 +25,7 @@ large:
 
 ## Intuition
 
-Picture the numbers as stones on the ground, where consecutive numbers form a staircase: 2, 3, 4 is three steps. To measure a staircase you stand on its bottom step and count upward until the next step is missing. The bottom step is easy to recognise, because there is no stone one below it. If you only ever start from bottom steps, each staircase is climbed exactly once, and the tallest climb is the answer.
+Picture each number as one step, so that consecutive numbers form a staircase: 2, 3, 4 is a staircase of three steps. To measure a staircase you stand on its bottom step and count upward until the next step is missing. The bottom step is easy to recognise, because there is no step one below it. If you only ever start from bottom steps, each staircase is climbed exactly once, and the tallest climb is the answer.
 
 ## Brute force
 
@@ -100,7 +100,7 @@ Trace for `nums = [3, 9, 2, 4, 3]`, so `sorted_nums = [2, 3, 3, 4, 9]`:
 
 **Complexity:** O(n log n) time for the sort, then O(n) for the walk. O(n) extra space for the sorted copy.
 
-**What's wasted:** the sort puts every number in order, but the walk only ever asks "is the number one above present?". A set answers that in O(1) without ordering anything, as long as each staircase is still climbed only from its bottom step.
+**What's wasted:** the sort puts every number in order, but the walk only ever asks "is the number one above present?". A set answers that in O(1) on average without ordering anything, as long as each staircase is still climbed only from its bottom step.
 
 ## Optimal
 
@@ -125,7 +125,7 @@ class Solution:
         return longest
 ```
 
-Trace for `nums = [3, 9, 2, 4, 3]`. A set keeps no order, and here Python visits `num_set` as 9, 2, 3, 4:
+Trace for `nums = [3, 9, 2, 4, 3]`. A set promises no order, and here Python visits `num_set` as 9, 2, 3, 4:
 
 | x | x - 1 in num_set? | length | longest |
 |---|---|---|---|

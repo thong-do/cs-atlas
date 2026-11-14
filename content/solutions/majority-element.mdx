@@ -82,7 +82,7 @@ Trace for `nums = [3, 3, 1, 1, 1]`:
 | 1 | `{3: 2, 1: 2}` | no |
 | 1 | `{3: 2, 1: 3}` | yes, return 1 |
 
-**Complexity:** O(n) time on average: one map update per value. O(n) extra space, because `counts` keeps one key per distinct value, which can be almost n/2 keys.
+**Complexity:** O(n) time on average: one map update per value. O(n) extra space, because `counts` keeps one key per distinct value, which can be about n/2 keys.
 
 **What's wasted:** the map keeps a tally for every distinct value, yet only one value can hold more than half. The pairing-off picture needs just one candidate and one number.
 
@@ -92,7 +92,7 @@ Walk the list keeping a `candidate` and its number of unpaired supporters, `vote
 
 1. Start with no `candidate` and zero `votes`: nobody is standing.
 2. For each value `x`, if `votes` is 0, `x` becomes the `candidate`.
-3. If `x` equals `candidate`, add one to `votes`; otherwise subtract one, as `x` pairs off with a supporter.
+3. If `x` equals `candidate`, add one vote; otherwise `x` pairs off with a supporter: subtract one.
 4. Return `candidate`: because a majority is guaranteed, it is the value left standing.
 
 ```python

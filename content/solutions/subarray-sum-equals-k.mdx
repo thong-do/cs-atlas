@@ -1,6 +1,6 @@
 ---
 problem: subarray-sum-equals-k
-hook: "Odometer trick: count earlier readings equal to now minus k."
+hook: "Bank balance trick: count earlier balances equal to now minus k."
 entry: subarraySum
 harness: function
 cases:
@@ -23,7 +23,7 @@ large:
 
 ## Intuition
 
-Think of a car's trip odometer. The distance driven between two moments is the later reading minus the earlier one, wherever the car went in between. So a stretch of the list sums to k exactly when the current running total minus k equals some earlier running total. Keep a tally of every running total seen so far, starting with 0 before the first number, and at each step ask how many earlier totals equal "now minus k".
+Think of each number as money paid into a bank account (negative numbers are withdrawals), and the running total as the balance. The money that came in over any stretch is the later balance minus the earlier one. So a stretch of the list sums to k exactly when the balance now, minus k, equals some earlier balance. Withdrawals can bring the balance back to a level it had before, so the same balance can occur several times, and each occurrence marks a different stretch. Count how many times each balance has occurred, starting with 0 before the first number, and at each step add the count for "now minus k".
 
 ## Brute force
 

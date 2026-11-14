@@ -20,7 +20,7 @@ cases:
 
 ## Intuition
 
-Picture people standing in a line, each holding a number, and each wants the product of everyone else's numbers. That is simply the product of everyone to their left times the product of everyone to their right. Walk along the line from the front carrying a running product, and you can tell each person what everyone in front of them multiplies to. Walk back from the end doing the same, multiply the two, and no one ever has to divide out their own number.
+Picture people standing in a line, each holding a number, and each wants the product of everyone else's numbers. That is simply the product of everyone to their left times the product of everyone to their right. Walk along the line from the left end carrying a running product, and you can tell each person what everyone to their left multiplies to. Walk back from the right end doing the same for everyone to their right, multiply the two, and no one ever has to divide out their own number.
 
 ## Brute force
 
@@ -54,7 +54,7 @@ Trace for `nums = [2, 3, 4]`:
 
 **Complexity:** O(n²) time: n − 1 multiplications for each of the n positions. O(1) extra space beyond the output.
 
-**What's wasted:** the products for neighbouring positions share all but two of their factors, yet each is multiplied out from scratch. Running products from each end compute every left part and every right part once.
+**What's wasted:** the products for neighbouring positions are almost the same, since each has just one factor the other lacks, yet each is multiplied out from scratch. Running products from each end compute every left part and every right part once.
 
 ## Better
 
@@ -87,14 +87,14 @@ Trace for `nums = [2, 3, 4]`:
 
 **Complexity:** O(n) time: three passes of n steps. O(n) extra space for `left` and `right`, beyond the output.
 
-**What's wasted:** each `right[i]` is read exactly once, at the moment it is multiplied in, so storing the whole table is unnecessary. A single running number, swept from the right, can multiply straight into the answer.
+**What's wasted:** the two tables are extra arrays the answer doesn't need. Each `left[i]` can be written straight into `answer` as it is built, and each `right[i]` is read only once, so a single running number swept from the right can multiply straight into `answer`.
 
 ## Optimal
 
 Fill `answer` with the left products in a forward sweep, then multiply in the right products with a running number in a backward sweep.
 
-1. Sweep forward with a running product `left`, writing it into `answer[i]` before multiplying in `nums[i]`.
-2. Sweep backward with a running product `right`, multiplying it into `answer[i]` before multiplying in `nums[i]`.
+1. Sweep forward: write the running product `left` into `answer[i]`, then multiply in `nums[i]`.
+2. Sweep backward: multiply `answer[i]` by the running product `right`, then multiply in `nums[i]`.
 3. Return `answer`.
 
 ```python

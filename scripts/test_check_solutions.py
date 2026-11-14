@@ -144,12 +144,32 @@ class MinStack:
         self.assertEqual(cs.check_entry(e), ['FAIL solutions/p [Optimal] case 2: AssertionError: mismatch'])
 
     def test_args_deep_copied(self):
-        brute = 'class Solution:\n    def first(self, nums):\n        nums.sort()\n        return nums[0]'
-        opt = 'class Solution:\n    def first(self, nums):\n        return min(nums)'
-        cases = [{'args': [[3, 1, 2]], 'expect': 1}]
+        brute = 'class Solution:\n    def first(self, nums):\n        x = nums[0]\n        nums.sort()\n        return x'
+        opt = 'class Solution:\n    def first(self, nums):\n        return nums[0]'
+        cases = [{'args': [[3, 1, 2]], 'expect': 3}]
         e = entry(body(brute=brute, optimal=opt), entry='first', cases=cases)
         self.assertEqual(cs.check_entry(e), [])
         self.assertEqual(cases[0]['args'], [[3, 1, 2]])
+
+    def test_leetcode_names(self):
+        code = '''
+class Solution:
+    def f(self, nums: List[int]) -> Optional[int]:
+        q = deque(nums)
+        c = Counter(nums)
+        d = defaultdict(int)
+        h = []
+        for x in q:
+            heappush(h, x)
+            d[x] += 1
+
+        @lru_cache(None)
+        def g(n):
+            return n
+        return [h[0], c[1], d[2], bisect_left(sorted(nums), 2), g(5), pow(2, 10, 1000), math.floor(1.5)]
+'''
+        e = entry(body(optimal=code), entry='f', cases=[{'args': [[3, 1, 2, 1]], 'expect': [1, 2, 1, 2, 5, 24, 1]}])
+        self.assertEqual(cs.check_entry(e), [])
 
     def test_timeout(self):
         code = 'class Solution:\n    def f(self):\n        while True: pass'

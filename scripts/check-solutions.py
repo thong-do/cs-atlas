@@ -42,7 +42,9 @@ class TreeNode:
 def prelude():
     ns = {'__name__': 'solution', 'ListNode': ListNode, 'TreeNode': TreeNode, 'collections': collections, 'heapq': heapq,
           'math': math, 'functools': functools, 'itertools': itertools, 'bisect': bisect}
-    exec('from typing import *', ns)
+    # LeetCode's names; typing first so collections' real Counter/OrderedDict win. math stays a module so pow(a, b, m) works.
+    exec('from typing import *\nfrom collections import *\nfrom heapq import *\nfrom bisect import *\n'
+         'from functools import *\nfrom itertools import *', ns)
     return ns
 
 

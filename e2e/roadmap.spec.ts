@@ -22,7 +22,9 @@ test('roadmap labels are inside the viewBox and do not overlap within a row', as
       for (let j = i + 1; j < boxes.length; j++) {
         const a = boxes[i], b = boxes[j]
         if (a.row !== b.row) continue
-        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) overlaps.push(`${a.text} / ${b.text}`)
+        // A 12-unit margin: Linux CI renders text a few percent wider than macOS, so a near miss here overlaps there.
+        const m = 12
+        if (a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h && b.y < a.y + a.h) overlaps.push(`${a.text} / ${b.text}`)
       }
     }
     return { outside, overlaps }

@@ -11,7 +11,7 @@ import { MASTERED } from '@/lib/logic/mastery'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
-import { layoutBands } from '@/lib/logic/roadmap-layout'
+import { labelLines, layoutBands } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
 import { clampZoom, fitZoom, zoomIn, zoomOut } from '@/lib/logic/zoom'
 
@@ -21,6 +21,7 @@ const ROW = 120
 const TITLE = 44
 const R = 26
 const CIRC = 2 * Math.PI * R
+const LINE = 15
 
 export function RoadmapView() {
   const router = useRouter()
@@ -152,12 +153,13 @@ export function RoadmapView() {
             const a = pos.get(e.from)
             const b = pos.get(e.to)
             if (!a || !b) return null
-            const y1 = a.y + R + 40
+            const below = (labelLines(lessonBySlug.get(e.from)?.title ?? e.from).length - 1) * LINE
+            const y1 = a.y + R + 40 + below
             const y2 = b.y - R - 4
             const dy = (y2 - y1) / 2
             const cross = e.lane >= 0
             const laneX = 12 + 10 * e.lane
-            const yOut = a.y + R + 46
+            const yOut = a.y + R + 46 + below
             const yIn = b.y - R - 16
             return (
               <path
@@ -178,6 +180,7 @@ export function RoadmapView() {
             const isNext = n.slug === recommended
             const lesson = lessonBySlug.get(n.slug)
             const title = lesson?.title ?? n.slug
+            const lines = labelLines(title)
             const go = () => router.push(lessonHref(lesson!))
             return (
               <g
@@ -203,8 +206,10 @@ export function RoadmapView() {
                   transform="rotate(-90)"
                 />
                 <text textAnchor="middle" dy="0.35em" className="fill-foreground text-[13px] font-semibold">{value}%</text>
-                <text y={R + 18} textAnchor="middle" className="fill-foreground stroke-background text-[13px] font-medium" strokeWidth={5} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{title}</text>
-                <text y={R + 34} textAnchor="middle" className="fill-muted-foreground stroke-background text-[11px]" strokeWidth={4} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{count(n.slug)}{isNext ? ' · next' : ''}</text>
+                <text y={R + 18} textAnchor="middle" className="fill-foreground stroke-background text-[13px] font-medium" strokeWidth={5} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>
+                  {lines.map((line, i) => <tspan key={i} x={0} dy={i ? LINE : 0}>{line}</tspan>)}
+                </text>
+                <text y={R + 34 + (lines.length - 1) * LINE} textAnchor="middle" className="fill-muted-foreground stroke-background text-[11px]" strokeWidth={4} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{count(n.slug)}{isNext ? ' · next' : ''}</text>
               </g>
             )
           })}

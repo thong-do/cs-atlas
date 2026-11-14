@@ -57,3 +57,12 @@ export function layoutBands(tracks: TrackMeta[], lessons: LessonMeta[]): { bands
   )
   return { bands, crossEdges, maxRow: Math.max(0, ...bands.map((b) => b.layout.maxRow)) }
 }
+
+/** Titles longer than `max` characters split onto two lines at the space nearest the middle, so neighbours in a row never touch. */
+export function labelLines(title: string, max = 22): string[] {
+  if (title.length <= max) return [title]
+  const spaces = [...title.matchAll(/ /g)].map((m) => m.index!)
+  if (!spaces.length) return [title]
+  const cut = spaces.reduce((best, i) => (Math.abs(i - title.length / 2) < Math.abs(best - title.length / 2) ? i : best))
+  return [title.slice(0, cut), title.slice(cut + 1)]
+}

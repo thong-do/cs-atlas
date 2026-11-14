@@ -1,7 +1,7 @@
 import { exercises, lessons, placements, solutions, tracks } from '#site/content'
 import type { Catalog, DesignDoc, EstimateDoc, EstimateUnit, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, PlacementDoc, ProblemDoc, QuizDoc, TrackMeta } from '@/lib/types'
 import { flashcardKey } from './review-keys'
-import { SECTION_STEPS } from './solution-sections'
+import { solutionSteps } from './solution-sections'
 
 export interface TocEntry {
   title: string
@@ -98,7 +98,7 @@ export function getExerciseDoc(slug: string): ExerciseDoc | undefined {
     case 'external-problem': {
       const sol = solutionBySlug.get(e.slug)
       if (!sol) return meta as ProblemDoc
-      return { ...(meta as ProblemDoc), solution: { hook: sol.hook, steps: sol.toc.map((h) => SECTION_STEPS[h.title]), body: sol.body } }
+      return { ...(meta as ProblemDoc), solution: { hook: sol.hook, steps: solutionSteps(sol.toc, sol.path), body: sol.body } }
     }
     case 'quiz':
       return { ...(meta as QuizDoc), questions: e.questions, flashcards: e.flashcards }

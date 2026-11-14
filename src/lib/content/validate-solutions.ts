@@ -19,6 +19,7 @@ const APPROACHES = ['Brute force', 'Better', 'Optimal']
 const SHAPES = [['Intuition', 'Brute force', 'Optimal'], ['Intuition', 'Brute force', 'Better', 'Optimal']]
 const FENCE = /^\s*```/
 const LIST_ITEM = /^\d+\.\s/
+const H1 = /^ {0,3}#(?:\s+|$)/
 const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
 /** Splits a body into its `##` sections, ignoring `##` lines inside code fences. Lines keep a flag for "inside a fence". */
@@ -30,6 +31,17 @@ function sections(raw: string) {
     if (!fence && text.startsWith('## ')) out.push({ title: text.slice(3).trim(), lines: [] })
     else out.at(-1)?.lines.push({ text, code: fence || isFence })
     if (isFence) fence = !fence
+  }
+  return out
+}
+
+/** `#` (h1) headings outside code fences: Velite's toc would nest the steps under them and hide the solution. */
+function h1Headings(raw: string) {
+  const out: string[] = []
+  let fence = false
+  for (const text of raw.split('\n')) {
+    if (FENCE.test(text)) fence = !fence
+    else if (!fence && H1.test(text)) out.push(text.replace(H1, '').trim())
   }
   return out
 }
@@ -89,6 +101,7 @@ export function validateSolutions(solutions: SolutionInput[], { exercises }: Con
     const lines = s.raw.split('\n')
     const first = lines.findIndex((l) => l.startsWith('## '))
     if (lines.slice(0, Math.max(first, 0)).some((l) => l.trim() !== '')) err('nothing may come before "## Intuition"; it would show before any step is opened')
+    for (const title of h1Headings(s.raw)) err(`remove "# ${title}"; only "## " step headings are allowed, and an h1 would hide the steps`)
     const secs = sections(s.raw)
     const titles = secs.map((x) => x.title)
     if (!SHAPES.some((shape) => shape.join('\n') === titles.join('\n'))) {

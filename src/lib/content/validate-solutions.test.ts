@@ -78,6 +78,14 @@ describe('validateSolutions', () => {
     expect(one(sol({ raw: 'An intro.\n\n' + valid() }))).toContain('nothing may come before "## Intuition"')
     expect(validateSolutions([sol({ raw: '\n\n' + valid() })], content())).toEqual([])
   })
+  it('rejects # headings outside code blocks, which would hide the steps', () => {
+    expect(one(sol({ raw: raw(intuition('\n\n# Note\n\nAside.'), approach('Brute force'), approach('Optimal')) }))).toBe(
+      '[V18] content/solutions/two-sum.mdx: remove "# Note"; only "## " step headings are allowed, and an h1 would hide the steps',
+    )
+    expect(one(sol({ raw: raw(intuition('\n\n#'), approach('Brute force'), approach('Optimal')) }))).toContain('remove "# "')
+    const code = 'class Solution:\n# not a heading\n    pass'
+    expect(validateSolutions([sol({ raw: raw(intuition('\n\n#hashtag'), approach('Brute force', { code }), approach('Optimal')) })], content())).toEqual([])
+  })
   it('ignores ## lines inside code blocks', () => {
     const code = 'class Solution:\n    pass\n## Notes'
     expect(validateSolutions([sol({ raw: raw(intuition(), approach('Brute force', { code }), approach('Optimal')) })], content())).toEqual([])

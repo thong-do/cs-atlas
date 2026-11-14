@@ -30,5 +30,14 @@ describe('rehypeSolutionSections', () => {
     await expect(mdx('## Intuition\n\nx\n\n  ## Notes\n')).rejects.toThrow('heading "Notes" is not a step')
     await expect(mdx('## Intuition\n\nx\n\n<h2>Optimal</h2>\n')).rejects.toThrow('use a "## " heading, not <h2>')
     await expect(mdx('Intro.\n\n## Intuition\n\nx\n')).rejects.toThrow('content before the first "## " heading')
+    await expect(mdx('## Intuition\n\nx\n\n## constructor\n')).rejects.toThrow('heading "constructor" is not a step')
+  })
+  it('throws on an h1 anywhere, which would nest the steps under it in the toc', async () => {
+    await expect(mdx('## Intuition\n\nx\n\n# Note\n\n## Optimal\n\ny\n')).rejects.toThrow(
+      'content/solutions/two-sum.mdx: remove "# Note"; a solution has only its "## " step headings',
+    )
+    await expect(mdx('## Intuition\n\nx\n\nNote\n===\n')).rejects.toThrow('remove "# Note"')
+    await expect(mdx('## Intuition\n\nx\n\n<h1>Note</h1>\n')).rejects.toThrow('remove <h1>')
+    await expect(mdx('# Note\n\n## Intuition\n\nx\n')).rejects.toThrow('remove "# Note"')
   })
 })

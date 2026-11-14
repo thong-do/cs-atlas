@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { SolutionSectionStep } from '@/lib/content/solution-sections'
 import { nextStep } from '@/lib/logic/solution-steps'
@@ -26,6 +26,18 @@ export function SolutionSteps({ hint, steps, body, hook, pattern, onFurthestChan
   const [opened, setOpened] = useState(0)
   const open = all.slice(0, opened)
   const next = nextStep(all, opened)
+  const root = useRef<HTMLElement>(null)
+
+  // Move focus to the step just opened: it appears above the button, which unmounts after the last step.
+  useEffect(() => {
+    if (opened === 0) return
+    const step = all[opened - 1]
+    const heading = root.current?.querySelector<HTMLElement>(step === 'hint' ? '[data-hint] h2' : `[data-step="${step}"] h2`)
+    if (!heading) return
+    heading.tabIndex = -1
+    heading.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per opened step
+  }, [opened])
 
   function show() {
     setOpened(opened + 1)
@@ -33,10 +45,10 @@ export function SolutionSteps({ hint, steps, body, hook, pattern, onFurthestChan
   }
 
   return (
-    <section aria-label="Solution" className="space-y-4">
+    <section ref={root} aria-label="Solution" className="space-y-4">
       <div className="prose max-w-none dark:prose-invert prose-h2:mt-8 prose-h2:mb-3 prose-h2:text-xl prose-code:before:content-none prose-code:after:content-none">
         {opened > 0 && (
-          <section>
+          <section data-hint>
             <h2 className="!mt-0">Hint</h2>
             <p>{hint}</p>
           </section>

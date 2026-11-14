@@ -12,7 +12,7 @@ export function ExerciseWorkspace({ exercise }: { exercise: ExerciseDoc }) {
     // Rendered here, on the server: the compiled MDX is neither sent to nor evaluated in the browser.
     const { solution, ...problem } = exercise
     const solutionBody = solution ? <MDXContent code={solution.body} /> : undefined
-    return <ProblemWorkspace exercise={problem} steps={solution?.steps} solutionBody={solutionBody} />
+    return <ProblemWorkspace key={exercise.slug} exercise={problem} steps={solution?.steps} solutionBody={solutionBody} />
   }
   if (exercise.type === 'quiz') return <QuizWorkspace quiz={exercise} />
   if (exercise.type === 'estimate') return <EstimateWorkspace drill={exercise} />

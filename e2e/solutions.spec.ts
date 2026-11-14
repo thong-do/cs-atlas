@@ -31,11 +31,21 @@ test('a solution opens one step at a time', async ({ page }) => {
     await solution.getByRole('button', { name: button }).click()
     seen.push(heading)
     await expect(headings).toHaveText(seen)
+    await expect(solution.getByRole('heading', { name: heading, exact: true })).toBeFocused()
     if (next) await expect(solution.getByRole('button')).toHaveText([next])
   }
   await expect(solution.getByRole('button')).toHaveCount(0)
   await expect(page.getByText(`Remember it: ${HOOK}`)).toBeVisible()
   await expect(page.getByText('Pattern: Arrays & Hashing')).toBeVisible()
+})
+
+test('keyboard focus follows each opened step, never falling to the page', async ({ page }) => {
+  await page.goto('/exercises/3sum/')
+  const button = page.getByRole('region', { name: 'Solution' }).getByRole('button', { name: 'Show hint' })
+  await button.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: 'Hint' })).toBeFocused()
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('H2')
 })
 
 test('a page with a Better section offers it between brute force and optimal', async ({ page }) => {
@@ -74,6 +84,7 @@ test('a problem without a solution file only has the hint', async ({ page }) => 
   await page.goto('/exercises/3sum/')
   const solution = page.getByRole('region', { name: 'Solution' })
   await solution.getByRole('button', { name: 'Show hint' }).click()
+  await expect(solution.getByRole('heading', { name: 'Hint' })).toBeFocused()
   await expect(page.getByText('Sort, fix one number, then two-pointer the rest; skip duplicates.')).toBeVisible()
   await expect(solution.getByRole('button')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Show intuition' })).toHaveCount(0)

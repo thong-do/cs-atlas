@@ -40,3 +40,34 @@ test('roadmap shows all three tracks and links lessons to their pages', async ({
   await svg.getByRole('link', { name: /^Caching:/ }).click()
   await expect(page).toHaveURL(/\/system-design\/caching\/$/)
 })
+
+test('roadmap draws labels at readable size and zooms with the toolbar and ctrl + wheel', async ({ page }) => {
+  await page.goto('/roadmap/')
+  const frame = page.getByRole('region', { name: 'Roadmap, scrollable' })
+  const svg = page.locator('svg[aria-label="Roadmap"]')
+  const width = () => svg.evaluate((el) => el.getBoundingClientRect().width)
+  const label = svg.getByText('Caching', { exact: true })
+  await label.scrollIntoViewIfNeeded()
+  // 13px labels at 100%: the old fit-to-896px layout drew them at about 7px.
+  expect((await label.boundingBox())!.height).toBeGreaterThanOrEqual(12)
+  await expect(page.getByText('100%', { exact: true }).first()).toBeVisible()
+  expect(await frame.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
+
+  const full = await width()
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect(page.getByText('125%', { exact: true })).toBeVisible()
+  expect(await width()).toBeCloseTo(full * 1.25, 0)
+
+  await page.getByRole('button', { name: 'Fit' }).click()
+  const fitted = await width()
+  expect(fitted).toBeLessThanOrEqual(await frame.evaluate((el) => el.clientWidth))
+
+  await page.getByRole('button', { name: '100%' }).click()
+  expect(await width()).toBeCloseTo(full, 0)
+  const box = (await frame.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.keyboard.down('Control')
+  await page.mouse.wheel(0, 100)
+  await page.keyboard.up('Control')
+  await expect.poll(width).toBeLessThan(full)
+})

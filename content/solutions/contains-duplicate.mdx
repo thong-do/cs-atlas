@@ -1,0 +1,118 @@
+---
+problem: contains-duplicate
+hook: "Check the guest list first; a name already there is a repeat."
+entry: containsDuplicate
+harness: function
+cases:
+  - args: [[3, 1, 3, 2]]
+    expect: true
+  - args: [[4, 8, 15, 16]]
+    expect: false
+  - args: [[7]]
+    expect: false
+  - args: [[-2, 5, -2]]
+    expect: true
+  - args: [[0, 9, 4, 1, 6, 9]]
+    expect: true
+  - args: [[-1, 1, 0, 2, -3]]
+    expect: false
+large:
+  args: "[list(range(100000))]"
+  expect: false
+---
+
+## Intuition
+
+Picture a doorman with a blank guest list. As each guest arrives, he looks for their name on the list before writing it down. If the name is already there, this guest has been here before, so there is a repeat. If he gets through the whole queue without that happening, every guest was different.
+
+## Brute force
+
+Compare every value with every value after it, and stop at the first equal pair.
+
+1. Pick each position `i` in turn.
+2. Compare `nums[i]` with every later value `nums[j]`.
+3. If two are equal, return `True`; if no pair matches, return `False`.
+
+```python
+class Solution:
+    def containsDuplicate(self, nums: List[int]) -> bool:
+        n = len(nums)
+        for i in range(n):
+            for j in range(i + 1, n):
+                if nums[i] == nums[j]:
+                    return True
+        return False
+```
+
+Trace for `nums = [3, 1, 3, 2]`:
+
+| i | j | nums[i] | nums[j] | equal? |
+|---|---|---|---|---|
+| 0 | 1 | 3 | 1 | no |
+| 0 | 2 | 3 | 3 | yes, return `True` |
+
+**Complexity:** O(n²) time, because with no repeat all n(n − 1)/2 pairs are compared. O(1) extra space.
+
+**What's wasted:** each value is compared against all later values one by one, even though a repeat could only be its equal. If equal values sat next to each other, one look at each neighbour would be enough.
+
+## Better
+
+Sort a copy so that equal values end up side by side, then compare neighbours.
+
+1. Make a sorted copy, `sorted_nums`.
+2. Walk it once, comparing each value with the one just before it.
+3. Return `True` at the first equal neighbours, otherwise `False`.
+
+```python
+class Solution:
+    def containsDuplicate(self, nums: List[int]) -> bool:
+        sorted_nums = sorted(nums)
+        for i in range(1, len(sorted_nums)):
+            if sorted_nums[i] == sorted_nums[i - 1]:   # equal values are now neighbours
+                return True
+        return False
+```
+
+Trace for `nums = [3, 1, 3, 2]`, so `sorted_nums = [1, 2, 3, 3]`:
+
+| i | sorted_nums[i - 1] | sorted_nums[i] | equal? |
+|---|---|---|---|
+| 1 | 1 | 2 | no |
+| 2 | 2 | 3 | no |
+| 3 | 3 | 3 | yes, return `True` |
+
+The two 3s started two places apart; after sorting they are neighbours.
+
+**Complexity:** O(n log n) time for the sort, then O(n) for the walk. O(n) extra space for the sorted copy. Sorting in place with `nums.sort()` avoids the copy, but Python's sort can still use O(n) temporary memory.
+
+**What's wasted:** sorting puts every value in its exact rank, but the question is only "have I met this value before?". A set answers that directly, without ordering anything.
+
+## Optimal
+
+Walk the list once, keeping a set of the values already seen, and check each value before adding it.
+
+1. Start with an empty set, `seen`.
+2. For each value `x`, return `True` if `x` is already in `seen`.
+3. Otherwise add `x` to `seen` and move on.
+4. If the walk ends, no value repeated: return `False`.
+
+```python
+class Solution:
+    def containsDuplicate(self, nums: List[int]) -> bool:
+        seen = set()
+        for x in nums:
+            if x in seen:
+                return True
+            seen.add(x)
+        return False
+```
+
+Trace for `nums = [3, 1, 3, 2]`:
+
+| x | x in seen? | seen afterwards |
+|---|---|---|
+| 3 | no | `{3}` |
+| 1 | no | `{1, 3}` |
+| 3 | yes, return `True` | `{1, 3}` |
+
+**Complexity:** O(n) time on average: one set lookup and at most one insert per value, each O(1) on average. O(n) extra space for `seen` when there is no repeat.

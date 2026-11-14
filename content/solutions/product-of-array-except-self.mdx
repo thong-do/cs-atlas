@@ -1,0 +1,129 @@
+---
+problem: product-of-array-except-self
+hook: "Everyone left of you times everyone right of you."
+entry: productExceptSelf
+harness: function
+cases:
+  - args: [[2, 3, 4]]
+    expect: [12, 8, 6]
+  - args: [[5, 7]]
+    expect: [7, 5]
+  - args: [[1, 0, 3]]
+    expect: [0, 3, 0]
+  - args: [[0, 2, 0, 4]]
+    expect: [0, 0, 0, 0]
+  - args: [[-1, 2, -3]]
+    expect: [-6, 3, -2]
+  - args: [[2, 2, 2, 2, 2]]
+    expect: [16, 16, 16, 16, 16]
+---
+
+## Intuition
+
+Picture people standing in a line, each holding a number, and each wants the product of everyone else's numbers. That is simply the product of everyone to their left times the product of everyone to their right. Walk along the line from the front carrying a running product, and you can tell each person what everyone in front of them multiplies to. Walk back from the end doing the same, multiply the two, and no one ever has to divide out their own number.
+
+## Brute force
+
+For each position, multiply together every other value.
+
+1. For each position `i`, start a `product` at 1.
+2. Multiply in `nums[j]` for every position `j` other than `i`.
+3. Append `product` to `answer`.
+
+```python
+class Solution:
+    def productExceptSelf(self, nums: List[int]) -> List[int]:
+        n = len(nums)
+        answer = []
+        for i in range(n):
+            product = 1
+            for j in range(n):
+                if j != i:
+                    product *= nums[j]
+            answer.append(product)
+        return answer
+```
+
+Trace for `nums = [2, 3, 4]`:
+
+| i | product | answer afterwards |
+|---|---|---|
+| 0 | 3 × 4 = 12 | `[12]` |
+| 1 | 2 × 4 = 8 | `[12, 8]` |
+| 2 | 2 × 3 = 6 | `[12, 8, 6]` |
+
+**Complexity:** O(n²) time: n − 1 multiplications for each of the n positions. O(1) extra space beyond the output.
+
+**What's wasted:** the products for neighbouring positions share all but two of their factors, yet each is multiplied out from scratch. Running products from each end compute every left part and every right part once.
+
+## Better
+
+Build one table of products to the left of each position and one of products to the right, then multiply them pairwise.
+
+1. Fill `left`, where `left[i]` is the product of everything before `i`.
+2. Fill `right`, where `right[i]` is the product of everything after `i`.
+3. Multiply `left[i]` by `right[i]` for every `i`, and return the results.
+
+```python
+class Solution:
+    def productExceptSelf(self, nums: List[int]) -> List[int]:
+        n = len(nums)
+        left = [1] * n                  # left[i] = product of nums[0 .. i - 1]
+        for i in range(1, n):
+            left[i] = left[i - 1] * nums[i - 1]
+        right = [1] * n                 # right[i] = product of nums[i + 1 .. n - 1]
+        for i in range(n - 2, -1, -1):
+            right[i] = right[i + 1] * nums[i + 1]
+        return [left[i] * right[i] for i in range(n)]
+```
+
+Trace for `nums = [2, 3, 4]`:
+
+| i | nums[i] | left[i] | right[i] | left[i] * right[i] |
+|---|---|---|---|---|
+| 0 | 2 | 1 | 12 | 12 |
+| 1 | 3 | 2 | 4 | 8 |
+| 2 | 4 | 6 | 1 | 6 |
+
+**Complexity:** O(n) time: three passes of n steps. O(n) extra space for `left` and `right`, beyond the output.
+
+**What's wasted:** each `right[i]` is read exactly once, at the moment it is multiplied in, so storing the whole table is unnecessary. A single running number, swept from the right, can multiply straight into the answer.
+
+## Optimal
+
+Fill `answer` with the left products in a forward sweep, then multiply in the right products with a running number in a backward sweep.
+
+1. Sweep forward with a running product `left`, writing it into `answer[i]` before multiplying in `nums[i]`.
+2. Sweep backward with a running product `right`, multiplying it into `answer[i]` before multiplying in `nums[i]`.
+3. Return `answer`.
+
+```python
+class Solution:
+    def productExceptSelf(self, nums: List[int]) -> List[int]:
+        n = len(nums)
+        answer = [1] * n
+        left = 1
+        for i in range(n):
+            answer[i] = left            # product of everything before i
+            left *= nums[i]
+        right = 1
+        for i in range(n - 1, -1, -1):
+            answer[i] *= right          # times the product of everything after i
+            right *= nums[i]
+        return answer
+```
+
+Trace for `nums = [2, 3, 4]`. Each row shows `left` or `right` as it is used, before `nums[i]` is multiplied in:
+
+| i | left | right | answer afterwards |
+|---|---|---|---|
+| 0 | 1 | | `[1, 1, 1]` |
+| 1 | 2 | | `[1, 2, 1]` |
+| 2 | 6 | | `[1, 2, 6]` |
+| 2 | | 1 | `[1, 2, 6]` |
+| 1 | | 4 | `[1, 8, 6]` |
+| 0 | | 12 | `[12, 8, 6]` |
+
+The first three rows are the forward sweep, the last three the backward sweep.
+
+**Complexity:** O(n) time: two passes of n steps. O(1) extra space beyond the output `answer`: just `left` and `right`.

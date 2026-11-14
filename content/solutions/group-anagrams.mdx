@@ -1,0 +1,92 @@
+---
+problem: group-anagrams
+hook: "Alphabetize the letters: every anagram gets the same name tag."
+entry: groupAnagrams
+harness: function
+compare: unordered-deep
+cases:
+  - args: [["tea", "pot", "eat", "top"]]
+    expect: [["tea", "eat"], ["pot", "top"]]
+  - args: [[""]]
+    expect: [[""]]
+  - args: [["a"]]
+    expect: [["a"]]
+  - args: [["aab", "aba", "abb"]]
+    expect: [["aab", "aba"], ["abb"]]
+  - args: [["no", "on", "no", "x"]]
+    expect: [["no", "on", "no"], ["x"]]
+  - args: [["ab", "ba", "abc", "cab", "bca", "", "z"]]
+    expect: [["ab", "ba"], ["abc", "cab", "bca"], [""], ["z"]]
+---
+
+## Intuition
+
+Imagine sorting a pile of word cards into pigeonholes. Rearranging a word's letters changes the word but not its letters, so write the letters in alphabetical order on a name tag: "tea", "eat" and "ate" all get the tag "aet". Words with the same tag go in the same pigeonhole, and each word only needs its own tag worked out, never a comparison with the other words.
+
+## Brute force
+
+Keep a list of groups, and put each word into the first group whose first word has the same letters.
+
+1. Start with an empty list, `groups`.
+2. For each `word`, compare its sorted letters with those of each group's first word.
+3. On a match, add `word` to that group; if nothing matches, start a new group.
+
+```python
+class Solution:
+    def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+        groups = []
+        for word in strs:
+            placed = False
+            for group in groups:
+                if sorted(group[0]) == sorted(word):   # same letters, so same group
+                    group.append(word)
+                    placed = True
+                    break
+            if not placed:
+                groups.append([word])
+        return groups
+```
+
+Trace for `strs = ["tea", "pot", "eat", "top"]`:
+
+| word | group[0] | same letters? | groups afterwards |
+|---|---|---|---|
+| tea | (no groups yet) | | `[['tea']]` |
+| pot | tea | no | `[['tea'], ['pot']]` |
+| eat | tea | yes | `[['tea', 'eat'], ['pot']]` |
+| top | tea | no | |
+| top | pot | yes | `[['tea', 'eat'], ['pot', 'top']]` |
+
+**Complexity:** O(n · g · k log k) time for n words of length at most k that form g groups: each word may be compared with every group, and each comparison sorts two words. When every word is in its own group, that is O(n² · k log k). O(k) extra space for the sorted letters, beyond the output.
+
+**What's wasted:** each group's first word is sorted again for every word that is compared with it, and each word walks past group after group. Sorting each word once gives a tag that can find its group directly in a map.
+
+## Optimal
+
+Give each word a tag, its letters in alphabetical order, and collect the words in a map from tag to group.
+
+1. Start with an empty map, `groups`, from tag to a list of words.
+2. For each `word`, build its `tag` by sorting its letters.
+3. Append `word` to `groups[tag]`.
+4. Return the map's lists.
+
+```python
+class Solution:
+    def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+        groups = defaultdict(list)          # tag -> words with those letters
+        for word in strs:
+            tag = "".join(sorted(word))     # "tea" -> "aet"
+            groups[tag].append(word)
+        return list(groups.values())
+```
+
+Trace for `strs = ["tea", "pot", "eat", "top"]`:
+
+| word | tag | groups afterwards |
+|---|---|---|
+| tea | aet | `{'aet': ['tea']}` |
+| pot | opt | `{'aet': ['tea'], 'opt': ['pot']}` |
+| eat | aet | `{'aet': ['tea', 'eat'], 'opt': ['pot']}` |
+| top | opt | `{'aet': ['tea', 'eat'], 'opt': ['pot', 'top']}` |
+
+**Complexity:** O(n · k log k) time for n words of length at most k: one sort per word, then an average O(k) map lookup to hash the tag. O(n · k) extra space for the tags and the lists. A tag made of the 26 letter counts, as a tuple, would build in O(k) and make the time O(n · k), at the cost of a less obvious tag.

@@ -18,7 +18,11 @@ const OPTIONS: { value: SolveRating; label: string }[] = [
   { value: 'solution', label: 'Looked at the solution' },
 ]
 
-export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function MarkSolvedDialog({ slug, open, onOpenChange, defaultRating = 'alone' }: {
+  slug: string; open: boolean; onOpenChange: (open: boolean) => void
+  /** Preselected each time the dialog opens; the learner can change it. */
+  defaultRating?: SolveRating
+}) {
   const store = useStore()
   const note = useLive((s) => s.getNote(slug), [slug])
   const [rating, setRating] = useState<SolveRating>('alone')
@@ -33,6 +37,7 @@ export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; o
   const prefilled = useRef(false)
   useEffect(() => {
     if (open && !wasOpen.current) {
+      setRating(defaultRating)
       typed.current = false
       prefilled.current = note !== undefined
       setInsight(note?.insight ?? '')
@@ -42,7 +47,7 @@ export function MarkSolvedDialog({ slug, open, onOpenChange }: { slug: string; o
       if (!typed.current) setInsight(note.insight)
     }
     wasOpen.current = open
-  }, [open, note])
+  }, [open, note, defaultRating])
 
   async function submit(e: FormEvent) {
     e.preventDefault()

@@ -139,3 +139,9 @@ html.dark .shiki span {
   border-radius: 0.5rem;
   padding: 1rem;
 }
+/* SolutionSteps: a solution section shows once its step is open. */
+[data-solution] section[data-step] { display: none; }
+[data-solution][data-open~="intuition"] section[data-step="intuition"] { display: block; }
+[data-solution][data-open~="brute-force"] section[data-step="brute-force"] { display: block; }
+[data-solution][data-open~="better"] section[data-step="better"] { display: block; }
+[data-solution][data-open~="optimal"] section[data-step="optimal"] { display: block; }

@@ -206,11 +206,12 @@ New pieces for this track:
 | 1 | **Correctness fixes** across all three tracks | Done (PR #32) |
 | 2 | **Learning-loop fixes:** Algorithms mastery reachable without the trainer, real prerequisites, `background` links, stricter V10, quiz answer-length rule V16 | Done (PRs #33, #34) |
 | 3 | **This roadmap rewrite** | Done |
-| 4 | **Algorithms up to the bar:** a quiz and flashcards for all 18 lessons, worked examples, a deeper Foundations module | Next |
-| 5 | **Beginner on-ramp:** Big-O reachable from the first lesson, and new Recursion and Sorting lessons | Planned |
-| 6 | **Coverage gaps:** rate-limiter case study, consistent hashing lesson, how hash tables and trees work underneath, how a CPU runs a program | Planned |
+| 4 | **Algorithms up to the bar:** a quiz and flashcards for all 18 lessons, worked examples, a deeper Foundations module | Done (PRs #36–#38) |
+| 5 | **Beginner on-ramp:** Big-O reachable from the first lesson, and new Recursion and Sorting lessons | Done (PR #39) |
+| 6 | **Coverage gaps:** Resilience lesson, consistent hashing lesson, how hash tables and trees work underneath, how a CPU runs a program | Done (PRs #40, #41) |
 | 7 | **Minimum measurement:** cookieless page analytics, a weekly-active-learners query, the due date stored on review logs | Done |
-| 8 | **Try it with people:** 5–10 real learners and 1–2 contributors, with an "Improve this page" link for reports | Planned |
+| 8 | **Solutions for all 150 Algorithms problems:** step-by-step guides (intuition, brute force, optimal) with code checked in CI | In progress (PR 1 of 8) |
+| 9 | **Try it with people:** 5–10 real learners and 1–2 contributors, with an "Improve this page" link for reports | Planned |
 
 **Exit criteria**
 
@@ -331,4 +332,4 @@ Added on 2026-11-01:
 
 ## 9. Next step
 
-Phase Q #4: bring Algorithms up to the bar, batched by module like the CS Fundamentals track, starting with the 6 Foundations lessons. Each later phase gets its own spec → plan → PR cycle.
+Phase Q #8: solutions for all 150 Algorithms problems, one module batch per PR, starting with Arrays & Hashing. Then #9, trying it with people. Each later phase gets its own spec → plan → PR cycle.

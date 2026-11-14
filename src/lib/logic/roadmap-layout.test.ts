@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LessonMeta, TrackMeta } from '@/lib/types'
-import { layoutBands, layoutRoadmap } from './roadmap-layout'
+import { labelLines, layoutBands, layoutRoadmap } from './roadmap-layout'
 
 const p = (slug: string, prerequisites: string[] = []): LessonMeta => ({
   slug, track: 'algorithms', title: slug, summary: 's', level: 'beginner', authors: [], prerequisites, background: [], confusedWith: [], triggers: ['t'], complexity: 'O(n)',
@@ -42,5 +42,14 @@ describe('layoutBands', () => {
     expect(bands[1].layout.edges).toEqual([{ from: 'c', to: 'd' }])
     expect(crossEdges).toEqual([{ from: 'a', to: 'c' }])
     expect(maxRow).toBe(1)
+  })
+})
+
+describe('labelLines', () => {
+  it('keeps short titles on one line and splits long ones at the space nearest the middle', () => {
+    expect(labelLines('Caching')).toEqual(['Caching'])
+    expect(labelLines('Transactions & isolation levels')).toEqual(['Transactions &', 'isolation levels'])
+    expect(labelLines('Hash tables & trees under the hood')).toEqual(['Hash tables & trees', 'under the hood'])
+    expect(labelLines('Supercalifragilisticexpialidocious')).toEqual(['Supercalifragilisticexpialidocious'])
   })
 })

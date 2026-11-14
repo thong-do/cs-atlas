@@ -22,7 +22,9 @@ test('roadmap labels are inside the viewBox and do not overlap within a row', as
       for (let j = i + 1; j < boxes.length; j++) {
         const a = boxes[i], b = boxes[j]
         if (a.row !== b.row) continue
-        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) overlaps.push(`${a.text} / ${b.text}`)
+        // A 12-unit margin: Linux CI renders text a few percent wider than macOS, so a near miss here overlaps there.
+        const m = 12
+        if (a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h && b.y < a.y + a.h) overlaps.push(`${a.text} / ${b.text}`)
       }
     }
     return { outside, overlaps }
@@ -41,33 +43,42 @@ test('roadmap shows all three tracks and links lessons to their pages', async ({
   await expect(page).toHaveURL(/\/system-design\/caching\/$/)
 })
 
-test('roadmap draws labels at readable size and zooms with the toolbar and ctrl + wheel', async ({ page }) => {
+test('roadmap opens fitted to show every track, then zooms with the toolbar and ctrl + wheel', async ({ page }) => {
   await page.goto('/roadmap/')
   const frame = page.getByRole('region', { name: 'Roadmap, scrollable' })
   const svg = page.locator('svg[aria-label="Roadmap"]')
   const width = () => svg.evaluate((el) => el.getBoundingClientRect().width)
+  const scrolls = () => frame.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+  await expect(svg.getByText('CS Fundamentals', { exact: true })).toBeVisible()
+
+  // Default is the whole tree fitted to the frame: no sideways scroll, every track's band in one view's width.
+  await expect(page.getByRole('button', { name: 'Fit', exact: true })).toBeDisabled()
+  expect(await scrolls()).toBe(false)
+  const fit = await width()
+
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect.poll(width).toBeGreaterThan(fit)
+  expect(await scrolls()).toBe(true)
+
+  // 100% draws 13px labels at true size (the fitted overview draws them smaller).
+  await page.getByRole('button', { name: '100%' }).click()
+  await expect(page.getByRole('toolbar').getByText('100%', { exact: true }).first()).toBeVisible()
   const label = svg.getByText('Caching', { exact: true })
   await label.scrollIntoViewIfNeeded()
-  // 13px labels at 100%: the old fit-to-896px layout drew them at about 7px.
   expect((await label.boundingBox())!.height).toBeGreaterThanOrEqual(12)
-  await expect(page.getByText('100%', { exact: true }).first()).toBeVisible()
-  expect(await frame.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
 
-  const full = await width()
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  await expect(page.getByText('125%', { exact: true })).toBeVisible()
-  expect(await width()).toBeCloseTo(full * 1.25, 0)
+  await page.getByRole('button', { name: 'Fit', exact: true }).click()
+  await expect.poll(width).toBeCloseTo(fit, 0)
+  expect(await scrolls()).toBe(false)
 
-  await page.getByRole('button', { name: 'Fit' }).click()
-  const fitted = await width()
-  expect(fitted).toBeLessThanOrEqual(await frame.evaluate((el) => el.clientWidth))
+  // Zooming out never goes below the overview.
+  await expect(page.getByRole('button', { name: 'Zoom out' })).toBeDisabled()
 
-  await page.getByRole('button', { name: '100%' }).click()
-  expect(await width()).toBeCloseTo(full, 0)
+  await svg.scrollIntoViewIfNeeded()
   const box = (await frame.boundingBox())!
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.move(box.x + box.width / 2, box.y + 100)
   await page.keyboard.down('Control')
-  await page.mouse.wheel(0, 100)
+  await page.mouse.wheel(0, -100)
   await page.keyboard.up('Control')
-  await expect.poll(width).toBeLessThan(full)
+  await expect.poll(width).toBeGreaterThan(fit)
 })

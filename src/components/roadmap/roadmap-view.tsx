@@ -11,9 +11,9 @@ import { MASTERED } from '@/lib/logic/mastery'
 import { lessonExercises, startedTracks, trackLookup } from '@/lib/logic/lessons'
 import { allSkippedLessons, placedTracks } from '@/lib/logic/placement'
 import { recommendedLesson } from '@/lib/logic/recommend'
-import { layoutBands } from '@/lib/logic/roadmap-layout'
+import { labelLines, layoutBands } from '@/lib/logic/roadmap-layout'
 import { useLive } from '@/lib/store/context'
-import { anchoredScroll, clampZoom, fitZoom, zoomIn, zoomOut } from '@/lib/logic/zoom'
+import { clampZoom, fitZoom, zoomIn, zoomOut } from '@/lib/logic/zoom'
 
 const COL = 190
 const PAD = 30
@@ -21,6 +21,7 @@ const ROW = 120
 const TITLE = 44
 const R = 26
 const CIRC = 2 * Math.PI * R
+const LINE = 15
 
 export function RoadmapView() {
   const router = useRouter()
@@ -29,11 +30,12 @@ export function RoadmapView() {
   const placements = usePlacements()
   const progress = useLive((s) => s.listProgress())
   const frame = useRef<HTMLDivElement>(null)
-  const [zoom, setZoomState] = useState(1)
-  const zoomRef = useRef(1)
-  // Viewport point (px) to hold still across the next zoom change; centre of the frame unless the wheel set it.
-  const anchor = useRef<{ x: number; y: number; from: number } | null>(null)
-  const centred = useRef(false)
+  const svgRef = useRef<SVGSVGElement>(null)
+  // null = fit the whole tree to the frame's width (the default overview); a number = that scale, scrolling sideways.
+  const [zoom, setZoomState] = useState<number | null>(null)
+  // Content point under the pointer (or frame centre), held still across the next zoom change.
+  const anchor = useRef<{ clientX: number; clientY: number; cx: number; cy: number } | null>(null)
+  const [shown, setShown] = useState(1)
   const { bands, crossEdges, maxRow } = useMemo(
     () => layoutBands([...tracks].sort((a, b) => a.order - b.order), lessons),
     [tracks, lessons],
@@ -65,60 +67,80 @@ export function RoadmapView() {
     ...crossEdges.map((e, i) => ({ ...e, lane: i })),
   ]
 
-  const setZoom = (next: number, at?: { x: number; y: number }) => {
+  const scale = () => (svgRef.current ? svgRef.current.getBoundingClientRect().width / width : 1)
+  const fitScale = () => fitZoom((frame.current?.clientWidth ?? 0) - 18, width)
+
+  /** Zooming out to (or below) the overview snaps back to fit, so the tree never shrinks smaller than the frame. */
+  const setZoom = (next: number | null, at?: { clientX: number; clientY: number }) => {
     const el = frame.current
-    const to = clampZoom(next)
-    if (to === zoomRef.current) return
-    if (el) anchor.current = { ...(at ?? { x: el.clientWidth / 2, y: el.clientHeight / 2 }), from: zoomRef.current }
-    zoomRef.current = to
+    const svg = svgRef.current
+    if (!el || !svg) return
+    const to = next === null || clampZoom(next) <= fitScale() + 1e-6 ? null : clampZoom(next)
+    const r = svg.getBoundingClientRect()
+    const box = el.getBoundingClientRect()
+    const p = at ?? { clientX: box.left + box.width / 2, clientY: (Math.max(r.top, 0) + Math.min(r.bottom, window.innerHeight)) / 2 }
+    const s = r.width / width
+    anchor.current = { ...p, cx: (p.clientX - r.left) / s, cy: (p.clientY - r.top) / s }
     setZoomState(to)
   }
 
   useLayoutEffect(() => {
     const el = frame.current
+    const svg = svgRef.current
     const a = anchor.current
-    if (!el || !a) return
+    if (!el || !svg || !a) return
     anchor.current = null
-    el.scrollLeft = anchoredScroll(el.scrollLeft, a.x, a.from, zoom)
-    el.scrollTop = anchoredScroll(el.scrollTop, a.y, a.from, zoom)
-  }, [zoom])
+    const r = svg.getBoundingClientRect()
+    const s = r.width / width
+    el.scrollLeft += r.left + a.cx * s - a.clientX
+    window.scrollBy(0, r.top + a.cy * s - a.clientY)
+  }, [zoom, width])
+
+  // Keeps the readout true while fitted, as the frame resizes.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const ro = new ResizeObserver(() => setShown(svg.getBoundingClientRect().width / width))
+    ro.observe(svg)
+    return () => ro.disconnect()
+  }, [width])
 
   // Ctrl/⌘ + wheel (and trackpad pinch, which browsers report as ctrl + wheel) zooms around the pointer.
+  const wheelZoom = useRef(setZoom)
+  wheelZoom.current = setZoom
   useEffect(() => {
     const el = frame.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
-      const r = el.getBoundingClientRect()
-      setZoom(zoomRef.current * Math.exp(-e.deltaY * 0.01), { x: e.clientX - r.left, y: e.clientY - r.top })
+      wheelZoom.current(scale() * Math.exp(-e.deltaY * 0.01), { clientX: e.clientX, clientY: e.clientY })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Start with the recommended lesson in view; the tree is larger than most screens at full size.
-  const target = recommended ? pos.get(recommended) : undefined
-  useEffect(() => {
-    const el = frame.current
-    if (!el || !target || centred.current) return
-    centred.current = true
-    el.scrollLeft = target.x * zoomRef.current - el.clientWidth / 2
-    el.scrollTop = target.y * zoomRef.current - el.clientHeight / 3
-  }, [target])
 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1" role="toolbar" aria-label="Roadmap zoom">
-        <Button variant="outline" size="icon-sm" aria-label="Zoom out" onClick={() => setZoom(zoomOut(zoom))}>−</Button>
-        <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{Math.round(zoom * 100)}%</span>
-        <Button variant="outline" size="icon-sm" aria-label="Zoom in" onClick={() => setZoom(zoomIn(zoom))}>+</Button>
-        <Button variant="outline" size="sm" onClick={() => setZoom(fitZoom((frame.current?.clientWidth ?? 0) - 16, width))}>Fit</Button>
+        <Button variant="outline" size="icon-sm" aria-label="Zoom out" disabled={zoom === null} onClick={() => setZoom(zoomOut(scale()))}>−</Button>
+        <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{Math.round((zoom ?? shown) * 100)}%</span>
+        <Button variant="outline" size="icon-sm" aria-label="Zoom in" onClick={() => setZoom(zoomIn(scale()))}>+</Button>
+        <Button variant="outline" size="sm" disabled={zoom === null} onClick={() => setZoom(null)}>Fit</Button>
         <Button variant="outline" size="sm" onClick={() => setZoom(1)}>100%</Button>
         <span className="ml-2 hidden text-xs text-muted-foreground sm:inline">Ctrl/⌘ + scroll to zoom</span>
       </div>
-      <div ref={frame} role="region" tabIndex={0} aria-label="Roadmap, scrollable" className="max-h-[75vh] overflow-auto rounded-lg border p-2">
-        <svg viewBox={`0 0 ${width} ${height}`} width={width * zoom} height={height * zoom} className="mx-auto block max-w-none" role="group" aria-label="Roadmap">
+      <div ref={frame} role="region" tabIndex={0} aria-label="Roadmap, scrollable" className="overflow-x-auto rounded-lg border p-2">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${width} ${height}`}
+          {...(zoom === null
+            ? { className: 'mx-auto block h-auto w-full', style: { maxWidth: width } }
+            : { width: width * zoom, height: height * zoom, className: 'mx-auto block max-w-none' })}
+          role="group"
+          aria-label="Roadmap"
+        >
           {bands.map((band, i) => (
             <g key={band.track}>
               {i > 0 && <line x1={gutter + PAD} x2={width - PAD} y1={top[i] - 4} y2={top[i] - 4} className="stroke-border" strokeWidth={1} />}
@@ -131,12 +153,13 @@ export function RoadmapView() {
             const a = pos.get(e.from)
             const b = pos.get(e.to)
             if (!a || !b) return null
-            const y1 = a.y + R + 40
+            const below = (labelLines(lessonBySlug.get(e.from)?.title ?? e.from).length - 1) * LINE
+            const y1 = a.y + R + 40 + below
             const y2 = b.y - R - 4
             const dy = (y2 - y1) / 2
             const cross = e.lane >= 0
             const laneX = 12 + 10 * e.lane
-            const yOut = a.y + R + 46
+            const yOut = a.y + R + 46 + below
             const yIn = b.y - R - 16
             return (
               <path
@@ -157,6 +180,7 @@ export function RoadmapView() {
             const isNext = n.slug === recommended
             const lesson = lessonBySlug.get(n.slug)
             const title = lesson?.title ?? n.slug
+            const lines = labelLines(title)
             const go = () => router.push(lessonHref(lesson!))
             return (
               <g
@@ -182,8 +206,10 @@ export function RoadmapView() {
                   transform="rotate(-90)"
                 />
                 <text textAnchor="middle" dy="0.35em" className="fill-foreground text-[13px] font-semibold">{value}%</text>
-                <text y={R + 18} textAnchor="middle" className="fill-foreground stroke-background text-[13px] font-medium" strokeWidth={5} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{title}</text>
-                <text y={R + 34} textAnchor="middle" className="fill-muted-foreground stroke-background text-[11px]" strokeWidth={4} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{count(n.slug)}{isNext ? ' · next' : ''}</text>
+                <text y={R + 18} textAnchor="middle" className="fill-foreground stroke-background text-[13px] font-medium" strokeWidth={5} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>
+                  {lines.map((line, i) => <tspan key={i} x={0} dy={i ? LINE : 0}>{line}</tspan>)}
+                </text>
+                <text y={R + 34 + (lines.length - 1) * LINE} textAnchor="middle" className="fill-muted-foreground stroke-background text-[11px]" strokeWidth={4} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{count(n.slug)}{isNext ? ' · next' : ''}</text>
               </g>
             )
           })}

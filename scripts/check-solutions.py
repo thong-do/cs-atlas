@@ -2,7 +2,9 @@
 """Usage: python3 scripts/check-solutions.py .velite/solutions.json
 
 Runs every approach's Python block (Brute force, Better, Optimal) of every solution against its cases.
-Each case runs in a forked child with a 2 s timeout. Brute force skips the `large` case.
+Each case runs in a forked child with a 2 s timeout. Brute force skips the `large` case, except for one run that
+prints a WARN line (not a failure) when it passes: then `large` does not separate brute force from the faster approaches.
+Uses the `fork` start method, so it runs on macOS and Linux, not Windows.
 
 Harnesses:
   function  Solution().<entry>(*args); `args` types convert inputs, `returns` converts the output
@@ -216,7 +218,8 @@ def approaches(entry):
 
 
 def check_entry(entry):
-    path, fails = entry['path'], []
+    """FAIL lines for every failing case, plus a WARN line when Brute force passes `large`."""
+    path, lines = entry['path'], []
     found = approaches(entry)
     if not found:
         return [f'FAIL {path}: no approach sections']
@@ -225,24 +228,26 @@ def check_entry(entry):
         try:
             large = {'args': eval(entry['large']['args'], prelude()), 'expect': entry['large']['expect']}
         except Exception as e:
-            fails.append(f'FAIL {path} [large]: {error(e)}')
+            lines.append(f'FAIL {path} [large]: {error(e)}')
     for title, blocks in found:
         if len(blocks) != 1:
-            fails.append(f'FAIL {path} [{title}]: expected one python block, found {len(blocks)}')
+            lines.append(f'FAIL {path} [{title}]: expected one python block, found {len(blocks)}')
             continue
         try:
             code = compile(blocks[0], title, 'exec')
         except SyntaxError as e:
-            fails.append(f'FAIL {path} [{title}]: {error(e)}')
+            lines.append(f'FAIL {path} [{title}]: {error(e)}')
             continue
         cases = list(enumerate(entry['cases'], 1))
         if large and title != 'Brute force':
             cases.append(('large', large))
+        elif large and run(code, entry, large) is None:
+            lines.append(f'WARN {path} [{title}] passes the large case; it does not separate the approaches')
         for n, case in cases:
             err = run(code, entry, case)
             if err is not None:
-                fails.append(f'FAIL {path} [{title}] case {n}: {err}')
-    return fails
+                lines.append(f'FAIL {path} [{title}] case {n}: {err}')
+    return lines
 
 
 def main(argv):
@@ -251,10 +256,10 @@ def main(argv):
         return 2
     with open(argv[0]) as f:
         entries = json.load(f)
-    fails = [line for e in entries for line in check_entry(e)]
-    for line in fails:
+    lines = [line for e in entries for line in check_entry(e)]
+    for line in lines:
         print(line)
-    if fails:
+    if any(line.startswith('FAIL') for line in lines):
         return 1
     print(f'OK {len(entries)} solutions, {sum(len(approaches(e)) for e in entries)} approaches')
     return 0

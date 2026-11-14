@@ -17,6 +17,9 @@ cases:
     expect: [9]
   - args: [[6, 6, 6, 6, 6], 1]
     expect: [6]
+# Brute force passes large (check-solutions.py prints a WARN): its sort runs at C speed, and on 3M distinct
+# values it is as fast as the heap and the buckets in CPython. No input separates them; large still catches a
+# quadratic Better or Optimal.
 large:
   args: "[list(range(50000)) + [7] * 3 + [11] * 2, 2]"
   expect: [7, 11]

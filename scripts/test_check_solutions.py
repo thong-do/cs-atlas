@@ -1,6 +1,8 @@
 import contextlib
 import importlib.util
 import io
+import json
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -192,6 +194,20 @@ class Solution:
         self.assertEqual(cs.check_entry(e), [])
         e['raw'] = body(optimal=brute)
         self.assertIn('[Optimal] case large: timed out after 2s', cs.check_entry(e)[0])
+
+    def test_warns_when_brute_force_passes_large(self):
+        brute = 'class Solution:\n    def hasDup(self, nums):\n        return len(set(nums)) < len(nums)'
+        e = entry(body(brute=brute, optimal=brute), entry='hasDup',
+                  cases=[{'args': [[1, 2, 1]], 'expect': True}, {'args': [[1, 2]], 'expect': False}],
+                  large={'args': '[list(range(100000))]', 'expect': False})
+        warn = 'WARN solutions/p [Brute force] passes the large case; it does not separate the approaches'
+        self.assertEqual(cs.check_entry(e), [warn])
+        with tempfile.NamedTemporaryFile('w', suffix='.json') as f:
+            json.dump([e], f)
+            f.flush()
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(cs.main([f.name]), 0)
+        self.assertEqual(out.getvalue(), f'{warn}\nOK 1 solutions, 2 approaches\n')
 
     def test_main_exit_codes(self):
         with contextlib.redirect_stdout(io.StringIO()) as out:

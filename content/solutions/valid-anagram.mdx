@@ -19,7 +19,7 @@ cases:
   - args: ["abc", "abd"]
     expect: false
 large:
-  args: "['ab' * 25000, 'ba' * 25000]"
+  args: "['a' * 25000 + 'b' * 25000, 'b' * 25000 + 'a' * 25000]"
   expect: true
 ---
 

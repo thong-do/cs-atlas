@@ -1,0 +1,26 @@
+[
+  {
+    "problem": "bad",
+    "path": "solutions/bad",
+    "entry": "twoSum",
+    "harness": "function",
+    "cases": [
+      {
+        "args": [
+          [
+            2,
+            7,
+            11,
+            15
+          ],
+          9
+        ],
+        "expect": [
+          0,
+          2
+        ]
+      }
+    ],
+    "raw": "## Intuition\n\nSome words.\n\n## Optimal\n\n1. Step.\n\n```python\nclass Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}\n        for i, x in enumerate(nums):\n            if target - x in seen:\n                return [seen[target - x], i]\n            seen[x] = i\n```\n\n**Complexity:** O(n).\n"
+  }
+]

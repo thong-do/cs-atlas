@@ -48,3 +48,6 @@ next-env.d.ts
 /playwright-report
 supabase/.temp
 supabase/.branches
+
+# python
+__pycache__/

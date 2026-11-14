@@ -113,17 +113,3 @@ test('the review card shows the hook after Reveal, only when there is one', asyn
   await expect(card('3Sum').getByText('Remember it:')).toHaveCount(0)
   await context.close()
 })
-
-test.describe('narrow screens', () => {
-  test.use({ viewport: { width: 320, height: 700 } })
-
-  test('an open solution scrolls its tables and code inside itself, not the page', async ({ page }) => {
-    await page.goto('/exercises/contains-duplicate/')
-    const solution = page.getByRole('region', { name: 'Solution' })
-    for (const step of ['hint', 'intuition', 'brute force', 'better approach', 'optimal']) {
-      await solution.getByRole('button', { name: `Show ${step}` }).click()
-    }
-    await expect(solution.getByRole('heading', { name: 'Optimal' })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  })
-})

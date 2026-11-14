@@ -105,9 +105,9 @@ The checker extracts the Python block of each approach section, executes it in a
 
 **Comparison:** `exact` (default); `unordered` sorts the top-level list on both sides; `unordered-deep` sorts each inner list and then the outer list (for 3Sum, Group Anagrams, Subsets); `float` compares within 1e-5.
 
-**Speed check (optional `large`).** A generated input, given as a Python expression, that only the Optimal and Better approaches must pass within 2 seconds. It catches an "optimal" that is secretly quadratic. Recommended wherever the brute force and optimal differ in complexity class on array input.
+**Speed check (optional `large`).** A generated input, given as a Python expression, that only the Optimal and Better approaches must pass within 2 seconds. It catches an "optimal" that is secretly quadratic. Recommended wherever the brute force and optimal differ in complexity class on array input. Brute force also runs on it once, and the checker prints a WARN (not a failure) if it passes, since then `large` doesn't separate the approaches.
 
-**Limits:** each case runs with a 2-second timeout per approach. Brute force runs on the small cases only. Every approach must pass every small case.
+**Limits:** each case runs with a 2-second timeout per approach. Brute force must pass the small cases only. Every approach must pass every small case.
 
 ### Running it
 
@@ -119,7 +119,7 @@ The checker extracts the Python block of each approach section, executes it in a
 
 - `problem` names an `external-problem` exercise, and no problem has two solution files.
 - `hook` is at most 12 words. `cases` has at least 4 entries (`class` and `custom` too).
-- The body's `##` headings are exactly `Intuition`, `Brute force`, optionally `Better`, then `Optimal`, in that order, with no others.
+- The body's `##` headings are exactly `Intuition`, `Brute force`, optionally `Better`, then `Optimal`, in that order, with no others, and there are no `#` (h1) headings outside code fences: Velite's toc would nest the steps under one and hide the solution.
 - Intuition contains no code block.
 - Each approach section has one ordered list of 2–5 items, exactly one `python` code block, at least one table, and a `**Complexity:**` line. Brute force and Better also have `**What's wasted:**`.
 - Each approach's code contains `class Solution` (or `class <entry>` for `harness: class`).

@@ -19,6 +19,8 @@ npm run lint
 npm run e2e          # optional locally; CI runs it
 ```
 
+If you add or change a solution guide (`content/solutions/`), also run `npm run check:solutions`. It needs Python 3 (`python3` on your `PATH`; no packages). The checker runs each case in a child process started with the `fork` method, so it runs on macOS and Linux but not on Windows (use WSL there).
+
 ## Running with accounts (optional)
 
 The site works guest-only without any setup. To try sign-in and sync locally:
@@ -93,7 +95,7 @@ A LeetCode exercise can have a step-by-step solution that the problem page revea
 2. Write it in your own words, in Python, LeetCode-style (`class Solution` with LeetCode's method name), so the code can be pasted into LeetCode and submitted.
 3. Run `npm run check:solutions`. It builds the content and runs every approach's code against the file's `cases`.
 
-**Shape.** The `##` sections are exactly `Intuition`, `Brute force`, optionally `Better`, then `Optimal`. Intuition is 2–5 short sentences and no code. Each approach section has, in order: the idea in one sentence; one numbered list of 2–5 steps; exactly one `python` block; one trace table; a `**Complexity:**` line. Brute force and Better also end with `**What's wasted:**`. The frontmatter `hook` (at most 12 words) is shown as "Remember it" with Optimal and on the problem's review card.
+**Shape.** The `##` sections are exactly `Intuition`, `Brute force`, optionally `Better`, then `Optimal`, with no `#` headings (an h1 would nest the steps under it and hide them). Intuition is 2–5 short sentences and no code. Each approach section has, in order: the idea in one sentence; one numbered list of 2–5 steps; exactly one `python` block; one trace table; a `**Complexity:**` line. Brute force and Better also end with `**What's wasted:**`. The frontmatter `hook` (at most 12 words) is shown as "Remember it" with Optimal and on the problem's review card.
 
 **Writing bar.** Review checks each guide against this list. It isn't machine-checked.
 
@@ -121,7 +123,7 @@ A LeetCode exercise can have a step-by-step solution that the problem page revea
 | `unordered-deep` | equal once each inner list and then the outer list are sorted (3Sum, Group Anagrams, Subsets) |
 | `float` | numbers are within 1e-5 |
 
-**Speed check.** For `harness: function`, an optional `large` gives a generated input as a Python expression. Better and Optimal must pass it within 2 seconds; Brute force skips it. Add one wherever brute force and optimal differ in complexity class on array input, so a secretly quadratic "optimal" fails.
+**Speed check.** For `harness: function`, an optional `large` gives a generated input as a Python expression. Better and Optimal must pass it within 2 seconds. Brute force is run on it once, only to check that it times out: if it passes, the checker prints `WARN ... [Brute force] passes the large case` (not a failure), so pick a bigger or adversarial input, or explain in a YAML comment beside `large` why none separates them. Add one wherever brute force and optimal differ in complexity class on array input, so a secretly quadratic "optimal" fails.
 
 ## The quality bar (checked by the build)
 

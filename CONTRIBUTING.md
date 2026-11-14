@@ -65,6 +65,7 @@ content/
   tracks/<track>/track.yaml        # modules and the order of lessons
   tracks/<track>/lessons/<slug>.mdx
   exercises/<slug>.yaml
+  solutions/<problem-slug>.mdx     # a step-by-step solution to a LeetCode exercise
 ```
 
 - A **track** (Algorithms, System Design, …) has **modules**; a module lists **lessons** in order and may list `comingSoon` titles.
@@ -81,8 +82,46 @@ content/
 
 1. Copy a template to `content/exercises/<slug>.yaml`: `templates/exercise.yaml` for a LeetCode problem (the slug must match the LeetCode URL), `templates/quiz.yaml` for a quiz with flashcards, or `templates/design-prompt.yaml` for a design prompt, or see [Estimation drills](#estimation-drills) for an estimation drill.
 2. Set `ladderOrder` to the next free number in the primary lesson's ladder. A quiz may use 0 to come first on the ladder.
-3. Write the text **in your own words** (for a LeetCode problem: `recognitionPrompt` and `hint`). Never paste a problem statement or a solution.
+3. Write the text **in your own words** (for a LeetCode problem: `recognitionPrompt` and `hint`). Never paste a problem statement, an editorial or anyone else's solution code; solutions here are written by us.
 4. For a quiz, don't let length give the answer away: across a file the right answer should sometimes be the longest or shortest choice, reached by honest wording rather than padding, and V16 checks this.
+
+## Writing a solution
+
+A LeetCode exercise can have a step-by-step solution that the problem page reveals one step at a time: Hint, Intuition, Brute force, Better (optional), Optimal.
+
+1. Copy `templates/solution.mdx` to `content/solutions/<problem-slug>.mdx`, where `<problem-slug>` is the exercise's slug.
+2. Write it in your own words, in Python, LeetCode-style (`class Solution` with LeetCode's method name), so the code can be pasted into LeetCode and submitted.
+3. Run `npm run check:solutions`. It builds the content and runs every approach's code against the file's `cases`.
+
+**Shape.** The `##` sections are exactly `Intuition`, `Brute force`, optionally `Better`, then `Optimal`. Intuition is 2–5 short sentences and no code. Each approach section has, in order: the idea in one sentence; one numbered list of 2–5 steps; exactly one `python` block; one trace table; a `**Complexity:**` line. Brute force and Better also end with `**What's wasted:**`. The frontmatter `hook` (at most 12 words) is shown as "Remember it" with Optimal and on the problem's review card.
+
+**Writing bar.** Review checks each guide against this list. It isn't machine-checked.
+
+- The intuition stands on its own, without the code, and uses a concrete picture rather than a definition.
+- Variable names are the same in steps, code and trace.
+- Each step is one line, in plain words, not code.
+- The trace uses the smallest input that shows the key move, and every value in it matches what the code actually does (the reviewer runs it).
+- "What's wasted" names the specific repeated work, so the next approach reads as the obvious fix.
+- The hook is at most 12 words, is a concrete image or rule of thumb, and is true. It must not be a definition ("use a hash map").
+- Complexity claims are exact for the code shown, including sorting and recursion stack space.
+- No claim is broader than what the code proves ("always", "never" and "any" need care).
+
+**Harness.** The checker runs each approach's code with LeetCode's usual names available (`List`, `Optional`, `defaultdict`, `heapq`, `math`, `ListNode`, `TreeNode` and so on). Each case has a 2-second limit.
+
+| `harness` | A case is | The checker |
+|---|---|---|
+| `function` | `args: [...]`, `expect: ...` | calls `Solution().<entry>(*args)`. `args` and `returns` convert values: `listnode` (a list becomes a linked list), `treenode` (a level-order list with `null` holes becomes a tree), `returns: inplace:<i>` (compares argument `i` after the call) |
+| `class` | `ops: [...]`, `args: [...]`, `expect: [...]` | runs LeetCode's operation format: `ops[0]` constructs `<entry>`, later ops call methods (for design problems such as LRU Cache) |
+| `custom` | anything | calls `run(Solution, case)`, defined by the frontmatter `check`, which asserts (cycles, random pointers, graph cloning, codecs) |
+
+| `compare` | Passes when |
+|---|---|
+| `exact` (default) | the values are equal |
+| `unordered` | the top-level lists are equal once sorted |
+| `unordered-deep` | equal once each inner list and then the outer list are sorted (3Sum, Group Anagrams, Subsets) |
+| `float` | numbers are within 1e-5 |
+
+**Speed check.** For `harness: function`, an optional `large` gives a generated input as a Python expression. Better and Optimal must pass it within 2 seconds; Brute force skips it. Add one wherever brute force and optimal differ in complexity class on array input, so a secretly quadratic "optimal" fails.
 
 ## The quality bar (checked by the build)
 
@@ -113,6 +152,7 @@ If something is wrong, `npm test` and `npm run build` fail with a message like:
 | V15 | Estimation drills: 2–4 steps with unique ids; a known `unit` (bytes, bytes/s, bits/s, requests/s, count, seconds); `answer` > 0 in base units; `tolerance`, if set, 1.5–10 (default 2); each step's `work` shows its answer as the app formats it (e.g. "10 TB"); non-empty `scenario` and `takeaway` |
 | V16 | Lesson quizzes and placement files, per file, counting only questions whose choices differ in length (skipped below 4 such questions): (a) in at least 1 in 5 of them the right answer is the longest or shortest choice; (b) no more than 60% of them have the same number of choices longer than the right answer |
 | V17 | Every lesson, in every track, is the first entry in the `lessons` of a `quiz` exercise with at least one flashcard |
+| V18 | Solutions: `problem` is a LeetCode exercise with no other solution file, and the file name equals it; `hook` is at most 12 words; at least 4 `cases`; the sections and approach parts listed under [Writing a solution](#writing-a-solution), with no code in Intuition; each approach's code defines `class Solution` (`class <entry>` for `harness: class`); `check` only and always with `harness: custom`; `large` only with `harness: function` |
 
 ## Estimation drills
 
@@ -157,7 +197,7 @@ takeaway: "…"                          # 1–2 sentences, shown at the end
 
 - Keep each PR to one topic.
 - Vercel posts a **preview link** on the PR. Open your page there and check it on a phone-sized window.
-- CI must be green: lint, typecheck, unit tests, build and e2e.
+- CI must be green: lint, typecheck, unit tests, build, the solution checker and e2e.
 
 ## Licence of contributions
 

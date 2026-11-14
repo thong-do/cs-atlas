@@ -1,0 +1,93 @@
+---
+problem: your-problem-slug        # the slug of an external-problem exercise; the file name must equal it
+hook: "A concrete image or rule of thumb, at most 12 words."
+entry: methodName                 # the Solution method LeetCode calls (the class name for harness: class)
+harness: function                 # function | class | custom
+args: [plain, plain]              # optional, one per argument: plain | listnode | treenode (default plain)
+returns: plain                    # optional: plain | listnode | treenode | inplace:<i> (default plain)
+compare: exact                    # optional: exact | unordered | unordered-deep | float (default exact)
+cases:                            # at least 4, edge cases included; every approach must pass every case
+  - args: [[2, 7, 11, 15], 9]
+    expect: [0, 1]
+  - args: [[3, 2, 4], 6]
+    expect: [1, 2]
+  - args: [[3, 3], 6]
+    expect: [0, 1]
+  - args: [[-1, 0, 1], 0]
+    expect: [0, 2]
+# For harness: class, each case is a LeetCode operation list:
+#   - ops: [ClassName, put, get]
+#     args: [[2], [1, 1], [1]]
+#     expect: [null, null, 1]
+large:                            # optional, harness: function only: Better and Optimal must pass it in 2 seconds
+  args: "[list(range(100000)), 199997]"   # a Python expression giving the argument list
+  expect: [99998, 99999]
+# check: |                        # harness: custom only (and required there): defines run(Solution, case), which asserts
+#   def run(Solution, case):
+#       ...
+---
+
+## Intuition
+
+How a person would solve it by hand, as an everyday picture. No code. Two to five short sentences.
+
+## Brute force
+
+The idea in one sentence: the most direct correct approach.
+
+1. One line per step, in plain words, using the names the code uses.
+2. Two to five steps.
+
+```python
+class Solution:
+    def methodName(self, nums: List[int], target: int) -> List[int]:
+        ...
+```
+
+| i | j | nums[i] + nums[j] |
+|---|---|---|
+| a trace on the smallest input that shows the key move | | |
+
+**Complexity:** O(?) time, O(?) space, and a few words on why.
+
+**What's wasted:** one or two sentences naming the repeated work the next approach removes.
+
+## Better
+
+Optional: a real middle step, only when it teaches something on the way to the optimal. Same parts as Brute force, including "What's wasted". Delete this section if there is none.
+
+1. Step one.
+2. Step two.
+
+```python
+class Solution:
+    def methodName(self, nums: List[int], target: int) -> List[int]:
+        ...
+```
+
+| i | x |
+|---|---|
+| a trace | |
+
+**Complexity:** O(?) time, O(?) space.
+
+**What's wasted:** the work Optimal removes.
+
+## Optimal
+
+The idea in one sentence: the approach to remember.
+
+1. Step one.
+2. Step two.
+
+```python
+class Solution:
+    def methodName(self, nums: List[int], target: int) -> List[int]:
+        ...
+```
+
+| i | x | seen |
+|---|---|---|
+| a trace whose columns match variable names in the code | | |
+
+**Complexity:** O(?) time, O(?) space.

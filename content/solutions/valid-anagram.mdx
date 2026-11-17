@@ -1,0 +1,102 @@
+---
+problem: valid-anagram
+hook: "Add s's letters, subtract t's; anagrams leave every count at zero."
+entry: isAnagram
+harness: function
+cases:
+  - args: ["aab", "aba"]
+    expect: true
+  - args: ["listen", "silent"]
+    expect: true
+  - args: ["a", "a"]
+    expect: true
+  - args: ["ab", "a"]
+    expect: false
+  - args: ["aab", "abb"]
+    expect: false
+  - args: ["night", "thing"]
+    expect: true
+  - args: ["abc", "abd"]
+    expect: false
+large:
+  args: "['a' * 25000 + 'b' * 25000, 'b' * 25000 + 'a' * 25000]"
+  expect: true
+---
+
+## Intuition
+
+Think of two bags of letter tiles. They hold the same tiles exactly when every letter appears the same number of times in both. So keep a tally sheet: add one mark for each tile from the first bag and rub one out for each tile from the second. If every letter's tally ends at zero, the bags matched; the order the tiles came out in never mattered.
+
+## Brute force
+
+Take the letters of `t` as a pile, and cross off one matching letter for each letter of `s`.
+
+1. If the strings have different lengths, return `False`.
+2. Put the letters of `t` in a list, `remaining`.
+3. For each letter `ch` of `s`, cross one `ch` off `remaining`; if none is left, return `False`.
+4. If every letter found a match, return `True`.
+
+```python
+class Solution:
+    def isAnagram(self, s: str, t: str) -> bool:
+        if len(s) != len(t):
+            return False
+        remaining = list(t)
+        for ch in s:
+            if ch not in remaining:
+                return False
+            remaining.remove(ch)      # cross off one matching letter
+        return True
+```
+
+Trace for `s = "aab"`, `t = "aba"`:
+
+| ch | ch in remaining? | remaining afterwards |
+|---|---|---|
+| (start) | | `['a', 'b', 'a']` |
+| a | yes | `['b', 'a']` |
+| a | yes | `['b']` |
+| b | yes | `[]` |
+
+All three letters were crossed off, so the answer is `True`.
+
+**Complexity:** O(n²) time for strings of length n: each `in` check and each `remove` scans `remaining`, which starts with n letters. O(n) extra space for `remaining`.
+
+**What's wasted:** every letter of `s` searches the pile again from the start, just to learn how many of that letter are left. A count per letter answers that without searching.
+
+## Optimal
+
+Count each letter up for `s` and down for `t`; the strings are anagrams exactly when every count ends at zero.
+
+1. Start with an empty map, `count`, from letter to tally.
+2. For each letter `ch` of `s`, add one to `count[ch]`.
+3. For each letter `ch` of `t`, subtract one from `count[ch]`.
+4. Return whether every tally is zero.
+
+```python
+class Solution:
+    def isAnagram(self, s: str, t: str) -> bool:
+        count = {}
+        for ch in s:
+            count[ch] = count.get(ch, 0) + 1
+        for ch in t:
+            count[ch] = count.get(ch, 0) - 1
+        return all(c == 0 for c in count.values())
+```
+
+Trace for `s = "aab"`, `t = "aba"`:
+
+| ch | count afterwards |
+|---|---|
+| `for ch in s:` | |
+| a | `{'a': 1}` |
+| a | `{'a': 2}` |
+| b | `{'a': 2, 'b': 1}` |
+| `for ch in t:` | |
+| a | `{'a': 1, 'b': 1}` |
+| b | `{'a': 1, 'b': 0}` |
+| a | `{'a': 0, 'b': 0}` |
+
+Every tally is zero, so the answer is `True`. Different lengths need no special check: the extra letters leave some tally above or below zero.
+
+**Complexity:** O(n + m) time for lengths n and m: one step per letter. O(1) extra space for lowercase letters, since `count` holds at most 26 keys (for any alphabet, at most one key per distinct character).

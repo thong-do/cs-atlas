@@ -1,0 +1,80 @@
+[
+  {
+    "problem": "two-sum",
+    "path": "solutions/two-sum",
+    "entry": "twoSum",
+    "harness": "function",
+    "compare": "unordered",
+    "cases": [
+      {
+        "args": [
+          [
+            2,
+            7,
+            11,
+            15
+          ],
+          9
+        ],
+        "expect": [
+          0,
+          1
+        ]
+      },
+      {
+        "args": [
+          [
+            3,
+            3
+          ],
+          6
+        ],
+        "expect": [
+          1,
+          0
+        ]
+      }
+    ],
+    "large": {
+      "args": "[list(range(100000)), 199997]",
+      "expect": [
+        99998,
+        99999
+      ]
+    },
+    "raw": "## Intuition\n\nSome words.\n\n## Brute force\n\n1. Step.\n\n```python\nclass Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                if nums[i] + nums[j] == target:\n                    return [i, j]\n```\n\n**Complexity:** O(n).\n\n## Optimal\n\n1. Step.\n\n```python\nclass Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}\n        for i, x in enumerate(nums):\n            if target - x in seen:\n                return [seen[target - x], i]\n            seen[x] = i\n```\n\n**Complexity:** O(n).\n"
+  },
+  {
+    "problem": "reverse-linked-list",
+    "path": "solutions/reverse-linked-list",
+    "entry": "reverseList",
+    "harness": "function",
+    "args": [
+      "listnode"
+    ],
+    "returns": "listnode",
+    "cases": [
+      {
+        "args": [
+          [
+            1,
+            2,
+            3
+          ]
+        ],
+        "expect": [
+          3,
+          2,
+          1
+        ]
+      },
+      {
+        "args": [
+          []
+        ],
+        "expect": []
+      }
+    ],
+    "raw": "## Intuition\n\nSome words.\n\n## Optimal\n\n1. Step.\n\n```python\nclass Solution:\n    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:\n        prev = None\n        while head:\n            head.next, prev, head = prev, head, head.next\n        return prev\n```\n\n**Complexity:** O(n).\n"
+  }
+]

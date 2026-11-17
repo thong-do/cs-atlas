@@ -3,6 +3,8 @@ import rehypeShiki from '@shikijs/rehype'
 import rehypeSlug from 'rehype-slug'
 import { validateContent } from './src/lib/content/validate'
 import { validatePlacements } from './src/lib/content/validate-placement'
+import { validateSolutions } from './src/lib/content/validate-solutions'
+import { rehypeSolutionSections } from './src/lib/content/rehype-solution-sections'
 
 const tracks = defineCollection({
   name: 'Track',
@@ -132,6 +134,30 @@ const placements = defineCollection({
   }),
 })
 
+const solutions = defineCollection({
+  name: 'Solution',
+  pattern: 'solutions/*.mdx',
+  schema: s
+    .object({
+      problem: s.string(),
+      hook: s.string(),
+      entry: s.string(),
+      harness: s.enum(['function', 'class', 'custom']),
+      args: s.array(s.enum(['plain', 'listnode', 'treenode'])).optional(),
+      returns: s.string().regex(/^(plain|listnode|treenode|inplace:\d+)$/, 'plain, listnode, treenode or inplace:<i>').optional(),
+      compare: s.enum(['exact', 'unordered', 'unordered-deep', 'float']).optional(),
+      cases: s.array(s.unknown()),
+      large: s.object({ args: s.string(), expect: s.unknown() }).strict().optional(),
+      check: s.string().optional(),
+      path: s.path(),
+      raw: s.raw(),
+      toc: s.toc(),
+      // Field plugins run before the global mdx.rehypePlugins (rehypeSlug, Shiki), which still apply.
+      body: s.mdx({ rehypePlugins: [rehypeSolutionSections] }),
+    })
+    .strict(),
+})
+
 export default defineConfig({
   root: 'content',
   strict: true, // schema violations (missing/unknown fields) fail the build
@@ -142,7 +168,7 @@ export default defineConfig({
     name: '[name]-[hash:6].[ext]',
     clean: true,
   },
-  collections: { tracks, lessons, exercises, placements },
+  collections: { tracks, lessons, exercises, placements, solutions },
   mdx: {
     rehypePlugins: [
       rehypeSlug,
@@ -150,17 +176,18 @@ export default defineConfig({
       [rehypeShiki as any, { themes: { light: 'github-light', dark: 'github-dark' } }],
     ],
   },
-  prepare: ({ tracks, lessons, exercises, placements }) => {
+  prepare: ({ tracks, lessons, exercises, placements, solutions }) => {
     const content = {
       tracks: tracks.map((t) => ({ slug: t.slug, folder: t.folder, order: t.order, modules: t.modules })),
       lessons: lessons.map((l) => ({ ...l, headings: l.toc.map((h) => h.title) })),
       exercises,
     }
-    const errors = [...validateContent(content), ...validatePlacements(placements, content)]
+    const errors = [...validateContent(content), ...validatePlacements(placements, content), ...validateSolutions(solutions, content)]
     if (errors.length > 0) {
       throw new Error(`Content validation failed:\n- ${errors.join('\n- ')}`)
     }
     // path and raw exist only for validation; keep them out of the emitted data (and the client bundle).
+    // Solutions keep theirs: check-solutions.py reads .velite/solutions.json, and only server code imports it.
     for (const l of lessons) {
       delete (l as { raw?: string }).raw
       delete (l as { path?: string }).path

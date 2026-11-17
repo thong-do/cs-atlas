@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { DifficultyBadge } from '@/components/difficulty-badge'
 import { StatusIcon } from '@/components/status-icon'
 import { Badge } from '@/components/ui/badge'
@@ -9,16 +9,22 @@ import { Button } from '@/components/ui/button'
 import { useCatalog } from '@/lib/content/catalog-context'
 import { lessonHref } from '@/lib/content/hrefs'
 import { exerciseStatus } from '@/lib/logic/filter'
+import { ratingForStep } from '@/lib/logic/solution-steps'
 import { useLive } from '@/lib/store/context'
-import type { ProblemExercise } from '@/lib/types'
+import type { SolutionSectionStep } from '@/lib/content/solution-sections'
+import type { ProblemExercise, SolutionStep } from '@/lib/types'
 import { MarkSolvedDialog } from './mark-solved-dialog'
 import { NoteEditor } from './note-editor'
 import { ReviewHistory } from './review-history'
+import { SolutionSteps } from './solution-steps'
 
-export function ProblemWorkspace({ exercise }: { exercise: ProblemExercise }) {
+export function ProblemWorkspace({ exercise, steps = [], solutionBody }: {
+  exercise: ProblemExercise; steps?: SolutionSectionStep[]; solutionBody?: ReactNode
+}) {
   const { lessonBySlug } = useCatalog()
   const progress = useLive((s) => s.getProgress(exercise.slug), [exercise.slug])
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [furthest, setFurthest] = useState<SolutionStep | null>(null)
   const solved = progress?.status === 'solved'
 
   return (
@@ -49,10 +55,14 @@ export function ProblemWorkspace({ exercise }: { exercise: ProblemExercise }) {
         )}
       </header>
 
-      <details className="rounded-lg border p-4">
-        <summary className="cursor-pointer font-medium">Show hint</summary>
-        <p className="mt-2 text-muted-foreground">{exercise.hint}</p>
-      </details>
+      <SolutionSteps
+        hint={exercise.hint}
+        steps={steps}
+        body={solutionBody}
+        hook={exercise.hook}
+        pattern={lessonBySlug.get(exercise.lessons[0])?.title}
+        onFurthestChange={setFurthest}
+      />
 
       {solved ? (
         <>
@@ -63,7 +73,7 @@ export function ProblemWorkspace({ exercise }: { exercise: ProblemExercise }) {
         <p className="text-muted-foreground">Solve it on LeetCode, then mark it solved to unlock your note and reviews.</p>
       )}
 
-      <MarkSolvedDialog slug={exercise.slug} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <MarkSolvedDialog slug={exercise.slug} open={dialogOpen} onOpenChange={setDialogOpen} defaultRating={ratingForStep(furthest)} />
     </div>
   )
 }

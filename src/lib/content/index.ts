@@ -1,6 +1,7 @@
-import { exercises, lessons, placements, tracks } from '#site/content'
-import type { Catalog, DesignDoc, EstimateDoc, EstimateUnit, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, PlacementDoc, QuizDoc, TrackMeta } from '@/lib/types'
+import { exercises, lessons, placements, solutions, tracks } from '#site/content'
+import type { Catalog, DesignDoc, EstimateDoc, EstimateUnit, ExerciseDoc, ExerciseMeta, FlashcardEntry, LessonMeta, PlacementDoc, ProblemDoc, QuizDoc, TrackMeta } from '@/lib/types'
 import { flashcardKey } from './review-keys'
+import { solutionSteps } from './solution-sections'
 
 export interface TocEntry {
   title: string
@@ -38,6 +39,7 @@ function toLessonMeta(l: LessonMeta): LessonMeta {
 
 // The Velite output, before the validator-only `path` is dropped (prepare deletes it from the emitted data).
 type RawExercise = (typeof exercises)[number]
+const solutionBySlug = new Map(solutions.map((x) => [x.problem, x]))
 
 function toExerciseMeta(e: RawExercise): ExerciseMeta {
   const base = { slug: e.slug, title: e.title, lessons: e.lessons, ladderOrder: e.ladderOrder }
@@ -46,6 +48,7 @@ function toExerciseMeta(e: RawExercise): ExerciseMeta {
       return {
         ...base, type: e.type, leetcodeId: e.leetcodeId, url: e.url, difficulty: e.difficulty,
         recognitionPrompt: e.recognitionPrompt, hint: e.hint,
+        ...(solutionBySlug.has(e.slug) ? { hook: solutionBySlug.get(e.slug)!.hook } : {}),
       }
     case 'quiz':
       return { ...base, type: e.type, questionCount: e.questions.length, flashcardIds: e.flashcards.map((f) => f.id) }
@@ -92,8 +95,11 @@ export function getExerciseDoc(slug: string): ExerciseDoc | undefined {
   if (!e) return undefined
   const meta = toExerciseMeta(e)
   switch (e.type) {
-    case 'external-problem':
-      return meta as ExerciseDoc
+    case 'external-problem': {
+      const sol = solutionBySlug.get(e.slug)
+      if (!sol) return meta as ProblemDoc
+      return { ...(meta as ProblemDoc), solution: { hook: sol.hook, steps: solutionSteps(sol.toc, sol.path), body: sol.body } }
+    }
     case 'quiz':
       return { ...(meta as QuizDoc), questions: e.questions, flashcards: e.flashcards }
     case 'design-prompt': {

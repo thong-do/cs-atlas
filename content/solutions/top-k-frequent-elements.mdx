@@ -1,0 +1,138 @@
+---
+problem: top-k-frequent-elements
+hook: "Shelve each value by its count; read the shelves top-down."
+entry: topKFrequent
+harness: function
+compare: unordered
+cases:
+  - args: [[5, 7, 5, 9, 7, 5], 2]
+    expect: [5, 7]
+  - args: [[4], 1]
+    expect: [4]
+  - args: [[-1, -1, 2, 2, 2, 3], 2]
+    expect: [2, -1]
+  - args: [[1, 2], 2]
+    expect: [1, 2]
+  - args: [[0, 0, 0, 8, 8, 9, 9, 9, 9], 1]
+    expect: [9]
+  - args: [[6, 6, 6, 6, 6], 1]
+    expect: [6]
+# Brute force passes large (check-solutions.py prints a WARN): its sort runs at C speed, and on 3M distinct
+# values it is as fast as the heap and the buckets in CPython. No input separates them; large still catches a
+# quadratic Better or Optimal.
+large:
+  args: "[list(range(50000)) + [7] * 3 + [11] * 2, 2]"
+  expect: [7, 11]
+---
+
+## Intuition
+
+Think of counting votes after an election. First you tally how many votes each value got. Then, rather than ranking every value against every other, you set up shelves numbered 1 to n, one for each possible vote count, and put each value on the shelf for its count. To find the k most popular values, start at the top shelf and pick values off the shelves on the way down until you have k.
+
+## Brute force
+
+Count each value, sort the values by their counts, and keep the first `k`.
+
+1. Count how often each value appears, in a map `count`.
+2. Sort the distinct values by `count`, highest first, into `by_count`.
+3. Return the first `k` values of `by_count`.
+
+```python
+class Solution:
+    def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+        count = {}
+        for x in nums:
+            count[x] = count.get(x, 0) + 1
+        by_count = sorted(count, key=lambda x: count[x], reverse=True)
+        return by_count[:k]
+```
+
+Trace for `nums = [5, 7, 5, 9, 7, 5]`, `k = 2`, after counting:
+
+| x | count[x] | position in by_count |
+|---|---|---|
+| 5 | 3 | 0 |
+| 7 | 2 | 1 |
+| 9 | 1 | 2 |
+
+The first two positions give `[5, 7]`.
+
+**Complexity:** O(n + d log d) time for n values with d distinct ones: one counting pass, then a sort of the d values. That is O(n log n) when most values are distinct. O(n) extra space for `count` and `by_count`.
+
+**What's wasted:** the sort puts all d values in order, including the order among the values that won't be returned. We only need to know which k are on top.
+
+## Better
+
+Keep only the best `k` so far in a min-heap, so the weakest of them is always on top and easy to drop.
+
+1. Count how often each value appears, in a map `count`.
+2. Push each pair `(f, x)` of count and value onto a min-heap, `heap`.
+3. Whenever `heap` holds more than `k` pairs, pop the smallest count.
+4. Return the values left in `heap`.
+
+```python
+class Solution:
+    def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+        count = {}
+        for x in nums:
+            count[x] = count.get(x, 0) + 1
+        heap = []                     # min-heap of (count, value), never more than k + 1 pairs
+        for x, f in count.items():
+            heappush(heap, (f, x))
+            if len(heap) > k:
+                heappop(heap)         # drop the least frequent of the k + 1
+        return [x for f, x in heap]
+```
+
+Trace for `nums = [5, 7, 5, 9, 7, 5]`, `k = 2`, so `count = {5: 3, 7: 2, 9: 1}`:
+
+| x | f | heap afterwards |
+|---|---|---|
+| 5 | 3 | `[(3, 5)]` |
+| 7 | 2 | `[(2, 7), (3, 5)]` |
+| 9 | 1 | pushed, then popped: `[(2, 7), (3, 5)]` |
+
+The answer is the values in `heap`, `[7, 5]`.
+
+**Complexity:** O(n + d log k) time: one counting pass, then d pushes and pops on a heap of at most k + 1 pairs. O(n) extra space for `count`, plus O(k) for `heap`.
+
+**What's wasted:** the heap compares counts with each other at O(log k) a time, which is what you need when counts could be any size. Here a count is a whole number from 1 to n, so it can serve directly as a shelf number, with no comparisons at all.
+
+## Optimal
+
+Put each value on a shelf numbered by its count, then read the shelves from the highest count down until `k` values are picked (bucket sort).
+
+1. Count how often each value appears, in a map `count`.
+2. Put each value `x` on the shelf `buckets[f]`, where `f` is its count.
+3. Walk `f` down from n to 1, adding the values on each shelf to `result`.
+4. Stop as soon as `result` holds `k` values.
+
+```python
+class Solution:
+    def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+        count = {}
+        for x in nums:
+            count[x] = count.get(x, 0) + 1
+        buckets = [[] for _ in range(len(nums) + 1)]   # buckets[f] = values that appear f times
+        for x, f in count.items():
+            buckets[f].append(x)
+        result = []
+        for f in range(len(nums), 0, -1):             # highest count first
+            for x in buckets[f]:
+                result.append(x)
+                if len(result) == k:
+                    return result
+        return result
+```
+
+Trace for `nums = [5, 7, 5, 9, 7, 5]`, `k = 2`, so the shelves are `buckets[3] = [5]`, `buckets[2] = [7]`, `buckets[1] = [9]`:
+
+| f | buckets[f] | result afterwards |
+|---|---|---|
+| 6 | `[]` | `[]` |
+| 5 | `[]` | `[]` |
+| 4 | `[]` | `[]` |
+| 3 | `[5]` | `[5]` |
+| 2 | `[7]` | `[5, 7]`, which holds k values: return |
+
+**Complexity:** O(n) time: counting is one pass, filling the shelves touches each distinct value once, and the walk visits at most n shelves and picks k values. O(n) extra space for `count` and `buckets`.

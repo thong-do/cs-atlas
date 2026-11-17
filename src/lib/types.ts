@@ -1,3 +1,5 @@
+import type { SolutionSectionStep } from '@/lib/content/solution-sections'
+
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export type SolveRating = 'alone' | 'hint' | 'solution'
 export type ReviewRating = 'again' | 'hard' | 'good' | 'easy'
@@ -17,7 +19,12 @@ interface ExerciseBase {
 }
 export interface ProblemExercise extends ExerciseBase {
   type: 'external-problem'; leetcodeId: number; url: string; difficulty: Difficulty; recognitionPrompt: string; hint: string
+  /** One memorable line from the solution file; absent without one. */
+  hook?: string
 }
+export type SolutionStep = 'hint' | SolutionSectionStep
+/** The exercise page's problem, with its solution (server only: the body never enters the catalog). */
+export interface ProblemDoc extends ProblemExercise { solution?: { hook: string; steps: SolutionSectionStep[]; body: string } }
 export interface QuizExercise extends ExerciseBase { type: 'quiz'; questionCount: number; flashcardIds: string[] }
 export type PromptKind = 'design' | 'diagnose'
 export interface DesignExercise extends ExerciseBase { type: 'design-prompt'; kind: PromptKind; rubric: string[] } // rubric point texts, for Today's reveal
@@ -33,7 +40,7 @@ export interface PlacementDoc { track: string; questions: PlacementQuestion[] }
 export interface Placement { passedModules: string[]; takenAt: string }
 export interface DesignDoc extends Omit<DesignExercise, 'rubric'> { prompt: string; rubricPoints: RubricPoint[]; rubric: string[]; reference: string; hint?: string }
 export interface EstimateDoc extends EstimateExercise { scenario: string; steps: EstimateStep[]; takeaway: string }
-export type ExerciseDoc = ProblemExercise | QuizDoc | DesignDoc | EstimateDoc
+export type ExerciseDoc = ProblemDoc | QuizDoc | DesignDoc | EstimateDoc
 export interface FlashcardEntry { front: string; back: string; quiz: string; lesson: string }
 export interface Catalog { tracks: TrackMeta[]; lessons: LessonMeta[]; exercises: ExerciseMeta[]; flashcards: Record<string, FlashcardEntry> }
 export const isProblem = (e: ExerciseMeta | ExerciseDoc): e is ProblemExercise => e.type === 'external-problem'

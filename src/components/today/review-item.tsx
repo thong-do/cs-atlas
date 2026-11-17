@@ -40,6 +40,7 @@ export function ReviewItem({
             {exercise.lessons.map((s) => <Badge key={s} variant="secondary">{lessonBySlug.get(s)?.title ?? s}</Badge>)}
           </div>
           <blockquote className="border-l-4 border-primary pl-3">{insight || 'No insight saved.'}</blockquote>
+          {exercise.hook && <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Remember it:</span> {exercise.hook}</p>}
           <RatingButtons onRate={onRate} />
           <p className="text-xs text-muted-foreground">Again = forgot it (you’ll be asked to re-solve on LeetCode).</p>
         </>

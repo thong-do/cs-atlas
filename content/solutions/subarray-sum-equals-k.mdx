@@ -1,0 +1,98 @@
+---
+problem: subarray-sum-equals-k
+hook: "Bank balance trick: count earlier balances equal to now minus k."
+entry: subarraySum
+harness: function
+cases:
+  - args: [[1, -1, 1], 1]
+    expect: 3
+  - args: [[1], 0]
+    expect: 0
+  - args: [[4], 4]
+    expect: 1
+  - args: [[0, 0, 0], 0]
+    expect: 6
+  - args: [[3, 4, -7, 7], 7]
+    expect: 3
+  - args: [[-2, -3, 5, -5], -5]
+    expect: 3
+large:
+  args: "[[1, -1] * 50000, 0]"
+  expect: 2500000000
+---
+
+## Intuition
+
+Think of each number as money paid into a bank account (negative numbers are withdrawals), and the running total as the balance. The money that came in over any stretch is the later balance minus the earlier one. So a stretch of the list sums to k exactly when the balance now, minus k, equals some earlier balance. Withdrawals can bring the balance back to a level it had before, so the same balance can occur several times, and each occurrence marks a different stretch. Count how many times each balance has occurred, starting with 0 before the first number, and at each step add the count for "now minus k".
+
+## Brute force
+
+Try every start position, extend the slice one value at a time, and count each slice whose running total equals `k`.
+
+1. For each start `i`, set `total` to 0.
+2. Extend the end `j` from `i` to the last index, adding `nums[j]` to `total`.
+3. Each time `total` equals `k`, add one to `count`.
+
+```python
+class Solution:
+    def subarraySum(self, nums: List[int], k: int) -> int:
+        count = 0
+        n = len(nums)
+        for i in range(n):
+            total = 0
+            for j in range(i, n):
+                total += nums[j]          # total is now the sum of nums[i .. j]
+                if total == k:
+                    count += 1
+        return count
+```
+
+Trace for `nums = [1, -1, 1]`, `k = 1`:
+
+| i | j | total | equals 1? | count |
+|---|---|---|---|---|
+| 0 | 0 | 1 | yes | 1 |
+| 0 | 1 | 0 | no | 1 |
+| 0 | 2 | 1 | yes | 2 |
+| 1 | 1 | -1 | no | 2 |
+| 1 | 2 | 0 | no | 2 |
+| 2 | 2 | 1 | yes | 3 |
+
+**Complexity:** O(n²) time: all n(n + 1)/2 slices are summed, each in O(1) by extending the previous one. O(1) extra space.
+
+**What's wasted:** every start `i` re-adds the same values from scratch, when the sum of any slice is just the difference of two running totals from the start of the list. With the earlier totals remembered in a map, each end position can count all its matching starts in one lookup.
+
+## Optimal
+
+Keep one running total, `prefix`, and a map, `seen`, counting how often each running total has occurred; each new position adds the number of earlier totals equal to `prefix - k`.
+
+1. Start with `prefix` at 0 and `seen` holding the total 0 once, for the empty start.
+2. For each value `x`, add it to `prefix`.
+3. Add the number of earlier totals equal to `prefix - k` to `count`.
+4. Record `prefix` in `seen`.
+
+```python
+class Solution:
+    def subarraySum(self, nums: List[int], k: int) -> int:
+        count = 0
+        prefix = 0
+        seen = {0: 1}                     # running total -> how often it has occurred
+        for x in nums:
+            prefix += x
+            count += seen.get(prefix - k, 0)
+            seen[prefix] = seen.get(prefix, 0) + 1
+        return count
+```
+
+Trace for `nums = [1, -1, 1]`, `k = 1`:
+
+| x | prefix | prefix - k | seen[prefix - k] | count | seen afterwards |
+|---|---|---|---|---|---|
+| (start) | 0 | | | 0 | `{0: 1}` |
+| 1 | 1 | 0 | 1 | 1 | `{0: 1, 1: 1}` |
+| -1 | 0 | -1 | 0 | 1 | `{0: 2, 1: 1}` |
+| 1 | 1 | 0 | 2 | 3 | `{0: 2, 1: 2}` |
+
+On the last row the total 0 has occurred twice, before the list and after `[1, -1]`, so one lookup counts two slices ending here: `[1, -1, 1]` and `[1]`. A sliding window can't do this, because with negative numbers a longer slice can have a smaller sum.
+
+**Complexity:** O(n) time on average: one map lookup and one update per value. O(n) extra space for `seen`, which can hold n + 1 different totals.

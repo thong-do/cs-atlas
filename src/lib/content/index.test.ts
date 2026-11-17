@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { DesignDoc, DesignExercise, EstimateDoc, QuizDoc, QuizExercise } from '@/lib/types'
+import type { DesignDoc, DesignExercise, EstimateDoc, ProblemDoc, QuizDoc, QuizExercise } from '@/lib/types'
 import { isProblem } from '@/lib/types'
 import { formatAmount } from '@/lib/logic/estimate'
 import { getCatalog, getExercise, getExerciseDoc, getLessonDoc, getPlacement, placementTracks } from './index'
@@ -65,6 +65,29 @@ describe('content accessors', () => {
     expect(getExerciseDoc('missing')).toBeUndefined()
     expect(getExercise('two-sum')?.type).toBe('external-problem')
     expect(getExercise('missing')).toBeUndefined()
+  })
+})
+
+describe('solutions', () => {
+  it('puts the hook in the catalog only for problems with a solution file', () => {
+    const { exercises } = getCatalog()
+    const twoSum = exercises.find((e) => e.slug === 'two-sum')
+    expect(twoSum && isProblem(twoSum) && twoSum.hook).toBeTruthy()
+    expect(exercises.find((e) => e.slug === '3sum')).not.toHaveProperty('hook')
+  })
+
+  it('attaches the steps and body to the exercise doc', () => {
+    const doc = getExerciseDoc('two-sum') as ProblemDoc
+    expect(doc.solution?.steps).toEqual(['intuition', 'brute-force', 'optimal'])
+    expect(doc.solution?.body.length).toBeGreaterThan(0)
+    expect((getExerciseDoc('contains-duplicate') as ProblemDoc).solution?.steps).toEqual(['intuition', 'brute-force', 'better', 'optimal'])
+    expect((getExerciseDoc('3sum') as ProblemDoc).solution).toBeUndefined()
+  })
+
+  it('keeps solution text out of the catalog', () => {
+    const json = JSON.stringify(getCatalog())
+    expect(json).not.toContain('you keep a notebook of every number you have seen')
+    expect(json).not.toContain('data-step')
   })
 })
 

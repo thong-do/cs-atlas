@@ -1,0 +1,158 @@
+---
+problem: valid-sudoku
+hook: "Each digit checks in at three desks: row, column, box."
+entry: isValidSudoku
+harness: function
+cases:
+  - args:
+      - - ["5", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", "3", ".", ".", ".", "."]
+        - [".", ".", "5", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+    expect: false
+  - args:
+      - - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - ["4", "5", ".", ".", "8", ".", "1", "2", "."]
+        - [".", ".", ".", ".", ".", "3", ".", ".", "."]
+        - [".", "3", ".", ".", "6", "7", "8", "9", "1"]
+        - [".", "6", "7", ".", "9", ".", "2", ".", "."]
+        - ["8", ".", ".", ".", ".", "4", "5", "6", "."]
+        - [".", ".", ".", "6", "7", "8", ".", ".", "2"]
+        - [".", "7", ".", "9", "1", ".", "3", ".", "."]
+        - [".", "1", ".", ".", ".", ".", "6", ".", "."]
+    expect: true
+  - args:
+      - - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - ["4", "5", ".", ".", "8", ".", "1", "2", "."]
+        - ["3", ".", ".", ".", ".", "3", ".", ".", "."]
+        - [".", "3", ".", ".", "6", "7", "8", "9", "1"]
+        - [".", "6", "7", ".", "9", ".", "2", ".", "."]
+        - ["8", ".", ".", ".", ".", "4", "5", "6", "."]
+        - [".", ".", ".", "6", "7", "8", ".", ".", "2"]
+        - [".", "7", ".", "9", "1", ".", "3", ".", "."]
+        - [".", "1", ".", ".", ".", ".", "6", ".", "."]
+    expect: false
+  - args:
+      - - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - ["4", "5", ".", ".", "8", ".", "1", "2", "."]
+        - [".", ".", ".", ".", ".", "3", ".", ".", "."]
+        - [".", "3", ".", ".", "6", "7", "8", "9", "1"]
+        - [".", "6", "7", ".", "9", ".", "2", ".", "."]
+        - ["8", ".", ".", ".", ".", "4", "5", "6", "."]
+        - [".", ".", ".", "6", "7", "8", ".", ".", "2"]
+        - ["4", "7", ".", "9", "1", ".", "3", ".", "."]
+        - [".", "1", ".", ".", ".", ".", "6", ".", "."]
+    expect: false
+  - args:
+      - - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - ["4", "5", ".", ".", "8", ".", "1", "2", "."]
+        - [".", ".", ".", ".", ".", "3", ".", ".", "."]
+        - [".", "3", ".", ".", "6", "7", "8", "9", "1"]
+        - [".", "6", "7", ".", "9", ".", "2", ".", "."]
+        - ["8", ".", "3", ".", ".", "4", "5", "6", "."]
+        - [".", ".", ".", "6", "7", "8", ".", ".", "2"]
+        - [".", "7", ".", "9", "1", ".", "3", ".", "."]
+        - [".", "1", ".", ".", ".", ".", "6", ".", "."]
+    expect: false
+  - args:
+      - - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+        - [".", ".", ".", ".", ".", ".", ".", ".", "."]
+    expect: true
+---
+
+## Intuition
+
+You are a referee checking a half-filled puzzle, not solving it. Every digit belongs to three groups at once: its row, its column and its 3×3 box. Picture a check-in desk for each of the 27 groups, each with a list of the digits already checked in. Walk the grid once and send each digit to its three desks; if any desk already has that digit on its list, the grid breaks a rule.
+
+## Brute force
+
+For each filled cell, scan its row, its column and its box for another copy of the same digit.
+
+1. For each filled cell at row `r`, column `c`, read its digit `d`.
+2. Scan the rest of row `r` and column `c` for another `d`.
+3. Scan the rest of its 3×3 box, whose top-left corner is `(br, bc)`, for another `d`.
+4. If no scan ever finds a copy, the grid is valid.
+
+```python
+class Solution:
+    def isValidSudoku(self, board: List[List[str]]) -> bool:
+        for r in range(9):
+            for c in range(9):
+                d = board[r][c]
+                if d == ".":
+                    continue
+                for i in range(9):
+                    if i != c and board[r][i] == d:      # same row
+                        return False
+                    if i != r and board[i][c] == d:      # same column
+                        return False
+                br, bc = 3 * (r // 3), 3 * (c // 3)      # top-left cell of the box
+                for i in range(br, br + 3):
+                    for j in range(bc, bc + 3):
+                        if (i, j) != (r, c) and board[i][j] == d:
+                            return False
+        return True
+```
+
+Trace for a grid whose only filled cells are a 5 at (0, 0), a 3 at (1, 4) and a 5 at (2, 2):
+
+| r | c | d | another d in row? | in column? | in box? |
+|---|---|---|---|---|---|
+| 0 | 0 | 5 | no | no | yes, at (2, 2): return `False` |
+
+**Complexity:** O(1) time for the fixed 9×9 grid: at most 81 cells, each comparing itself with the 8 other cells of its row, the 8 of its column and the 8 of its box. On an n × n grid the same idea is O(n³). O(1) extra space.
+
+**What's wasted:** each row, column and box is rescanned once for every filled cell in it, so the same digits are read again and again. Remembering which digits each group has already seen means every cell is checked only once.
+
+## Optimal
+
+Walk the grid once, keeping a set of seen digits for every row, column and box, and fail on the first digit a set already holds.
+
+1. Keep maps `rows`, `cols` and `boxes`, each from a group to the set of digits seen in it.
+2. For each filled cell `(r, c)` with digit `d`, its `box` is `(r // 3, c // 3)`.
+3. If `d` is already in its row's, column's or box's set, return `False`.
+4. Otherwise add `d` to all three sets; after the whole grid, return `True`.
+
+```python
+class Solution:
+    def isValidSudoku(self, board: List[List[str]]) -> bool:
+        rows = defaultdict(set)       # row number -> digits seen in that row
+        cols = defaultdict(set)       # column number -> digits seen in that column
+        boxes = defaultdict(set)      # (r // 3, c // 3) -> digits seen in that box
+        for r in range(9):
+            for c in range(9):
+                d = board[r][c]
+                if d == ".":
+                    continue
+                box = (r // 3, c // 3)
+                if d in rows[r] or d in cols[c] or d in boxes[box]:
+                    return False
+                rows[r].add(d)
+                cols[c].add(d)
+                boxes[box].add(d)
+        return True
+```
+
+Trace for the same grid: a 5 at (0, 0), a 3 at (1, 4) and a 5 at (2, 2). Only filled cells are shown:
+
+| r | c | d | box | already seen? | boxes[box] afterwards |
+|---|---|---|---|---|---|
+| 0 | 0 | 5 | (0, 0) | no | `{'5'}` |
+| 1 | 4 | 3 | (0, 1) | no | `{'3'}` |
+| 2 | 2 | 5 | (0, 0) | yes, in `boxes[(0, 0)]`: return `False` | |
+
+The two 5s share no row and no column, so only the box desk catches them.
+
+**Complexity:** O(1) time and space for the fixed 9×9 grid: each of the 81 cells costs three average-O(1) set lookups and three inserts, and the sets hold at most 3 × 81 digits. On an n × n grid that is O(n²) time and O(n²) space.
